@@ -1,10 +1,10 @@
 # CONTEXTO DE PROYECTO: jg_dashboard
 
-**Versión del documento:** 3.7.0  
+**Versión del documento:** 3.8.0  
 **Fecha de consolidación:** 5 de septiembre de 2026  
 **Componente:** Control Plane (Plano de Control, Gestión, Gobernanza y HITL)  
 **Stack Tecnológico:** Laravel 11, Filament PHP v3, Livewire 3, Tailwind CSS, PostgreSQL, Pest PHP  
-**Estado:** Fases 01, 02, 03, 04 y 05 completadas al 100%. Fase 05 culminada con ISSUE-F05-T03 (Endpoint de listado y estado de salud GET /api/v1/agents con paginación, filtros por estado, búsqueda, métricas agregadas y detalle por agente sin exposición de secretos). 127 tests pasando en Pest.  
+**Estado:** Fases 01, 02, 03, 04 y 05 completadas al 100%. Fase 06 iniciada con ISSUE-F06-T01 (`AgentHttpClient` interno con firmado HMAC-SHA256, timeouts, reintentos con backoff exponencial y resiliencia de red). 139 tests pasando en Pest.  
 
 ---
 
@@ -107,12 +107,15 @@ El registro de nuevos agentes sigue un protocolo de cuatro pasos a prueba de acc
 - `POST /api/v1/agents/heartbeat`: Recepción de estado de salud y métricas de agentes activos.
 - `POST /api/v1/agents/events`: Recepción de eventos asíncronos del ciclo de vida (`execution.started`, `execution.waiting_approval`, etc.).
 
-### 5.2 Endpoints Invocados por `jg_dashboard` hacia `jg_agente` (Proxy Interno)
-- `POST /executions/trigger`: Envía un `AgentInput` para disparar una ejecución.
+### 5.2 Endpoints Invocados por `jg_dashboard` hacia `jg_agente` (Proxy Interno `AgentHttpClient`)
+El cliente `App\Services\Agents\AgentHttpClient` canaliza la comunicación cifrada y firmada mediante HMAC-SHA256 con las instancias internas de `jg_agente`:
+- `GET /health` (o `GET /`): Verificación de disponibilidad y latencia de subsistemas.
+- `GET /capabilities`: Inspección de herramientas y plugins activos del agente.
+- `POST /executions/trigger`: Envía un payload formal `AgentInput` para disparar una ejecución cognitiva.
 - `GET /executions/{thread_id}`: Consulta estado detallado y traza de pasos de una ejecución.
 - `POST /executions/{thread_id}/approve`: Reanuda una ejecución detenida en el checkpoint HITL.
 - `POST /executions/{thread_id}/reject`: Cancela una ejecución detenida en HITL.
-- `GET /capabilities`: Obtiene el catálogo de herramientas y capacidades del agente.
+- `GET /metrics`: Inspección de métricas de telemetría y rendimiento.
 
 ---
 
