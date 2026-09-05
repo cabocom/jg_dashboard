@@ -1,6 +1,6 @@
 /**
  * jg_dashboard Control Plane - Web Console Client Logic (Vanilla JS)
- * Handles tab navigation, API calls, HITL resolutions and live polling.
+ * Handles tab navigation, agent telemetry, HITL resolutions and live polling.
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -12,6 +12,9 @@ document.addEventListener('DOMContentLoaded', () => {
       pendingApprovals: [],
       currentApprovalId: null,
       pollingInterval: null,
+      agentViewMode: 'cards', // 'cards' or 'table'
+      agentFilterStatus: 'ALL',
+      agentSearchQuery: '',
     },
 
     init() {
@@ -36,7 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (refreshBtn) {
         refreshBtn.addEventListener('click', () => {
           this.fetchInitialData();
-          this.showToast('Datos actualizados desde el Control Plane', 'info');
+          this.showToast('Datos sincronizados desde el Control Plane', 'info');
         });
       }
 
@@ -44,6 +47,60 @@ document.addEventListener('DOMContentLoaded', () => {
       document.querySelectorAll('.modal-close, [data-modal-dismiss]').forEach((el) => {
         el.addEventListener('click', () => this.closeAllModals());
       });
+
+      // Agent View Switcher (Cards vs Table)
+      document.querySelectorAll('.view-btn[data-view]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const mode = btn.getAttribute('data-view');
+          this.setAgentViewMode(mode);
+        });
+      });
+
+      // Agent Search Input
+      const searchInput = document.getElementById('agents-search');
+      if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+          this.state.agentSearchQuery = e.target.value.toLowerCase().trim();
+          this.renderFilteredAgents();
+        });
+      }
+
+      // Agent Status Filter
+      const filterSelect = document.getElementById('agents-filter-status');
+      if (filterSelect) {
+        filterSelect.addEventListener('change', (e) => {
+          this.state.agentFilterStatus = e.target.value.toUpperCase();
+          this.renderFilteredAgents();
+        });
+      }
+
+      // Open Create Agent Modal Button
+      const createAgentBtn = document.getElementById('btn-create-agent');
+      if (createAgentBtn) {
+        createAgentBtn.addEventListener('click', () => {
+          this.openCreateAgentModal();
+        });
+      }
+
+      // Form Create Agent Submit
+      const formCreateAgent = document.getElementById('form-create-agent');
+      if (formCreateAgent) {
+        formCreateAgent.addEventListener('submit', (e) => {
+          e.preventDefault();
+          this.submitCreateAgent();
+        });
+      }
+
+      // Copy Generated Token Button
+      const copyTokenBtn = document.getElementById('btn-copy-token');
+      if (copyTokenBtn) {
+        copyTokenBtn.addEventListener('click', () => {
+          const tokenVal = document.getElementById('created-token-value')?.textContent;
+          if (tokenVal) {
+            this.copyToClipboard(tokenVal, 'Bootstrap Token copiado al portapapeles');
+          }
+        });
+      }
 
       // Confirm Approve Form
       const formApprove = document.getElementById('form-confirm-approve');
@@ -73,15 +130,34 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     },
 
+    setAgentViewMode(mode) {
+      this.state.agentViewMode = mode;
+
+      document.querySelectorAll('.view-btn[data-view]').forEach((b) => {
+        b.classList.toggle('active', b.getAttribute('data-view') === mode);
+      });
+
+      const cardsContainer = document.getElementById('agents-cards-container');
+      const tableContainer = document.getElementById('agents-table-container');
+
+      if (cardsContainer && tableContainer) {
+        if (mode === 'cards') {
+          cardsContainer.style.display = 'grid';
+          tableContainer.style.display = 'none';
+        } else {
+          cardsContainer.style.display = 'none';
+          tableContainer.style.display = 'block';
+        }
+      }
+    },
+
     switchTab(tabName) {
       this.state.activeTab = tabName;
 
-      // Update Nav Links
       document.querySelectorAll('.nav-link[data-tab]').forEach((link) => {
         link.classList.toggle('active', link.getAttribute('data-tab') === tabName);
       });
 
-      // Update View Sections
       document.querySelectorAll('.view-section').forEach((section) => {
         section.classList.remove('active');
       });
@@ -91,7 +167,6 @@ document.addEventListener('DOMContentLoaded', () => {
         activeView.classList.add('active');
       }
 
-      // Update Page Title
       const pageTitleEl = document.getElementById('page-current-title');
       if (pageTitleEl) {
         const titles = {
@@ -125,9 +200,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         this.state.agents = data.data || [];
-        this.renderAgents(this.state.agents, data.summary);
+        this.renderAgentsKPI(data.summary);
+        this.renderFilteredAgents();
       } catch (err) {
-        console.warn('Fallo al obtener agentes (requiere auth o agente activo):', err.message);
+        console.warn('Fallo al obtener agentes:', err.message);
       }
     },
 
@@ -145,15 +221,31 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     },
 
-    renderAgents(agents, summary) {
-      // Render KPI Counters
-      if (summary) {
-        this.setTextContent('kpi-agents-total', summary.total ?? agents.length);
-        this.setTextContent('kpi-agents-active', summary.active ?? 0);
-        this.setTextContent('kpi-agents-offline', summary.offline ?? 0);
-      }
+    renderAgentsKPI(summary) {
+      if (!summary) return;
+      this.setTextContent('kpi-agents-total', summary.total ?? this.state.agents.length);
+      this.setTextContent('kpi-agents-active', summary.active ?? 0);
+      this.setTextContent('kpi-agents-offline', summary.offline ?? 0);
+    },
 
-      // Populate Agent Select in Trigger Form
+    renderFilteredAgents() {
+      const { agents, agentSearchQuery, agentFilterStatus } = this.state;
+
+      const filtered = agents.filter((agent) => {
+        // Status filter
+        if (agentFilterStatus !== 'ALL' && agent.status !== agentFilterStatus) {
+          return false;
+        }
+        // Search query filter
+        if (agentSearchQuery) {
+          const name = (agent.name || '').toLowerCase();
+          const id = (agent.agent_id || '').toLowerCase();
+          return name.includes(agentSearchQuery) || id.includes(agentSearchQuery);
+        }
+        return true;
+      });
+
+      // Populate Select in Trigger Form
       const selectAgent = document.getElementById('trigger-agent-id');
       if (selectAgent) {
         selectAgent.innerHTML = '';
@@ -166,12 +258,109 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       }
 
-      // Render Agents Table
+      this.renderAgentsCards(filtered);
+      this.renderAgentsTable(filtered);
+    },
+
+    renderAgentsCards(agents) {
+      const container = document.getElementById('agents-cards-container');
+      if (!container) return;
+
+      if (agents.length === 0) {
+        container.innerHTML = `
+          <div class="panel" style="grid-column: 1 / -1; padding: 48px; text-align: center;">
+            <div style="font-size: 36px; margin-bottom: 12px;">🔍</div>
+            <div style="font-size: 16px; font-weight: 600; color: var(--text-primary);">No se encontraron agentes</div>
+            <div style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Ajusta los filtros de búsqueda o registra un nuevo agente.</div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = agents
+        .map((agent) => {
+          const statusClass =
+            agent.status === 'ACTIVE'
+              ? 'status-active'
+              : agent.status === 'PENDING'
+              ? 'status-pending'
+              : 'status-offline';
+
+          const badgeClass =
+            agent.status === 'ACTIVE'
+              ? 'badge-active'
+              : agent.status === 'PENDING'
+              ? 'badge-pending'
+              : 'badge-offline';
+
+          const metrics = agent.metrics || {};
+          const cpuUsage = metrics.cpu_percent ? `${metrics.cpu_percent}%` : 'N/A';
+          const memUsage = metrics.memory_percent ? `${metrics.memory_percent}%` : 'N/A';
+          const latency = metrics.latency_ms ? `${metrics.latency_ms}ms` : '<10ms';
+
+          const capabilities = agent.capabilities || {};
+          const toolsCount = capabilities.tools ? Object.keys(capabilities.tools).length : 0;
+          const enginesCount = capabilities.engines ? Object.keys(capabilities.engines).length : 0;
+
+          return `
+            <div class="agent-card ${statusClass}">
+              <div class="agent-card-header">
+                <div>
+                  <div class="agent-card-title">${this.escapeHtml(agent.name)}</div>
+                  <div class="agent-card-id" title="Copiar ID" onclick="window.ConsoleApp.copyToClipboard('${this.escapeHtml(agent.agent_id)}', 'ID de agente copiado')">
+                    📋 ${this.escapeHtml(agent.agent_id)}
+                  </div>
+                </div>
+                <span class="badge ${badgeClass}">
+                  <span class="status-dot ${agent.status === 'ACTIVE' ? 'pulse' : ''}" style="width: 6px; height: 6px;"></span>
+                  ${agent.status}
+                </span>
+              </div>
+
+              <div class="agent-telemetry-row">
+                <div class="telemetry-item">
+                  <span class="telemetry-label">CPU</span>
+                  <span class="telemetry-value">${cpuUsage}</span>
+                </div>
+                <div class="telemetry-item">
+                  <span class="telemetry-label">RAM</span>
+                  <span class="telemetry-value">${memUsage}</span>
+                </div>
+                <div class="telemetry-item">
+                  <span class="telemetry-label">Latencia</span>
+                  <span class="telemetry-value" style="color: var(--accent-cyan);">${latency}</span>
+                </div>
+              </div>
+
+              <div style="display: flex; gap: 8px; font-size: 11px; color: var(--text-secondary);">
+                <span>🛠️ ${toolsCount} Herramientas</span>
+                <span>•</span>
+                <span>🧠 ${enginesCount} Engines</span>
+                <span>•</span>
+                <span>v${agent.version || '1.0.0'}</span>
+              </div>
+
+              <div class="agent-card-footer">
+                <div class="agent-heartbeat-text">
+                  <span>${agent.is_healthy ? '🟢 En línea' : '⚪ Desconectado'}</span>
+                  <span>(${agent.last_heartbeat_at ? new Date(agent.last_heartbeat_at).toLocaleTimeString() : 'Sin reporte'})</span>
+                </div>
+                <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 11px;" onclick="window.ConsoleApp.inspectCapabilities('${this.escapeHtml(agent.agent_id)}')">
+                  Capacidades
+                </button>
+              </div>
+            </div>
+          `;
+        })
+        .join('');
+    },
+
+    renderAgentsTable(agents) {
       const tbody = document.getElementById('agents-table-body');
       if (!tbody) return;
 
       if (agents.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 32px;">No hay agentes registrados en este momento.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 32px;">No se encontraron agentes con los filtros actuales.</td></tr>`;
         return;
       }
 
@@ -183,11 +372,14 @@ document.addEventListener('DOMContentLoaded', () => {
               : agent.status === 'PENDING'
               ? 'badge-pending'
               : 'badge-offline';
+
           return `
             <tr>
               <td>
                 <div style="font-weight: 600; color: var(--text-primary);">${this.escapeHtml(agent.name)}</div>
-                <div style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);">${this.escapeHtml(agent.agent_id)}</div>
+                <div style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); cursor: pointer;" onclick="window.ConsoleApp.copyToClipboard('${this.escapeHtml(agent.agent_id)}', 'ID de agente copiado')">
+                  📋 ${this.escapeHtml(agent.agent_id)}
+                </div>
               </td>
               <td><span class="badge ${badgeClass}">${agent.status}</span></td>
               <td>${agent.version || '1.0.0'}</td>
@@ -198,7 +390,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </span>
               </td>
               <td>
-                <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 11px;" onclick="window.ConsoleApp.inspectCapabilities('${agent.agent_id}')">
+                <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 11px;" onclick="window.ConsoleApp.inspectCapabilities('${this.escapeHtml(agent.agent_id)}')">
                   Capacidades
                 </button>
               </td>
@@ -209,7 +401,6 @@ document.addEventListener('DOMContentLoaded', () => {
     },
 
     renderApprovals(approvals, summary) {
-      // Update badge counter
       const counterEl = document.getElementById('counter-hitl-pending');
       if (counterEl) {
         counterEl.textContent = approvals.length;
@@ -276,6 +467,62 @@ document.addEventListener('DOMContentLoaded', () => {
           `;
         })
         .join('');
+    },
+
+    openCreateAgentModal() {
+      const nameInput = document.getElementById('create-agent-name');
+      if (nameInput) nameInput.value = '';
+      const versionInput = document.getElementById('create-agent-version');
+      if (versionInput) versionInput.value = '1.0.0';
+
+      const resultBox = document.getElementById('create-agent-result-box');
+      if (resultBox) resultBox.style.display = 'none';
+
+      const form = document.getElementById('form-create-agent');
+      if (form) form.style.display = 'flex';
+
+      const modal = document.getElementById('modal-create-agent');
+      if (modal) modal.classList.add('open');
+    },
+
+    async submitCreateAgent() {
+      const name = document.getElementById('create-agent-name')?.value?.trim();
+      const version = document.getElementById('create-agent-version')?.value?.trim() || '1.0.0';
+
+      if (!name) {
+        this.showToast('El nombre del agente es obligatorio', 'error');
+        return;
+      }
+
+      try {
+        const res = await fetch('/console/agents', {
+          method: 'POST',
+          headers: {
+            ...this.getAuthHeaders(),
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ name, version, ttl_hours: 24 }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Error al aprovisionar agente');
+
+        // Show generated token box
+        const form = document.getElementById('form-create-agent');
+        if (form) form.style.display = 'none';
+
+        const resultBox = document.getElementById('create-agent-result-box');
+        if (resultBox) {
+          resultBox.style.display = 'flex';
+          this.setTextContent('created-agent-id', data.agent_id);
+          this.setTextContent('created-token-value', data.bootstrap_token);
+        }
+
+        this.showToast(`Agente [${data.name}] aprovisionado exitosamente`, 'success');
+        this.fetchAgents();
+      } catch (err) {
+        this.showToast(`Error: ${err.message}`, 'error');
+      }
     },
 
     openApproveModal(id, threadId) {
@@ -398,6 +645,23 @@ document.addEventListener('DOMContentLoaded', () => {
         alert(`Capacidades del agente [${agentId}]:\n` + JSON.stringify(data.capabilities || data, null, 2));
       } catch (err) {
         this.showToast('Error al inspeccionar capacidades del agente', 'error');
+      }
+    },
+
+    copyToClipboard(text, successMsg = 'Copiado al portapapeles') {
+      if (!text) return;
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(() => {
+          this.showToast(successMsg, 'success');
+        });
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        this.showToast(successMsg, 'success');
       }
     },
 

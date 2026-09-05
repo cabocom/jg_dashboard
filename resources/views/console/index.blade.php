@@ -116,8 +116,52 @@
             </div>
           </div>
 
-          <!-- Agents Catalog Panel -->
-          <div class="panel">
+          <!-- Agents Toolbar: Search, Filters, View Switcher & Provisioning Button -->
+          <div class="agents-toolbar">
+            <div class="agents-search-filter">
+              <div class="search-input-wrapper">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input type="text" id="agents-search" class="form-control" placeholder="Buscar por nombre o ID de agente...">
+              </div>
+              <select id="agents-filter-status" class="form-control" style="width: auto; min-width: 160px;">
+                <option value="ALL">Todos los Estados</option>
+                <option value="ACTIVE">Activos</option>
+                <option value="OFFLINE">Desconectados</option>
+                <option value="PENDING">Pendientes</option>
+              </select>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div class="view-switcher-group">
+                <button type="button" class="view-btn active" data-view="cards" title="Vista en Tarjetas">
+                  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                  </svg>
+                  Tarjetas
+                </button>
+                <button type="button" class="view-btn" data-view="table" title="Vista en Tabla">
+                  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                  Tabla
+                </button>
+              </div>
+
+              <button type="button" id="btn-create-agent" class="btn btn-primary">
+                + Nuevo Agente
+              </button>
+            </div>
+          </div>
+
+          <!-- Agents Cards Container (Default View) -->
+          <div id="agents-cards-container" class="agents-cards-grid">
+            <!-- Cards rendered dynamically by console.js -->
+          </div>
+
+          <!-- Agents Table Container (Alternative View) -->
+          <div id="agents-table-container" class="panel table-container" style="display: none;">
             <div class="panel-header">
               <h3 class="panel-title">
                 <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -126,7 +170,7 @@
                 Inventario y Salud de Nodos Cognitivos
               </h3>
             </div>
-            <div class="panel-body table-container">
+            <div class="panel-body" style="padding: 0;">
               <table class="data-table">
                 <thead>
                   <tr>
@@ -293,6 +337,54 @@
           <button type="submit" class="btn btn-danger">Confirmar Rechazo</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Modal Create Agent (Provisioning & Bootstrap Token) -->
+  <div id="modal-create-agent" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>+ Aprovisionar Nuevo Agente</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <form id="form-create-agent">
+        <div class="modal-body">
+          <p style="font-size: 13px; color: var(--text-secondary);">
+            Registra un nuevo agente en el Control Plane. Se generará un <strong>Bootstrap Token</strong> de un solo uso válido por 24 horas.
+          </p>
+          <div class="form-group">
+            <label class="form-label" for="create-agent-name">Nombre del Agente <span style="color: var(--accent-rose);">*</span></label>
+            <input type="text" id="create-agent-name" class="form-control" required placeholder="Ej: Agente SRE Producción">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="create-agent-version">Versión Inicial</label>
+            <input type="text" id="create-agent-version" class="form-control" value="1.0.0" placeholder="1.0.0">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-modal-dismiss>Cancelar</button>
+          <button type="submit" class="btn btn-primary">Generar Bootstrap Token</button>
+        </div>
+      </form>
+
+      <!-- Result Box displayed after creation -->
+      <div id="create-agent-result-box" class="modal-body" style="display: none; flex-direction: column; gap: 16px;">
+        <div class="token-notice">
+          <span>⚠️</span> <strong>Guarda este Bootstrap Token ahora</strong>. No volverá a mostrarse en claro.
+        </div>
+        <div class="form-group">
+          <label class="form-label">ID del Agente Aprovisionado:</label>
+          <div id="created-agent-id" style="font-family: var(--font-mono); font-size: 13px; color: var(--accent-cyan);"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Bootstrap Token (TTL: 24h):</label>
+          <div id="created-token-value" class="token-value-display"></div>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px;">
+          <button type="button" id="btn-copy-token" class="btn btn-primary">📋 Copiar Token</button>
+          <button type="button" class="btn btn-secondary" data-modal-dismiss>Cerrar</button>
+        </div>
+      </div>
     </div>
   </div>
 
