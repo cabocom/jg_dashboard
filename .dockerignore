@@ -1,0 +1,13 @@
+vendor
+.env
+.env.*
+node_modules
+bootstrap/cache/*.php
+!bootstrap/cache/.gitkeep
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/logs/*
+.git
+.github
+.phpunit.result.cache

@@ -94,65 +94,58 @@ Es el **único componente del ecosistema expuesto hacia el exterior**. Actúa co
 
 ---
 
-## 5. Estructura Prevista del Repositorio
+## 5. Estructura del Repositorio
 
 ```text
 jg_dashboard/
-├── README.md
-├── PROJECT_CONTEXT.md
-├── ISSUES.csv
-├── pyproject.toml
-├── Dockerfile
+├── composer.json                   # Dependencias Laravel 11, Filament v3 y Pest
+├── composer.lock                   # Lockfile de dependencias PHP
+├── phpunit.xml                     # Configuración de pruebas Pest/PHPUnit
+├── Dockerfile                      # Contenedor PHP 8.3-FPM + Nginx
 ├── app/
-│   ├── main.py                     # Bootstrap FastAPI y ciclo de vida
-│   ├── config.py                   # Ajustes de entorno y seguridad
-│   ├── models/                     # Modelos SQLAlchemy y Pydantic
-│   │   ├── user.py                 # Usuarios y roles RBAC
-│   │   ├── agent.py                # Agentes registrados y estados
-│   │   ├── token.py                # Bootstrap tokens (TTL 24h)
-│   │   └── approval.py             # Historial de solicitudes HITL
-│   ├── auth/                       # Autenticación y control de accesos
-│   │   ├── jwt.py                  # Emisión y verificación de tokens JWT
-│   │   └── permissions.py          # Decoradores de permisos RBAC
-│   ├── services/                   # Lógica de negocio
-│   │   ├── agent_registry.py       # Generación de tokens y registro de agentes
-│   │   ├── heartbeat_monitor.py    # Recolección y chequeo de salud
-│   │   ├── hitl_service.py         # Orquestación de aprobaciones y rechazos
-│   │   └── agent_client.py         # Cliente HTTP hacia jg_agente (API interna)
-│   ├── adapters/                   # Normalización de estímulos externos
-│   │   └── base_adapter.py         # Conversión hacia AgentInput / AgentOutput
-│   ├── api/                        # Rutas HTTP
-│   │   ├── v1/
-│   │   │   ├── auth.py             # Login, logout y perfil
-│   │   │   ├── agents.py           # CRUD de agentes, /register y /heartbeat
-│   │   │   ├── approvals.py        # Listado, /approve y /reject
-│   │   │   └── executions.py       # Trigger normalizado de tareas
-│   └── ui/                         # Interfaz gráfica web (HTML/CSS/JS o SPA)
-│       ├── templates/
-│       └── static/
-└── tests/                          # Tests unitarios y de integración
-    ├── unit/
-    └── integration/
+│   ├── Filament/                   # Recursos y páginas del panel Filament
+│   │   ├── Pages/                  # Vistas personalizadas y mapa de topología
+│   │   ├── Resources/              # Recursos reactivos (AgentTaskResource, etc.)
+│   │   └── Widgets/                # Widgets de métricas y estados
+│   ├── Models/                     # Modelos Eloquent ORM (AgentTask, User, etc.)
+│   ├── Providers/                  # Service Providers (AppServiceProvider, etc.)
+│   └── Services/                   # Clientes de integración con el agente (DevOps60kApiClient / AgentClient)
+├── bootstrap/                      # Bootstrap de Laravel
+├── config/                         # Configuraciones (app, database, devops60k/agent)
+├── database/                       # Migraciones, factories y seeders
+├── docker/                         # Configuraciones y entrypoint Docker
+├── public/                         # Assets públicos y punto de entrada index.php
+├── resources/                      # Vistas Blade y recursos estáticos
+├── routes/                         # Rutas web y de consola
+├── scripts/
+│   └── check.sh                    # Script de verificación integral (Pest)
+└── tests/                          # Suite integral de pruebas (Unit + Feature)
+    ├── Feature/
+    └── Unit/
 ```
 
 ---
 
-## 6. Estado Actual del Proyecto
+## 6. Verificación de Calidad
 
-- **Fase actual:** Arquitectura de control plane consolidada y backlog de issues preparado.
-- **Implementación:** Pendiente de inicio formal mediante ejecución ordenada del backlog.
+Para ejecutar la suite de pruebas automatizadas (Pest PHP):
+
+```bash
+./scripts/check.sh
+# o directamente:
+./vendor/bin/pest
+```
 
 ---
 
-## 7. Roadmap de Alto Nivel
+## 7. Roadmap y Estado
 
-- [ ] **Fase 0:** Bootstrap, tooling, Docker y entorno de desarrollo.
-- [ ] **Fase 1:** Persistencia y modelos de base de datos PostgreSQL (`dashboard_*`).
-- [ ] **Fase 2:** Autenticación de usuarios y RBAC (Admin, Operator, Viewer).
-- [ ] **Fase 3:** Sistema de registro de agentes con `bootstrap_token` de 24h y credencial permanente.
-- [ ] **Fase 4:** Monitoreo de agentes y procesamiento de heartbeats periódicos.
-- [ ] **Fase 5:** Cliente HTTP proxy y orquestación de ejecuciones hacia `jg_agente`.
-- [ ] **Fase 6:** Consola y endpoints de aprobación Human-In-The-Loop (HITL).
-- [ ] **Fase 7:** Adaptador normalizador de entrada/salida (`AgentInput` / `AgentOutput`).
-- [ ] **Fase 8:** Interfaz gráfica web del Dashboard (visión de agentes, ejecuciones y HITL).
-- [ ] **Fase 9:** Integración end-to-end con `jg_agente` (Casos de Éxito A y B).
+- [x] **Fase 01:** Estructura base del repositorio jg_dashboard y configuración de entorno (Laravel 11, Filament v3, Livewire 3, Pest PHP).
+- [ ] **Fase 02:** Persistencia y modelos de base de datos PostgreSQL (`dashboard_*`).
+- [ ] **Fase 03:** Autenticación de usuarios y RBAC (Admin, Operator, Viewer).
+- [ ] **Fase 04:** Sistema de registro de agentes con `bootstrap_token` de 24h y credencial permanente.
+- [ ] **Fase 05:** Monitoreo de agentes y procesamiento de heartbeats periódicos.
+- [ ] **Fase 06:** Cliente HTTP proxy y orquestación de ejecuciones hacia `jg_agente`.
+- [ ] **Fase 07:** Consola y acciones de aprobación Human-In-The-Loop (HITL).
+- [ ] **Fase 08:** Adaptador normalizador de entrada/salida (`AgentInput` / `AgentOutput`).
+- [ ] **Fase 09:** Integración end-to-end con `jg_agente` (Casos de Éxito A y B).

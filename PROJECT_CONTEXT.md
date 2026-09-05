@@ -1,9 +1,10 @@
 # CONTEXTO DE PROYECTO: jg_dashboard
 
-**Versión del documento:** 1.0.0  
-**Fecha de consolidación:** 4 de septiembre de 2026  
+**Versión del documento:** 1.1.0  
+**Fecha de consolidación:** 5 de septiembre de 2026  
 **Componente:** Control Plane (Plano de Control, Gestión, Gobernanza y HITL)  
-**Estado:** Definición arquitectónica y backlog inicial consolidado  
+**Stack Tecnológico:** Laravel 11, Filament PHP v3, Livewire 3, Tailwind CSS, PostgreSQL, Pest PHP  
+**Estado:** Base de código Laravel 11 / Filament v3 inicializada y adaptada con 25 tests pasando en Pest  
 
 ---
 
