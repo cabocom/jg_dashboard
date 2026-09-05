@@ -126,3 +126,73 @@ test('regenerateBootstrapToken rejects active agents', function () {
 
     $this->service->regenerateBootstrapToken($agent);
 });
+
+test('consumeBootstrapTokenAndActivate activates agent, marks token consumed, and issues permanent secret', function () {
+    $created = $this->service->createAgent('Worker-Activation-Test', ttlHours: 24);
+    $plainToken = $created['bootstrap_token'];
+    $agentId = $created['agent_id'];
+
+    $result = $this->service->consumeBootstrapTokenAndActivate(
+        plainToken: $plainToken,
+        version: '2.1.0',
+        capabilities: ['telemetry:push', 'exec:isolated'],
+        metadata: ['datacenter' => 'dc-europe-1']
+    );
+
+    expect($result['agent_id'])->toBe($agentId)
+        ->and($result['status'])->toBe('ACTIVE')
+        ->and($result['permanent_secret'])->toStartWith('sec_')
+        ->and(strlen($result['permanent_secret']))->toBeGreaterThan(40);
+
+    // Verify Agent in DB is ACTIVE with permanent secret hash
+    $agent = Agent::find($agentId);
+    expect($agent->status)->toBe('ACTIVE')
+        ->and($agent->isActive())->toBeTrue()
+        ->and($agent->version)->toBe('2.1.0')
+        ->and($agent->capabilities_json)->toBe(['telemetry:push', 'exec:isolated'])
+        ->and($agent->metadata_json)->toBe(['datacenter' => 'dc-europe-1'])
+        ->and($agent->last_heartbeat_at)->not->toBeNull();
+
+    $expectedHash = hash('sha256', $result['permanent_secret']);
+    expect($agent->getRawOriginal('permanent_secret_hash'))->toBe($expectedHash);
+
+    // Verify token is now consumed
+    $tokenRecord = BootstrapToken::where('agent_id', $agentId)->first();
+    expect($tokenRecord->consumed)->toBeTrue()
+        ->and($tokenRecord->consumed_at)->not->toBeNull()
+        ->and($tokenRecord->isConsumed())->toBeTrue()
+        ->and($tokenRecord->isValid())->toBeFalse();
+
+    // Verify audit event
+    $audit = AuditEvent::where('agent_id', $agentId)
+        ->where('event_type', 'AGENT_ACTIVATED')
+        ->first();
+    expect($audit)->not->toBeNull();
+});
+
+test('consumeBootstrapTokenAndActivate rejects invalid or not found token', function () {
+    $this->expectException(RuntimeException::class);
+    $this->expectExceptionMessage('Bootstrap token no válido o inexistente.');
+
+    $this->service->consumeBootstrapTokenAndActivate('invalid-token-12345');
+});
+
+test('consumeBootstrapTokenAndActivate rejects already consumed token', function () {
+    $created = $this->service->createAgent('Worker-Double-Consume');
+    $this->service->consumeBootstrapTokenAndActivate($created['bootstrap_token']);
+
+    $this->expectException(RuntimeException::class);
+    $this->expectExceptionMessage('El bootstrap token ya fue consumido.');
+
+    $this->service->consumeBootstrapTokenAndActivate($created['bootstrap_token']);
+});
+
+test('consumeBootstrapTokenAndActivate rejects expired token', function () {
+    $created = $this->service->createAgent('Worker-Expired-Consume', ttlHours: -2);
+
+    $this->expectException(RuntimeException::class);
+    $this->expectExceptionMessage('El bootstrap token ha expirado.');
+
+    $this->service->consumeBootstrapTokenAndActivate($created['bootstrap_token']);
+});
+

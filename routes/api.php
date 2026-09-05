@@ -1,11 +1,13 @@
 <?php
 
 use App\Http\Controllers\Api\AdminAgentController;
+use App\Http\Controllers\Api\AgentRegistrationController;
 use App\Http\Controllers\Api\AuthController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
     Route::post('/auth/login', [AuthController::class, 'login'])->name('api.v1.auth.login');
+    Route::post('/agents/register', [AgentRegistrationController::class, 'register'])->name('api.v1.agents.register');
 
     // Protected endpoints with JWT and RBAC
     Route::middleware('jwt.auth')->group(function () {
@@ -38,6 +40,7 @@ Route::prefix('v1')->group(function () {
 });
 
 Route::post('/auth/login', [AuthController::class, 'login'])->name('api.auth.login');
+Route::post('/agents/register', [AgentRegistrationController::class, 'register'])->name('api.agents.register');
 Route::middleware('jwt.auth')->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me'])->name('api.auth.me');
     Route::post('/auth/logout', [AuthController::class, 'logout'])->name('api.auth.logout');

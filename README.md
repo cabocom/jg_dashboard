@@ -166,7 +166,7 @@ docker compose logs -f
 - [ ] **Fase 04:** Sistema de registro de agentes con `bootstrap_token` de 24h y credencial permanente:
   - [x] `ISSUE-F04-T01`: Servicio de registro de agentes y generación de bootstrap tokens (`AgentRegistrationService`, TTL 24h, Zero-Trust).
   - [x] `ISSUE-F04-T02`: Endpoint administrativo: POST /api/v1/admin/agents (`AdminAgentController`, RBAC `role:admin`, 201 Created con token y agent_id).
-  - [ ] `ISSUE-F04-T03`: Endpoint de consumo de registro por el agente: POST /api/v1/agents/register.
+  - [x] `ISSUE-F04-T03`: Endpoint de consumo de registro por el agente: POST /api/v1/agents/register (`AgentRegistrationController`, intercambio por `permanent_secret`, activación y un solo uso).
   - [ ] `ISSUE-F04-T04`: Validación de expiración y uso único del bootstrap_token.
 - [ ] **Fase 05:** Monitoreo de agentes y procesamiento de heartbeats periódicos.
 - [ ] **Fase 06:** Cliente HTTP proxy y orquestación de ejecuciones hacia `jg_agente`.

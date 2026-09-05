@@ -7,6 +7,7 @@ use App\Models\AuditEvent;
 use App\Models\BootstrapToken;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 use RuntimeException;
 
@@ -173,4 +174,99 @@ class AgentRegistrationService
             'agent' => $token->agent,
         ];
     }
+
+    /**
+     * Consume a bootstrap token, transition agent from PENDING to ACTIVE,
+     * and issue a permanent agent secret (returned in plaintext only once).
+     *
+     * @param array<string, mixed>|null $capabilities
+     * @param array<string, mixed>|null $metadata
+     * @return array{
+     *     agent: Agent,
+     *     agent_id: string,
+     *     name: string,
+     *     status: string,
+     *     permanent_secret: string,
+     *     registered_at: string
+     * }
+     *
+     * @throws RuntimeException
+     */
+    public function consumeBootstrapTokenAndActivate(
+        string $plainToken,
+        ?string $version = null,
+        ?array $capabilities = null,
+        ?array $metadata = null
+    ): array {
+        $validation = $this->validateBootstrapToken($plainToken);
+
+        if (!$validation['valid']) {
+            $reason = $validation['reason'];
+            if ($reason === 'TOKEN_ALREADY_CONSUMED') {
+                throw new RuntimeException('El bootstrap token ya fue consumido.', 409);
+            }
+            if ($reason === 'TOKEN_EXPIRED') {
+                throw new RuntimeException('El bootstrap token ha expirado.', 410);
+            }
+            throw new RuntimeException('Bootstrap token no válido o inexistente.', 404);
+        }
+
+        /** @var BootstrapToken $token */
+        $token = $validation['token'];
+        /** @var Agent $agent */
+        $agent = $validation['agent'];
+
+        if (!$agent) {
+            throw new RuntimeException('Agente asociado no encontrado.', 404);
+        }
+
+        if ($agent->status !== 'PENDING') {
+            throw new RuntimeException("El agente no se encuentra en estado pendiente (estado actual: [{$agent->status}]).", 400);
+        }
+
+        return DB::transaction(function () use ($token, $agent, $version, $capabilities, $metadata) {
+            // 1. Mark token as consumed
+            $token->consume();
+
+            // 2. Generate permanent secret
+            $permanentSecret = 'sec_' . Str::random(48);
+            $secretHash = hash('sha256', $permanentSecret);
+
+            // 3. Update agent attributes and activate
+            $agent->markAsActive($secretHash);
+
+            if ($version !== null) {
+                $agent->version = $version;
+            }
+            if ($capabilities !== null) {
+                $agent->capabilities_json = $capabilities;
+            }
+            if ($metadata !== null) {
+                $agent->metadata_json = array_merge($agent->metadata_json ?? [], $metadata);
+            }
+            $agent->save();
+
+            // 4. Record audit event
+            AuditEvent::record(
+                eventType: 'AGENT_ACTIVATED',
+                actionSummary: "Agente [{$agent->name}] activado con éxito tras consumir bootstrap token",
+                payload: [
+                    'agent_id' => $agent->agent_id,
+                    'name' => $agent->name,
+                    'version' => $agent->version,
+                ],
+                agent: $agent
+            );
+
+            return [
+                'agent' => $agent,
+                'agent_id' => $agent->agent_id,
+                'name' => $agent->name,
+                'status' => $agent->status,
+                'permanent_secret' => $permanentSecret,
+                'registered_at' => $agent->last_heartbeat_at?->toIso8601String() ?? now()->toIso8601String(),
+            ];
+        });
+    }
 }
+
