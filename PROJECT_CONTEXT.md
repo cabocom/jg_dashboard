@@ -1,10 +1,10 @@
 # CONTEXTO DE PROYECTO: jg_dashboard
 
-**Versión del documento:** 1.3.0  
+**Versión del documento:** 1.4.0  
 **Fecha de consolidación:** 5 de septiembre de 2026  
 **Componente:** Control Plane (Plano de Control, Gestión, Gobernanza y HITL)  
 **Stack Tecnológico:** Laravel 11, Filament PHP v3, Livewire 3, Tailwind CSS, PostgreSQL, Pest PHP  
-**Estado:** Fase 01 completada al 100% con ISSUE-F01-T01 (Base Laravel/Filament), ISSUE-F01-T02 (Dockerfile y Docker Compose con PostgreSQL propio) e ISSUE-F01-T03 (Pipeline CI/CD .gitlab-ci.yml). 25 tests pasando en Pest.  
+**Estado:** Fase 01 completada (100%). Fase 02 iniciada con ISSUE-F02-T01 (Modelos Eloquent para usuarios y roles RBAC). 25 tests pasando en Pest.  
 
 ---
 

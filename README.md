@@ -153,7 +153,11 @@ docker compose logs -f
   - [x] `ISSUE-F01-T01`: Estructura base del repositorio jg_dashboard y configuración de entorno (Laravel 11, Filament v3, Livewire 3, Pest PHP).
   - [x] `ISSUE-F01-T02`: Dockerfile multi-stage y Docker Compose con PostgreSQL propio (puerto 5434 y volumen aislado).
   - [x] `ISSUE-F01-T03`: Pipeline de CI/CD para jg_dashboard (.gitlab-ci.yml con stage test y build).
-- [ ] **Fase 02:** Persistencia y modelos de base de datos PostgreSQL (`dashboard_*`).
+- [ ] **Fase 02:** Persistencia y modelos de base de datos PostgreSQL:
+  - [x] `ISSUE-F02-T01`: Modelos de base de datos para usuarios y roles RBAC (Eloquent User, FilamentUser, contraseñas hasheadas y migración).
+  - [ ] `ISSUE-F02-T02`: Modelos de base de datos para agentes registrados (`dashboard_agents`).
+  - [ ] `ISSUE-F02-T03`: Modelos de base de datos para tokens de aprovisionamiento (`dashboard_bootstrap_tokens`).
+  - [ ] `ISSUE-F02-T04`: Modelos de base de datos para solicitudes HITL y eventos de auditoría.
 - [ ] **Fase 03:** Autenticación de usuarios y RBAC (Admin, Operator, Viewer).
 - [ ] **Fase 04:** Sistema de registro de agentes con `bootstrap_token` de 24h y credencial permanente.
 - [ ] **Fase 05:** Monitoreo de agentes y procesamiento de heartbeats periódicos.
