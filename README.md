@@ -172,11 +172,11 @@ docker compose logs -f
   - [x] `ISSUE-F05-T01`: Endpoint de recepción de heartbeats: POST /api/v1/agents/heartbeat (`AgentHeartbeatController`, autenticación por `permanent_secret`, métricas y actualización de último latido).
   - [x] `ISSUE-F05-T02`: Servicio en background de detección de agentes caídos (`AgentHealthMonitorService`, Artisan `agents:check-health`, Schedule everyMinute, transición automática a OFFLINE >90s).
   - [x] `ISSUE-F05-T03`: Endpoint de consulta de estado/métricas de salud de agentes (`AgentController`, paginación, filtros de estado, búsqueda y métricas agregadas).
-- [ ] **Fase 06:** Cliente HTTP proxy y orquestación de ejecuciones hacia `jg_agente`:
+- [x] **Fase 06:** Cliente HTTP proxy y orquestación de ejecuciones hacia `jg_agente` (100%):
   - [x] `ISSUE-F06-T01`: Cliente HTTP interno para comunicación con jg_agente (`AgentHttpClient`, firmado HMAC-SHA256, timeouts, reintentos con backoff y resiliencia de red).
   - [x] `ISSUE-F06-T02`: Pasarela para disparar ejecuciones: POST /api/v1/executions/trigger (`ExecutionController`, RBAC `role:operator`, normalización a `AgentInput`, auditoría y persistencia HITL).
   - [x] `ISSUE-F06-T03`: Consulta de estado de ejecuciones: GET /api/v1/executions/{agent_id}/{thread_id} (`ExecutionController@show`, aislamiento de BD, estado unificado y gobernanza HITL).
-  - [ ] `ISSUE-F06-T04`: Endpoint de inspección de capacidades: GET /api/v1/agents/{agent_id}/capabilities.
+  - [x] `ISSUE-F06-T04`: Endpoint de inspección de capacidades: GET /api/v1/agents/{agent_id}/capabilities (`AgentController@capabilities`, consulta en vivo y sincronización en BD).
 - [ ] **Fase 07:** Consola y acciones de aprobación Human-In-The-Loop (HITL).
 - [ ] **Fase 08:** Adaptador normalizador de entrada/salida (`AgentInput` / `AgentOutput`).
 - [ ] **Fase 09:** Integración end-to-end con `jg_agente` (Casos de Éxito A y B).

@@ -21,6 +21,7 @@ Route::prefix('v1')->group(function () {
         // Agent queries and health status (accessible by all authenticated roles)
         Route::get('/agents', [AgentController::class, 'index'])->name('api.v1.agents.index');
         Route::get('/agents/{agent_id}', [AgentController::class, 'show'])->name('api.v1.agents.show');
+        Route::get('/agents/{agent_id}/capabilities', [AgentController::class, 'capabilities'])->name('api.v1.agents.capabilities');
         Route::get('/executions/{agent_id}/{thread_id}', [ExecutionController::class, 'show'])->name('api.v1.executions.show');
 
         // Execution triggers and HITL orchestration (accessible by operator and admin)
@@ -62,6 +63,7 @@ Route::middleware('jwt.auth')->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout'])->name('api.auth.logout');
     Route::get('/agents', [AgentController::class, 'index'])->name('api.agents.index');
     Route::get('/agents/{agent_id}', [AgentController::class, 'show'])->name('api.agents.show');
+    Route::get('/agents/{agent_id}/capabilities', [AgentController::class, 'capabilities'])->name('api.agents.capabilities');
     Route::get('/executions/{agent_id}/{thread_id}', [ExecutionController::class, 'show'])->name('api.executions.show');
 
     Route::middleware('role:operator')->group(function () {

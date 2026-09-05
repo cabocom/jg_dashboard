@@ -100,4 +100,64 @@ class AgentController extends Controller
             'updated_at' => $agent->updated_at?->toIso8601String(),
         ], 200);
     }
+
+    /**
+     * Fetch the live tools, engines and capabilities catalog directly from the agent API.
+     */
+    public function capabilities(string $agentId): JsonResponse
+    {
+        $agent = Agent::find($agentId);
+
+        if (!$agent) {
+            return response()->json([
+                'error' => 'Not Found',
+                'message' => "El agente con ID '{$agentId}' no existe.",
+            ], 404);
+        }
+
+        if ($agent->isPending()) {
+            return response()->json([
+                'error' => 'Agent Pending Registration',
+                'message' => "El agente '{$agent->name}' aún se encuentra en estado PENDING y no ha completado su registro.",
+            ], 400);
+        }
+
+        $client = \App\Services\Agents\AgentHttpClient::forAgent($agent);
+        $response = $client->getCapabilities();
+
+        if (!$response['success']) {
+            $httpCode = match ($response['status_code']) {
+                503 => 503,
+                504 => 504,
+                404 => 404,
+                default => 502,
+            };
+
+            return response()->json([
+                'error' => 'Agent Gateway Error',
+                'message' => $response['error'] ?? 'Error al consultar capacidades en jg_agente',
+                'agent_id' => $agentId,
+                'upstream_status' => $response['status_code'],
+            ], $httpCode);
+        }
+
+        $capabilitiesData = $response['data'] ?? [];
+
+        // Sincronizar catálogo actualizado en la persistencia local del Dashboard
+        if (!empty($capabilitiesData)) {
+            $agent->update([
+                'capabilities_json' => $capabilitiesData,
+            ]);
+        }
+
+        return response()->json([
+            'agent_id' => $agent->agent_id,
+            'name' => $agent->name,
+            'status' => $agent->status,
+            'version' => $agent->version,
+            'capabilities' => $capabilitiesData,
+            'cached_at' => now()->toIso8601String(),
+            'latency_ms' => $response['latency_ms'],
+        ], 200);
+    }
 }
