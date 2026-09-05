@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\AgentHeartbeatController;
 use App\Http\Controllers\Api\AgentRegistrationController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ExecutionController;
+use App\Http\Controllers\Api\HitlApprovalController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -16,7 +17,7 @@ Route::prefix('v1')->group(function () {
     // Protected endpoints with JWT and RBAC
     Route::middleware('jwt.auth')->group(function () {
         Route::get('/auth/me', [AuthController::class, 'me'])->name('api.v1.auth.me');
-        Route::post('/auth/logout', [AuthController::class, 'logout'])->name('api.v1.auth.logout');
+        Route::post('/auth/logout', [AuthController::class, 'logout'])->name('api.auth.logout');
 
         // Agent queries and health status (accessible by all authenticated roles)
         Route::get('/agents', [AgentController::class, 'index'])->name('api.v1.agents.index');
@@ -27,6 +28,7 @@ Route::prefix('v1')->group(function () {
         // Execution triggers and HITL orchestration (accessible by operator and admin)
         Route::middleware('role:operator')->group(function () {
             Route::post('/executions/trigger', [ExecutionController::class, 'trigger'])->name('api.v1.executions.trigger');
+            Route::get('/approvals/pending', [HitlApprovalController::class, 'pending'])->name('api.v1.approvals.pending');
         });
 
         // Admin endpoints
@@ -68,6 +70,7 @@ Route::middleware('jwt.auth')->group(function () {
 
     Route::middleware('role:operator')->group(function () {
         Route::post('/executions/trigger', [ExecutionController::class, 'trigger'])->name('api.executions.trigger');
+        Route::get('/approvals/pending', [HitlApprovalController::class, 'pending'])->name('api.approvals.pending');
     });
 
     Route::middleware('role:admin')->prefix('admin')->group(function () {

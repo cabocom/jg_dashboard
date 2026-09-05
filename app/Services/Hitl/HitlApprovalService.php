@@ -101,8 +101,11 @@ class HitlApprovalService
     /**
      * Retrieve paginated pending approval requests.
      */
-    public function getPendingApprovals(?string $agentId = null, int $perPage = 15): LengthAwarePaginator
-    {
+    public function getPendingApprovals(
+        ?string $agentId = null,
+        ?string $riskLevel = null,
+        int $perPage = 15
+    ): LengthAwarePaginator {
         $query = ApprovalRequest::with(['agent'])
             ->pending()
             ->orderByDesc('created_at');
@@ -111,7 +114,75 @@ class HitlApprovalService
             $query->where('agent_id', $agentId);
         }
 
+        if (!empty($riskLevel)) {
+            $query->where('risk_level', strtoupper($riskLevel));
+        }
+
         return $query->paginate($perPage);
+    }
+
+    /**
+     * Extract a human-readable action summary from the proposed plan.
+     */
+    public function extractActionSummary(ApprovalRequest $approval): string
+    {
+        $plan = $approval->proposed_plan_json ?? [];
+
+        if (!empty($plan['summary']) && is_string($plan['summary'])) {
+            return $plan['summary'];
+        }
+
+        if (!empty($plan['action']) && is_string($plan['action'])) {
+            return $plan['action'];
+        }
+
+        if (!empty($plan['description']) && is_string($plan['description'])) {
+            return $plan['description'];
+        }
+
+        if (!empty($plan['command']) && is_string($plan['command'])) {
+            return "Ejecución de comando: {$plan['command']}";
+        }
+
+        if (!empty($plan['step']) && is_string($plan['step'])) {
+            return "Paso del plan: {$plan['step']}";
+        }
+
+        $tools = $plan['tools_involved'] ?? ($plan['tools'] ?? []);
+        if (!empty($tools) && is_array($tools)) {
+            return "Ejecución de herramientas: " . implode(', ', $tools);
+        }
+
+        return "Plan de ejecución pendiente de revisión humana";
+    }
+
+    /**
+     * Format an approval request into a standardized API payload.
+     *
+     * @return array<string, mixed>
+     */
+    public function formatApprovalItem(ApprovalRequest $approval): array
+    {
+        $plan = $approval->proposed_plan_json ?? [];
+        $tools = $plan['tools_involved'] ?? ($plan['tools'] ?? []);
+        $now = now();
+
+        return [
+            'id' => $approval->id,
+            'thread_id' => $approval->thread_id,
+            'task_id' => $approval->task_id,
+            'agent_id' => $approval->agent_id,
+            'agent_name' => $approval->agent?->name ?? 'Agente Desconocido',
+            'status' => $approval->status,
+            'risk_level' => $approval->risk_level,
+            'action_summary' => $this->extractActionSummary($approval),
+            'tools_involved' => is_array($tools) ? array_values($tools) : [],
+            'proposed_plan' => $plan,
+            'compensation_commands' => $approval->compensation_commands_json ?? [],
+            'created_at' => $approval->created_at?->toIso8601String(),
+            'elapsed_time' => $approval->created_at?->diffForHumans(),
+            'elapsed_seconds' => $approval->created_at ? max(0, (int) $approval->created_at->diffInSeconds($now)) : 0,
+        ];
     }
 
     /**

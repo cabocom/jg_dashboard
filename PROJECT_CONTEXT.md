@@ -1,10 +1,10 @@
 # CONTEXTO DE PROYECTO: jg_dashboard
 
-**Versión del documento:** 3.12.0  
+**Versión del documento:** 3.13.0  
 **Fecha de consolidación:** 5 de septiembre de 2026  
 **Componente:** Control Plane (Plano de Control, Gestión, Gobernanza y HITL)  
 **Stack Tecnológico:** Laravel 11, Filament PHP v3, Livewire 3, Tailwind CSS, PostgreSQL, Pest PHP  
-**Estado:** Fases 01 a 06 completadas al 100%. Fase 07 iniciada con ISSUE-F07-T01 (`HitlApprovalService`, registro de planes de riesgo, normalización de herramientas, idempotencia y auditoría). 171 tests pasando en Pest.  
+**Estado:** Fases 01 a 06 completadas al 100%. Fase 07 en progreso con ISSUE-F07-T01 (`HitlApprovalService`) e ISSUE-F07-T02 (`GET /api/v1/approvals/pending`, RBAC `role:operator`, resumen de acciones, nivel de riesgo y tiempo transcurrido). 179 tests pasando en Pest.  
 
 ---
 
@@ -112,6 +112,7 @@ El registro de nuevos agentes sigue un protocolo de cuatro pasos a prueba de acc
 - `GET /api/v1/agents/{agent_id}/capabilities`: Inspección en vivo del catálogo de herramientas, engines cognitivos y plugins del agente con sincronización local.
 - `POST /api/v1/executions/trigger`: Pasarela protegida (roles `admin` y `operator`) para disparar ejecuciones hacia `jg_agente` con normalización a `AgentInput`, captura y registro automático de solicitudes HITL vía `HitlApprovalService`.
 - `GET /api/v1/executions/{agent_id}/{thread_id}`: Consulta unificada de progreso, pasos y estado de ejecución hacia la API de `jg_agente` con estricto aislamiento de base de datos.
+- `GET /api/v1/approvals/pending`: Listado paginado de solicitudes HITL pendientes para operadores y administradores, con resumen de acciones, nivel de riesgo, herramientas involucradas y métricas de tiempo transcurrido.
 
 ### 5.2 Endpoints Invocados por `jg_dashboard` hacia `jg_agente` (Proxy Interno `AgentHttpClient`)
 El cliente `App\Services\Agents\AgentHttpClient` canaliza la comunicación cifrada y firmada mediante HMAC-SHA256 con las instancias internas de `jg_agente`:
