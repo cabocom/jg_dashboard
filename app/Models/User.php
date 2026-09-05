@@ -66,6 +66,63 @@ class User extends Authenticatable implements FilamentUser
         return in_array($this->role, ['admin', 'operator']);
     }
 
+    public function isViewer(): bool
+    {
+        return in_array($this->role, ['admin', 'operator', 'viewer']);
+    }
+
+    /**
+     * Check if user has any of the given roles.
+     * Supports array or comma-separated string, case-insensitive.
+     *
+     * @param string|array<string> $roles
+     */
+    public function hasRole(string|array $roles): bool
+    {
+        $roleList = is_array($roles) 
+            ? $roles 
+            : array_map('trim', explode(',', $roles));
+
+        $normalizedRoles = array_map('strtolower', $roleList);
+        $userRole = strtolower($this->role ?? '');
+
+        // Direct match
+        if (in_array($userRole, $normalizedRoles, true)) {
+            return true;
+        }
+
+        // Role hierarchy: admin satisfies operator and viewer; operator satisfies viewer
+        if ($userRole === 'admin') {
+            return true;
+        }
+
+        if ($userRole === 'operator' && in_array('viewer', $normalizedRoles, true)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if user has a specific permission based on RBAC matrix.
+     */
+    public function hasPermission(string $permission): bool
+    {
+        $matrix = [
+            'agents:manage' => ['admin'],
+            'agents:register' => ['admin'],
+            'hitl:approve' => ['admin', 'operator'],
+            'hitl:reject' => ['admin', 'operator'],
+            'tasks:trigger' => ['admin', 'operator'],
+            'dashboard:view' => ['admin', 'operator', 'viewer'],
+            'audit:view' => ['admin'],
+        ];
+
+        $allowedRoles = $matrix[$permission] ?? ['admin'];
+
+        return $this->hasRole($allowedRoles);
+    }
+
     /**
      * Approval requests resolved by this user.
      */

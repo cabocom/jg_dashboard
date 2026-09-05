@@ -13,6 +13,11 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->trustProxies(at: '*');
+        $middleware->alias([
+            'jwt.auth' => \App\Http\Middleware\JwtAuthenticate::class,
+            'role' => \App\Http\Middleware\RequireRole::class,
+            'permission' => \App\Http\Middleware\RequirePermission::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
