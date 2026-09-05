@@ -175,7 +175,7 @@ docker compose logs -f
 - [ ] **Fase 06:** Cliente HTTP proxy y orquestación de ejecuciones hacia `jg_agente`:
   - [x] `ISSUE-F06-T01`: Cliente HTTP interno para comunicación con jg_agente (`AgentHttpClient`, firmado HMAC-SHA256, timeouts, reintentos con backoff y resiliencia de red).
   - [x] `ISSUE-F06-T02`: Pasarela para disparar ejecuciones: POST /api/v1/executions/trigger (`ExecutionController`, RBAC `role:operator`, normalización a `AgentInput`, auditoría y persistencia HITL).
-  - [ ] `ISSUE-F06-T03`: Consulta de estado de ejecuciones: GET /api/v1/executions/{agent_id}/{thread_id}.
+  - [x] `ISSUE-F06-T03`: Consulta de estado de ejecuciones: GET /api/v1/executions/{agent_id}/{thread_id} (`ExecutionController@show`, aislamiento de BD, estado unificado y gobernanza HITL).
   - [ ] `ISSUE-F06-T04`: Endpoint de inspección de capacidades: GET /api/v1/agents/{agent_id}/capabilities.
 - [ ] **Fase 07:** Consola y acciones de aprobación Human-In-The-Loop (HITL).
 - [ ] **Fase 08:** Adaptador normalizador de entrada/salida (`AgentInput` / `AgentOutput`).

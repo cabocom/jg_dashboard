@@ -1,10 +1,10 @@
 # CONTEXTO DE PROYECTO: jg_dashboard
 
-**Versión del documento:** 3.9.0  
+**Versión del documento:** 3.10.0  
 **Fecha de consolidación:** 5 de septiembre de 2026  
 **Componente:** Control Plane (Plano de Control, Gestión, Gobernanza y HITL)  
 **Stack Tecnológico:** Laravel 11, Filament PHP v3, Livewire 3, Tailwind CSS, PostgreSQL, Pest PHP  
-**Estado:** Fases 01, 02, 03, 04 y 05 completadas al 100%. Fase 06 en progreso: completadas ISSUE-F06-T01 (`AgentHttpClient` con firmado HMAC-SHA256) e ISSUE-F06-T02 (Pasarela `POST /api/v1/executions/trigger` con autorización RBAC, normalización a `AgentInput`, auditoría y persistencia HITL). 150 tests pasando en Pest.  
+**Estado:** Fases 01, 02, 03, 04 y 05 completadas al 100%. Fase 06 en progreso: completadas ISSUE-F06-T01 (`AgentHttpClient` con firmado HMAC-SHA256), ISSUE-F06-T02 (Pasarela `POST /api/v1/executions/trigger` con autorización RBAC y persistencia HITL) e ISSUE-F06-T03 (Consulta de estado `GET /api/v1/executions/{agent_id}/{thread_id}` con aislamiento estricto de BD). 159 tests pasando en Pest.  
 
 ---
 
@@ -110,6 +110,7 @@ El registro de nuevos agentes sigue un protocolo de cuatro pasos a prueba de acc
 - `GET /api/v1/agents`: Listado paginado con métricas agregadas y filtros por estado.
 - `GET /api/v1/agents/{agent_id}`: Consulta detallada de estado de un agente específico.
 - `POST /api/v1/executions/trigger`: Pasarela protegida (roles `admin` y `operator`) para disparar ejecuciones hacia `jg_agente` con normalización a `AgentInput`.
+- `GET /api/v1/executions/{agent_id}/{thread_id}`: Consulta unificada de progreso, pasos y estado de ejecución hacia la API de `jg_agente` con estricto aislamiento de base de datos.
 
 ### 5.2 Endpoints Invocados por `jg_dashboard` hacia `jg_agente` (Proxy Interno `AgentHttpClient`)
 El cliente `App\Services\Agents\AgentHttpClient` canaliza la comunicación cifrada y firmada mediante HMAC-SHA256 con las instancias internas de `jg_agente`:

@@ -168,4 +168,85 @@ class ExecutionController extends Controller
             'latency_ms' => $response['latency_ms'],
         ], $statusCode);
     }
+
+    /**
+     * Inspect execution state, step history and HITL checkpoints for a specific thread on a target agent.
+     */
+    public function show(Request $request, string $agentId, string $threadId): JsonResponse
+    {
+        $agent = Agent::find($agentId);
+
+        if (!$agent) {
+            return response()->json([
+                'error' => 'Not Found',
+                'message' => "El agente con ID '{$agentId}' no existe.",
+            ], 404);
+        }
+
+        if ($agent->isPending()) {
+            return response()->json([
+                'error' => 'Agent Pending Registration',
+                'message' => "El agente '{$agent->name}' aún se encuentra en estado PENDING y no ha completado su registro.",
+            ], 400);
+        }
+
+        $client = AgentHttpClient::forAgent($agent);
+        $response = $client->getExecutionStatus($threadId);
+
+        if (!$response['success']) {
+            if ($response['status_code'] === 404) {
+                return response()->json([
+                    'error' => 'Execution Not Found',
+                    'message' => "No se encontró la ejecución con thread_id '{$threadId}' en el agente.",
+                    'agent_id' => $agentId,
+                    'thread_id' => $threadId,
+                ], 404);
+            }
+
+            $httpCode = match ($response['status_code']) {
+                503 => 503,
+                504 => 504,
+                default => 502,
+            };
+
+            return response()->json([
+                'error' => 'Agent Gateway Error',
+                'message' => $response['error'] ?? 'Error al consultar estado de la ejecución en jg_agente',
+                'agent_id' => $agentId,
+                'thread_id' => $threadId,
+                'upstream_status' => $response['status_code'],
+            ], $httpCode);
+        }
+
+        $data = $response['data'] ?? [];
+        $localApproval = ApprovalRequest::where('thread_id', $threadId)->latest()->first();
+
+        $unified = [
+            'agent_id' => $agentId,
+            'agent_name' => $agent->name,
+            'thread_id' => $threadId,
+            'execution_id' => $data['execution_id'] ?? null,
+            'status' => $data['status'] ?? 'unknown',
+            'prompt' => $data['prompt'] ?? null,
+            'output' => $data['response'] ?? $data['final_output'] ?? null,
+            'current_step' => $data['current_step'] ?? 0,
+            'next_nodes' => $data['next_nodes'] ?? [],
+            'requires_approval' => $data['requires_approval'] ?? false,
+            'approval_status' => $data['approval_status'] ?? ($localApproval?->status ?? null),
+            'pending_approval_id' => $data['pending_approval_id'] ?? null,
+            'plan' => $data['plan'] ?? null,
+            'steps' => $data['steps'] ?? [],
+            'hitl_governance' => $localApproval ? [
+                'approval_id' => $localApproval->id,
+                'status' => $localApproval->status,
+                'risk_level' => $localApproval->risk_level,
+                'justification' => $localApproval->justification,
+                'resolved_at' => $localApproval->resolved_at?->toIso8601String(),
+            ] : null,
+            'data' => $data,
+            'latency_ms' => $response['latency_ms'],
+        ];
+
+        return response()->json($unified, 200);
+    }
 }
