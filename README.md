@@ -168,10 +168,10 @@ docker compose logs -f
   - [x] `ISSUE-F04-T02`: Endpoint administrativo: POST /api/v1/admin/agents (`AdminAgentController`, RBAC `role:admin`, 201 Created con token y agent_id).
   - [x] `ISSUE-F04-T03`: Endpoint de consumo de registro por el agente: POST /api/v1/agents/register (`AgentRegistrationController`, intercambio por `permanent_secret`, activación y un solo uso).
   - [x] `ISSUE-F04-T04`: Validación de expiración y uso único del bootstrap_token (`BootstrapToken@isExpired`, rechazo 401 Unauthorized ante tokens expirados/consumidos y revocación administrativa).
-- [ ] **Fase 05:** Monitoreo de agentes y procesamiento de heartbeats periódicos:
+- [x] **Fase 05:** Monitoreo de agentes y procesamiento de heartbeats periódicos (100%):
   - [x] `ISSUE-F05-T01`: Endpoint de recepción de heartbeats: POST /api/v1/agents/heartbeat (`AgentHeartbeatController`, autenticación por `permanent_secret`, métricas y actualización de último latido).
   - [x] `ISSUE-F05-T02`: Servicio en background de detección de agentes caídos (`AgentHealthMonitorService`, Artisan `agents:check-health`, Schedule everyMinute, transición automática a OFFLINE >90s).
-  - [ ] `ISSUE-F05-T03`: Endpoint de consulta de estado/métricas de salud de agentes.
+  - [x] `ISSUE-F05-T03`: Endpoint de consulta de estado/métricas de salud de agentes (`AgentController`, paginación, filtros de estado, búsqueda y métricas agregadas).
 - [ ] **Fase 06:** Cliente HTTP proxy y orquestación de ejecuciones hacia `jg_agente`.
 - [ ] **Fase 07:** Consola y acciones de aprobación Human-In-The-Loop (HITL).
 - [ ] **Fase 08:** Adaptador normalizador de entrada/salida (`AgentInput` / `AgentOutput`).

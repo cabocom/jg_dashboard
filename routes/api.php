@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AdminAgentController;
+use App\Http\Controllers\Api\AgentController;
 use App\Http\Controllers\Api\AgentHeartbeatController;
 use App\Http\Controllers\Api\AgentRegistrationController;
 use App\Http\Controllers\Api\AuthController;
@@ -15,6 +16,10 @@ Route::prefix('v1')->group(function () {
     Route::middleware('jwt.auth')->group(function () {
         Route::get('/auth/me', [AuthController::class, 'me'])->name('api.v1.auth.me');
         Route::post('/auth/logout', [AuthController::class, 'logout'])->name('api.v1.auth.logout');
+
+        // Agent queries and health status (accessible by all authenticated roles)
+        Route::get('/agents', [AgentController::class, 'index'])->name('api.v1.agents.index');
+        Route::get('/agents/{agent_id}', [AgentController::class, 'show'])->name('api.v1.agents.show');
 
         // Admin endpoints
         Route::middleware('role:admin')->prefix('admin')->group(function () {
@@ -48,6 +53,8 @@ Route::post('/agents/heartbeat', [AgentHeartbeatController::class, 'heartbeat'])
 Route::middleware('jwt.auth')->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me'])->name('api.auth.me');
     Route::post('/auth/logout', [AuthController::class, 'logout'])->name('api.auth.logout');
+    Route::get('/agents', [AgentController::class, 'index'])->name('api.agents.index');
+    Route::get('/agents/{agent_id}', [AgentController::class, 'show'])->name('api.agents.show');
 
     Route::middleware('role:admin')->prefix('admin')->group(function () {
         Route::get('/agents', [AdminAgentController::class, 'index'])->name('api.admin.agents.index');
