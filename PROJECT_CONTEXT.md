@@ -1,10 +1,10 @@
 # CONTEXTO DE PROYECTO: jg_dashboard
 
-**Versión del documento:** 3.4.0  
+**Versión del documento:** 3.5.0  
 **Fecha de consolidación:** 5 de septiembre de 2026  
 **Componente:** Control Plane (Plano de Control, Gestión, Gobernanza y HITL)  
 **Stack Tecnológico:** Laravel 11, Filament PHP v3, Livewire 3, Tailwind CSS, PostgreSQL, Pest PHP  
-**Estado:** Fases 01, 02, 03 y 04 completadas al 100%. Fase 04 culminada con ISSUE-F04-T04 (Validación estricta de caducidad con TTL absoluto de 24h, revocación de tokens y rechazo con 401 Unauthorized ante tokens expirados o reutilizados). 102 tests pasando en Pest.  
+**Estado:** Fases 01, 02, 03 y 04 completadas al 100%. Fase 05 iniciada con ISSUE-F05-T01 (Endpoint de recepción de heartbeats POST /api/v1/agents/heartbeat autenticado con permanent_agent_secret, actualización de último latido, telemetría y métricas de agentes activos). 114 tests pasando en Pest.  
 
 ---
 

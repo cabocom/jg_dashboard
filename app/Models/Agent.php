@@ -140,6 +140,19 @@ class Agent extends Model
     }
 
     /**
+     * Verify a presented permanent secret against the stored hash.
+     */
+    public function verifyPermanentSecret(string $plainSecret): bool
+    {
+        if (empty($this->permanent_secret_hash)) {
+            return false;
+        }
+
+        $hash = hash('sha256', trim($plainSecret));
+        return hash_equals((string) $this->permanent_secret_hash, $hash);
+    }
+
+    /**
      * Update agent heartbeat timestamp and latest metrics.
      */
     public function recordHeartbeat(?array $metrics = null): void
