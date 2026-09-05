@@ -71,5 +71,20 @@ abstract class TestCase extends BaseTestCase
                 $table->timestamps();
             });
         }
+
+        if (!Schema::hasTable('dashboard_agents')) {
+            Schema::create('dashboard_agents', function (Blueprint $table) {
+                $table->uuid('agent_id')->primary();
+                $table->string('name');
+                $table->string('version')->nullable();
+                $table->string('status')->default('PENDING')->index();
+                $table->string('permanent_secret_hash')->nullable();
+                $table->timestamp('last_heartbeat_at')->nullable()->index();
+                $table->text('capabilities_json')->nullable();
+                $table->text('metrics_json')->nullable();
+                $table->text('metadata_json')->nullable();
+                $table->timestamps();
+            });
+        }
     }
 }

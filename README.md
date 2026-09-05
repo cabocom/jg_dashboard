@@ -155,7 +155,7 @@ docker compose logs -f
   - [x] `ISSUE-F01-T03`: Pipeline de CI/CD para jg_dashboard (.gitlab-ci.yml con stage test y build).
 - [ ] **Fase 02:** Persistencia y modelos de base de datos PostgreSQL:
   - [x] `ISSUE-F02-T01`: Modelos de base de datos para usuarios y roles RBAC (Eloquent User, FilamentUser, contraseñas hasheadas y migración).
-  - [ ] `ISSUE-F02-T02`: Modelos de base de datos para agentes registrados (`dashboard_agents`).
+  - [x] `ISSUE-F02-T02`: Modelos de base de datos para agentes registrados (`dashboard_agents`, modelo Eloquent `Agent`, UUIDs, scopes y tests).
   - [ ] `ISSUE-F02-T03`: Modelos de base de datos para tokens de aprovisionamiento (`dashboard_bootstrap_tokens`).
   - [ ] `ISSUE-F02-T04`: Modelos de base de datos para solicitudes HITL y eventos de auditoría.
 - [ ] **Fase 03:** Autenticación de usuarios y RBAC (Admin, Operator, Viewer).
