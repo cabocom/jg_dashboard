@@ -90,6 +90,20 @@ class Agent extends Model
         return $query->where('status', 'OFFLINE');
     }
 
+    /**
+     * Scope for agents that have timed out without heartbeat in the last N seconds.
+     */
+    public function scopeTimedOut(Builder $query, int $timeoutSeconds = 90): Builder
+    {
+        $threshold = now()->subSeconds($timeoutSeconds);
+
+        return $query->where('status', 'ACTIVE')
+            ->where(function (Builder $subQuery) use ($threshold) {
+                $subQuery->whereNull('last_heartbeat_at')
+                    ->orWhere('last_heartbeat_at', '<', $threshold);
+            });
+    }
+
     public function isActive(): bool
     {
         return $this->status === 'ACTIVE';

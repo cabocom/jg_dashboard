@@ -170,7 +170,7 @@ docker compose logs -f
   - [x] `ISSUE-F04-T04`: Validación de expiración y uso único del bootstrap_token (`BootstrapToken@isExpired`, rechazo 401 Unauthorized ante tokens expirados/consumidos y revocación administrativa).
 - [ ] **Fase 05:** Monitoreo de agentes y procesamiento de heartbeats periódicos:
   - [x] `ISSUE-F05-T01`: Endpoint de recepción de heartbeats: POST /api/v1/agents/heartbeat (`AgentHeartbeatController`, autenticación por `permanent_secret`, métricas y actualización de último latido).
-  - [ ] `ISSUE-F05-T02`: Servicio en background de detección de agentes caídos (Health Monitor).
+  - [x] `ISSUE-F05-T02`: Servicio en background de detección de agentes caídos (`AgentHealthMonitorService`, Artisan `agents:check-health`, Schedule everyMinute, transición automática a OFFLINE >90s).
   - [ ] `ISSUE-F05-T03`: Endpoint de consulta de estado/métricas de salud de agentes.
 - [ ] **Fase 06:** Cliente HTTP proxy y orquestación de ejecuciones hacia `jg_agente`.
 - [ ] **Fase 07:** Consola y acciones de aprobación Human-In-The-Loop (HITL).

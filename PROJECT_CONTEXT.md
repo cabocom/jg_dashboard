@@ -1,10 +1,10 @@
 # CONTEXTO DE PROYECTO: jg_dashboard
 
-**Versión del documento:** 3.5.0  
+**Versión del documento:** 3.6.0  
 **Fecha de consolidación:** 5 de septiembre de 2026  
 **Componente:** Control Plane (Plano de Control, Gestión, Gobernanza y HITL)  
 **Stack Tecnológico:** Laravel 11, Filament PHP v3, Livewire 3, Tailwind CSS, PostgreSQL, Pest PHP  
-**Estado:** Fases 01, 02, 03 y 04 completadas al 100%. Fase 05 iniciada con ISSUE-F05-T01 (Endpoint de recepción de heartbeats POST /api/v1/agents/heartbeat autenticado con permanent_agent_secret, actualización de último latido, telemetría y métricas de agentes activos). 114 tests pasando en Pest.  
+**Estado:** Fases 01, 02, 03 y 04 completadas al 100%. Fase 05 avanzada con ISSUE-F05-T01 e ISSUE-F05-T02 completadas (Recepción periódica de heartbeats y servicio en background con comando scheduler agents:check-health para detección automática de caídas y transición a OFFLINE tras >90s). 119 tests pasando en Pest.  
 
 ---
 
