@@ -124,6 +124,33 @@ class User extends Authenticatable implements FilamentUser
     }
 
     /**
+     * Get list of effective permissions for the user based on RBAC matrix.
+     *
+     * @return array<string>
+     */
+    public function getPermissions(): array
+    {
+        $matrix = [
+            'agents:manage' => ['admin'],
+            'agents:register' => ['admin'],
+            'hitl:approve' => ['admin', 'operator'],
+            'hitl:reject' => ['admin', 'operator'],
+            'tasks:trigger' => ['admin', 'operator'],
+            'dashboard:view' => ['admin', 'operator', 'viewer'],
+            'audit:view' => ['admin'],
+        ];
+
+        $effective = [];
+        foreach ($matrix as $permission => $roles) {
+            if ($this->hasRole($roles)) {
+                $effective[] = $permission;
+            }
+        }
+
+        return $effective;
+    }
+
+    /**
      * Approval requests resolved by this user.
      */
     public function approvalRequests(): HasMany

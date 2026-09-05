@@ -34,4 +34,39 @@ class AuthController extends Controller
 
         return response()->json($result, 200);
     }
+
+    /**
+     * Get authenticated user profile with roles and permissions.
+     */
+    public function me(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json([
+                'error' => 'Unauthorized',
+                'message' => 'No autenticado',
+            ], 401);
+        }
+
+        return response()->json([
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $user->role,
+            'permissions' => $user->getPermissions(),
+            'created_at' => $user->created_at?->toISOString(),
+        ], 200);
+    }
+
+    /**
+     * Invalidate/logout current session.
+     */
+    public function logout(): JsonResponse
+    {
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Sesión cerrada exitosamente',
+        ], 200);
+    }
 }

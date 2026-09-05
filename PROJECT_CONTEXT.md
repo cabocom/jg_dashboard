@@ -1,10 +1,10 @@
 # CONTEXTO DE PROYECTO: jg_dashboard
 
-**Versión del documento:** 2.2.0  
+**Versión del documento:** 2.3.0  
 **Fecha de consolidación:** 5 de septiembre de 2026  
 **Componente:** Control Plane (Plano de Control, Gestión, Gobernanza y HITL)  
 **Stack Tecnológico:** Laravel 11, Filament PHP v3, Livewire 3, Tailwind CSS, PostgreSQL, Pest PHP  
-**Estado:** Fase 01 (100%) y Fase 02 (100%) completadas. Fase 03 avanzada con ISSUE-F03-T01 (Servicio de autenticación JWT RFC 7519) e ISSUE-F03-T02 (Middleware de autenticación JWT y autorización RBAC con roles ADMIN, OPERATOR, VIEWER). 64 tests pasando en Pest.  
+**Estado:** Fase 01 (100%) y Fase 02 (100%) completadas. Fase 03 avanzada con ISSUE-F03-T01 (JWT RFC 7519), ISSUE-F03-T02 (Middleware RBAC) e ISSUE-F03-T03 (Endpoints POST /auth/login, GET /auth/me y POST /auth/logout con roles y permisos). 68 tests pasando en Pest.  
 
 ---
 

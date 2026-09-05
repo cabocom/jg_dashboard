@@ -78,3 +78,102 @@ test('api login returns 422 on validation failure', function () {
     $response->assertStatus(422)
         ->assertJsonValidationErrors(['email', 'password']);
 });
+
+test('api auth me returns 401 when unauthenticated', function () {
+    $this->getJson('/api/v1/auth/me')
+        ->assertStatus(401)
+        ->assertJson([
+            'error' => 'Unauthorized',
+            'message' => 'Token de autenticación no provisto',
+        ]);
+});
+
+test('api auth me returns user profile, role and permissions with valid token', function () {
+    $operator = User::create([
+        'name' => 'SRE Operator One',
+        'email' => 'sre_op@example.com',
+        'password' => Hash::make('password123'),
+        'role' => 'operator',
+    ]);
+
+    // 1. Authenticate via login
+    $loginResponse = $this->postJson('/api/v1/auth/login', [
+        'email' => 'sre_op@example.com',
+        'password' => 'password123',
+    ]);
+    $loginResponse->assertStatus(200);
+    $token = $loginResponse->json('access_token');
+
+    // 2. Query /api/v1/auth/me
+    $meResponse = $this->withHeader('Authorization', "Bearer {$token}")
+        ->getJson('/api/v1/auth/me');
+
+    $meResponse->assertStatus(200)
+        ->assertJsonStructure([
+            'id',
+            'name',
+            'email',
+            'role',
+            'permissions',
+            'created_at',
+        ]);
+
+    expect($meResponse->json('id'))->toBe($operator->id)
+        ->and($meResponse->json('email'))->toBe('sre_op@example.com')
+        ->and($meResponse->json('role'))->toBe('operator')
+        ->and($meResponse->json('permissions'))->toContain('hitl:approve', 'tasks:trigger', 'dashboard:view')
+        ->and($meResponse->json('permissions'))->not->toContain('agents:manage');
+
+    // 3. Also verify root alias /api/auth/me
+    $aliasMe = $this->withHeader('Authorization', "Bearer {$token}")
+        ->getJson('/api/auth/me');
+    $aliasMe->assertStatus(200);
+    expect($aliasMe->json('email'))->toBe('sre_op@example.com');
+});
+
+test('api auth me returns admin full permissions', function () {
+    $admin = User::create([
+        'name' => 'Super Admin',
+        'email' => 'super_admin@example.com',
+        'password' => Hash::make('adminpass123'),
+        'role' => 'admin',
+    ]);
+
+    $loginResponse = $this->postJson('/api/v1/auth/login', [
+        'email' => 'super_admin@example.com',
+        'password' => 'adminpass123',
+    ]);
+    $token = $loginResponse->json('access_token');
+
+    $meResponse = $this->withHeader('Authorization', "Bearer {$token}")
+        ->getJson('/api/v1/auth/me');
+
+    $meResponse->assertStatus(200);
+    $permissions = $meResponse->json('permissions');
+
+    expect($permissions)->toContain('agents:manage', 'agents:register', 'hitl:approve', 'audit:view');
+});
+
+test('api logout endpoint returns 200 with success message', function () {
+    $user = User::create([
+        'name' => 'Logout User',
+        'email' => 'logout@example.com',
+        'password' => Hash::make('secretpass'),
+        'role' => 'viewer',
+    ]);
+
+    $login = $this->postJson('/api/v1/auth/login', [
+        'email' => 'logout@example.com',
+        'password' => 'secretpass',
+    ]);
+    $token = $login->json('access_token');
+
+    $response = $this->withHeader('Authorization', "Bearer {$token}")
+        ->postJson('/api/v1/auth/logout');
+
+    $response->assertStatus(200)
+        ->assertJson([
+            'status' => 'success',
+            'message' => 'Sesión cerrada exitosamente',
+        ]);
+});

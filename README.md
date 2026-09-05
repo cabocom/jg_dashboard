@@ -161,7 +161,7 @@ docker compose logs -f
 - [ ] **Fase 03:** Autenticación de usuarios y RBAC (Admin, Operator, Viewer):
   - [x] `ISSUE-F03-T01`: Servicio de autenticación JWT y hashing de contraseñas (`JwtService`, `AuthService`, `/api/v1/auth/login`).
   - [x] `ISSUE-F03-T02`: Middleware y dependencias de autorización RBAC (`jwt.auth`, `role`, `permission`, 401/403).
-  - [ ] `ISSUE-F03-T03`: Endpoints de autenticación de usuarios: POST /auth/login y GET /auth/me.
+  - [x] `ISSUE-F03-T03`: Endpoints de autenticación de usuarios: POST /auth/login y GET /auth/me (`/api/v1/auth/me`, `/api/v1/auth/logout`, roles y permisos).
   - [ ] `ISSUE-F03-T04`: Script de inicialización para creación del usuario administrador inicial.
 - [ ] **Fase 04:** Sistema de registro de agentes con `bootstrap_token` de 24h y credencial permanente.
 - [ ] **Fase 05:** Monitoreo de agentes y procesamiento de heartbeats periódicos.
