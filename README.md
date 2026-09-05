@@ -126,21 +126,33 @@ jg_dashboard/
 
 ---
 
-## 6. Verificación de Calidad
+## 6. Verificación de Calidad y Despliegue Local
 
-Para ejecutar la suite de pruebas automatizadas (Pest PHP):
-
+### Pruebas Automatizadas (Pest PHP)
 ```bash
 ./scripts/check.sh
 # o directamente:
 ./vendor/bin/pest
 ```
 
+### Ejecución con Docker Compose
+```bash
+# Levantar contenedor web de jg_dashboard y PostgreSQL propio aislado (puerto 5434)
+docker compose up -d
+
+# Verificar estado y logs
+docker compose ps
+docker compose logs -f
+```
+
 ---
 
 ## 7. Roadmap y Estado
 
-- [x] **Fase 01:** Estructura base del repositorio jg_dashboard y configuración de entorno (Laravel 11, Filament v3, Livewire 3, Pest PHP).
+- [ ] **Fase 01:** Bootstrap, Documentación y Tooling:
+  - [x] `ISSUE-F01-T01`: Estructura base del repositorio jg_dashboard y configuración de entorno (Laravel 11, Filament v3, Livewire 3, Pest PHP).
+  - [x] `ISSUE-F01-T02`: Dockerfile multi-stage y Docker Compose con PostgreSQL propio (puerto 5434 y volumen aislado).
+  - [ ] `ISSUE-F01-T03`: Pipeline de CI/CD para jg_dashboard.
 - [ ] **Fase 02:** Persistencia y modelos de base de datos PostgreSQL (`dashboard_*`).
 - [ ] **Fase 03:** Autenticación de usuarios y RBAC (Admin, Operator, Viewer).
 - [ ] **Fase 04:** Sistema de registro de agentes con `bootstrap_token` de 24h y credencial permanente.

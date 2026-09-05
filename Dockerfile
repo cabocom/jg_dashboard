@@ -20,8 +20,8 @@ RUN composer install \
 # ==============================================================================
 FROM php:8.3-fpm-alpine
 
-LABEL maintainer="DevOps60K SRE Team"
-LABEL description="DevOps60K Web Observability and HITL Control Panel"
+LABEL maintainer="Javier Gálvez <cabocom>"
+LABEL description="jG Dashboard - Control Plane, Governance & HITL Management Panel"
 
 # Dependencias del sistema y librerías PostgreSQL
 RUN apk add --no-cache \

@@ -2,7 +2,7 @@
 set -e
 umask 022
 
-echo "🚀 [DevOps60K Web] Inicializando contenedor web..."
+echo "🚀 [jG Dashboard] Inicializando contenedor web..."
 
 # Crear directorios de cache, vistas y logs si no existen
 mkdir -p /var/www/html/storage/framework/cache/data \
@@ -55,5 +55,5 @@ php artisan view:cache || true
 chown -R www-data:www-data /var/www/html/public /var/www/html/storage /var/www/html/bootstrap/cache
 chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-echo "✅ [DevOps60K Web] Listo. Iniciando supervisord..."
+echo "✅ [jG Dashboard] Listo. Iniciando supervisord..."
 exec "$@"

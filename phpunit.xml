@@ -31,5 +31,7 @@
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="DEVOPS60K_API_URL" value="http://127.0.0.1:8000"/>
         <env name="DEVOPS60K_API_KEY" value="test_admin_key"/>
+        <env name="JG_AGENTE_API_URL" value="http://127.0.0.1:8000"/>
+        <env name="JG_AGENTE_API_KEY" value="test_admin_key"/>
     </php>
 </phpunit>
