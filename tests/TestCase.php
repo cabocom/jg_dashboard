@@ -98,5 +98,36 @@ abstract class TestCase extends BaseTestCase
                 $table->timestamps();
             });
         }
+
+        if (!Schema::hasTable('dashboard_approval_requests')) {
+            Schema::create('dashboard_approval_requests', function (Blueprint $table) {
+                $table->id();
+                $table->string('thread_id', 64)->index();
+                $table->uuid('agent_id')->nullable()->index();
+                $table->string('task_id', 64)->nullable()->index();
+                $table->string('status', 32)->default('PENDING')->index();
+                $table->string('risk_level', 32)->default('HIGH')->index();
+                $table->text('proposed_plan_json');
+                $table->text('compensation_commands_json')->nullable();
+                $table->unsignedBigInteger('user_id')->nullable();
+                $table->text('justification')->nullable();
+                $table->timestamp('resolved_at')->nullable()->index();
+                $table->timestamps();
+            });
+        }
+
+        if (!Schema::hasTable('dashboard_audit_events')) {
+            Schema::create('dashboard_audit_events', function (Blueprint $table) {
+                $table->id();
+                $table->string('event_type', 64)->index();
+                $table->unsignedBigInteger('user_id')->nullable();
+                $table->uuid('agent_id')->nullable()->index();
+                $table->string('ip_address', 45)->nullable();
+                $table->text('user_agent')->nullable();
+                $table->string('action_summary', 255);
+                $table->text('payload_json')->nullable();
+                $table->timestamp('created_at')->index();
+            });
+        }
     }
 }

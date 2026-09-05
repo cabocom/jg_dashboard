@@ -5,6 +5,7 @@ namespace App\Models;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -63,6 +64,22 @@ class User extends Authenticatable implements FilamentUser
     public function isOperator(): bool
     {
         return in_array($this->role, ['admin', 'operator']);
+    }
+
+    /**
+     * Approval requests resolved by this user.
+     */
+    public function approvalRequests(): HasMany
+    {
+        return $this->hasMany(ApprovalRequest::class, 'user_id');
+    }
+
+    /**
+     * Audit events initiated by this user.
+     */
+    public function auditEvents(): HasMany
+    {
+        return $this->hasMany(AuditEvent::class, 'user_id');
     }
 }
 

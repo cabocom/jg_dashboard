@@ -163,4 +163,20 @@ class Agent extends Model
     {
         return $this->hasMany(BootstrapToken::class, 'agent_id', 'agent_id');
     }
+
+    /**
+     * Approval requests originated by or involving this agent.
+     */
+    public function approvalRequests(): HasMany
+    {
+        return $this->hasMany(ApprovalRequest::class, 'agent_id', 'agent_id');
+    }
+
+    /**
+     * Audit events associated with this agent.
+     */
+    public function auditEvents(): HasMany
+    {
+        return $this->hasMany(AuditEvent::class, 'agent_id', 'agent_id');
+    }
 }
