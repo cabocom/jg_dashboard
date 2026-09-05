@@ -149,10 +149,10 @@ docker compose logs -f
 
 ## 7. Roadmap y Estado
 
-- [ ] **Fase 01:** Bootstrap, Documentación y Tooling:
+- [x] **Fase 01:** Bootstrap, Documentación y Tooling (100%):
   - [x] `ISSUE-F01-T01`: Estructura base del repositorio jg_dashboard y configuración de entorno (Laravel 11, Filament v3, Livewire 3, Pest PHP).
   - [x] `ISSUE-F01-T02`: Dockerfile multi-stage y Docker Compose con PostgreSQL propio (puerto 5434 y volumen aislado).
-  - [ ] `ISSUE-F01-T03`: Pipeline de CI/CD para jg_dashboard.
+  - [x] `ISSUE-F01-T03`: Pipeline de CI/CD para jg_dashboard (.gitlab-ci.yml con stage test y build).
 - [ ] **Fase 02:** Persistencia y modelos de base de datos PostgreSQL (`dashboard_*`).
 - [ ] **Fase 03:** Autenticación de usuarios y RBAC (Admin, Operator, Viewer).
 - [ ] **Fase 04:** Sistema de registro de agentes con `bootstrap_token` de 24h y credencial permanente.
