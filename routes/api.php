@@ -29,6 +29,7 @@ Route::prefix('v1')->group(function () {
         Route::middleware('role:operator')->group(function () {
             Route::post('/executions/trigger', [ExecutionController::class, 'trigger'])->name('api.v1.executions.trigger');
             Route::get('/approvals/pending', [HitlApprovalController::class, 'pending'])->name('api.v1.approvals.pending');
+            Route::post('/approvals/{approval_id}/approve', [HitlApprovalController::class, 'approve'])->name('api.v1.approvals.approve');
         });
 
         // Admin endpoints
@@ -71,6 +72,7 @@ Route::middleware('jwt.auth')->group(function () {
     Route::middleware('role:operator')->group(function () {
         Route::post('/executions/trigger', [ExecutionController::class, 'trigger'])->name('api.executions.trigger');
         Route::get('/approvals/pending', [HitlApprovalController::class, 'pending'])->name('api.approvals.pending');
+        Route::post('/approvals/{approval_id}/approve', [HitlApprovalController::class, 'approve'])->name('api.approvals.approve');
     });
 
     Route::middleware('role:admin')->prefix('admin')->group(function () {

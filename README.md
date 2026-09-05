@@ -180,7 +180,7 @@ docker compose logs -f
 - [ ] **Fase 07:** Consola y acciones de aprobación Human-In-The-Loop (HITL) (En progreso):
   - [x] `ISSUE-F07-T01`: Gestión de solicitudes de aprobación HITL en Dashboard (`HitlApprovalService`, idempotencia por `thread_id`, planes de alto riesgo, herramientas involucradas y auditoría).
   - [x] `ISSUE-F07-T02`: Endpoint de listado de aprobaciones pendientes: GET /api/v1/approvals/pending (`HitlApprovalController@pending`, RBAC `role:operator`, resumen de acciones, nivel de riesgo y tiempo transcurrido).
-  - [ ] `ISSUE-F07-T03`: Endpoint de resolución: POST /api/v1/approvals/{id}/resolve (aprobar/rechazar con justificación).
+  - [x] `ISSUE-F07-T03`: Endpoint de aprobación HITL: POST /api/v1/approvals/{approval_id}/approve (`HitlApprovalController@approve`, delegación hacia `jg_agente`, actualización de estado y auditoría).
   - [ ] `ISSUE-F07-T04`: Integración reactiva en Filament y consola HITL en tiempo real.
 - [ ] **Fase 08:** Adaptador normalizador de entrada/salida (`AgentInput` / `AgentOutput`).
 - [ ] **Fase 09:** Integración end-to-end con `jg_agente` (Casos de Éxito A y B).

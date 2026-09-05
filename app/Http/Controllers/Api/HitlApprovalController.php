@@ -63,4 +63,43 @@ class HitlApprovalController extends Controller
             ],
         ], 200);
     }
+
+    /**
+     * Approve a pending HITL request and resume execution on jg_agente.
+     */
+    public function approve(Request $request, string|int $approvalId): JsonResponse
+    {
+        $validated = $request->validate([
+            'justification' => 'nullable|string|max:1000',
+        ]);
+
+        $user = $request->user();
+        if (!$user) {
+            return response()->json([
+                'error' => 'Unauthorized',
+                'message' => 'Autenticación requerida',
+            ], 401);
+        }
+
+        $result = $this->hitlService->approveApproval(
+            approvalId: $approvalId,
+            resolver: $user,
+            justification: $validated['justification'] ?? null,
+            ipAddress: $request->ip(),
+            userAgent: $request->userAgent()
+        );
+
+        if (!$result['success']) {
+            return response()->json([
+                'error' => 'ApprovalFailed',
+                'message' => $result['error'] ?? 'No fue posible completar la aprobación',
+            ], $result['status_code'] ?? 500);
+        }
+
+        return response()->json([
+            'status' => 'approved',
+            'message' => 'Solicitud HITL aprobada exitosamente y delegada al agente.',
+            'data' => $result['data'] ?? [],
+        ], 200);
+    }
 }
