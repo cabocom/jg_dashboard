@@ -228,7 +228,7 @@ class ExecutionController extends Controller
             'execution_id' => $data['execution_id'] ?? null,
             'status' => $data['status'] ?? 'unknown',
             'prompt' => $data['prompt'] ?? null,
-            'output' => $data['response'] ?? $data['final_output'] ?? null,
+            'output' => $data['response'] ?? $data['final_output'] ?? $data['output'] ?? null,
             'current_step' => $data['current_step'] ?? 0,
             'next_nodes' => $data['next_nodes'] ?? [],
             'requires_approval' => $data['requires_approval'] ?? false,

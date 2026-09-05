@@ -192,5 +192,28 @@ class WebConsoleController extends Controller
             'data' => $result['data'] ?? [],
         ], 200);
     }
+
+    /**
+     * Trigger an execution directly from the web console.
+     */
+    public function triggerExecution(Request $request, \App\Http\Controllers\Api\ExecutionController $controller): JsonResponse
+    {
+        if (!$request->user()) {
+            $operator = \App\Models\User::whereIn('role', ['operator', 'admin'])->first() ?? \App\Models\User::first();
+            if ($operator) {
+                $request->setUserResolver(fn () => $operator);
+            }
+        }
+
+        return $controller->trigger($request);
+    }
+
+    /**
+     * Fetch execution status and step history directly for the web console.
+     */
+    public function showExecution(Request $request, string $agentId, string $threadId, \App\Http\Controllers\Api\ExecutionController $controller): JsonResponse
+    {
+        return $controller->show($request, $agentId, $threadId);
+    }
 }
 

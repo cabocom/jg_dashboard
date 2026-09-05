@@ -274,40 +274,129 @@
 
         <!-- Section 3: EXECUTIONS -->
         <section id="view-executions" class="view-section">
-          <div class="panel">
-            <div class="panel-header">
-              <h3 class="panel-title">
-                <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Pasarela de Disparo de Ejecuciones Cognitivas
-              </h3>
+          <div class="execution-layout-grid">
+            <!-- Left Column: Trigger Gateway -->
+            <div class="panel">
+              <div class="panel-header">
+                <h3 class="panel-title">
+                  <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Pasarela de Disparo de Ejecuciones
+                </h3>
+              </div>
+              <div class="panel-body">
+                <form id="form-trigger-execution" style="display: flex; flex-direction: column; gap: 20px;">
+                  <div class="form-group">
+                    <label class="form-label" for="trigger-agent-id">Agente Destino</label>
+                    <select id="trigger-agent-id" class="form-control">
+                      <option value="">Cargando agentes activos...</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="trigger-prompt">Prompt / Estímulo Inicial (AgentInput)</label>
+                    <textarea id="trigger-prompt" class="form-control" placeholder="Ej: Analiza los contenedores con reinicios recientes y reinicia el servicio Nginx de forma segura."></textarea>
+                  </div>
+
+                  <div style="display: flex; justify-content: flex-end;">
+                    <button type="submit" class="btn btn-primary">
+                      ▶ Disparar Ejecución en Agente
+                    </button>
+                  </div>
+                </form>
+
+                <div style="margin-top: 24px;">
+                  <div class="form-label" style="margin-bottom: 8px;">Consola de Respuesta del Control Plane:</div>
+                  <pre id="execution-result-box" style="background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px; font-family: var(--font-mono); font-size: 13px; color: var(--accent-cyan); overflow-x: auto; min-height: 80px;">Esperando instrucción...</pre>
+                </div>
+              </div>
             </div>
-            <div class="panel-body">
-              <form id="form-trigger-execution" style="display: flex; flex-direction: column; gap: 20px;">
-                <div class="form-group">
-                  <label class="form-label" for="trigger-agent-id">Agente Destino</label>
-                  <select id="trigger-agent-id" class="form-control">
-                    <option value="">Cargando agentes activos...</option>
+
+            <!-- Right Column: Real-Time Execution Trace Viewer -->
+            <div class="panel">
+              <div class="panel-header">
+                <h3 class="panel-title">
+                  <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  Visor de Traza de Pasos y Telemetría en Tiempo Real
+                </h3>
+              </div>
+              <div class="panel-body">
+                <!-- Query Toolbar -->
+                <div class="execution-query-toolbar">
+                  <select id="execution-query-agent" class="form-control" style="width: auto; min-width: 160px;">
+                    <option value="">Selecciona Agente</option>
                   </select>
-                </div>
-
-                <div class="form-group">
-                  <label class="form-label" for="trigger-prompt">Prompt / Estímulo Inicial (AgentInput)</label>
-                  <textarea id="trigger-prompt" class="form-control" placeholder="Ej: Analiza los contenedores con reinicios recientes y reinicia el servicio Nginx de forma segura."></textarea>
-                </div>
-
-                <div style="display: flex; justify-content: flex-end;">
-                  <button type="submit" class="btn btn-primary">
-                    ▶ Disparar Ejecución en Agente
+                  <input type="text" id="execution-query-thread" class="form-control" style="flex: 1; min-width: 200px;" placeholder="Thread ID (ej: th-...)">
+                  <button type="button" id="btn-load-execution" class="btn btn-secondary">
+                    🔍 Cargar Traza
                   </button>
                 </div>
-              </form>
 
-              <div style="margin-top: 24px;">
-                <div class="form-label" style="margin-bottom: 8px;">Consola de Respuesta del Control Plane:</div>
-                <pre id="execution-result-box" style="background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px; font-family: var(--font-mono); font-size: 13px; color: var(--accent-cyan); overflow-x: auto; min-height: 80px;">Esperando instrucción...</pre>
+                <!-- Recent Executions Quick Chips -->
+                <div id="recent-threads-container" class="recent-threads-bar">
+                  <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">RECIENTES:</span>
+                  <div id="recent-threads-list" style="display: flex; gap: 6px; flex-wrap: wrap;">
+                    <span style="font-size: 11px; color: var(--text-muted);">Sin ejecuciones en sesión</span>
+                  </div>
+                </div>
+
+                <!-- Execution Detail Container -->
+                <div id="execution-detail-panel" class="execution-detail-card">
+                  <!-- Metadata Summary Grid -->
+                  <div class="execution-meta-grid">
+                    <div class="exec-meta-item">
+                      <span class="exec-meta-label">Estado</span>
+                      <span id="exec-status-badge" class="badge badge-pending">SIN CARGAR</span>
+                    </div>
+                    <div class="exec-meta-item">
+                      <span class="exec-meta-label">Latencia</span>
+                      <span id="exec-latency" class="exec-meta-val">-</span>
+                    </div>
+                    <div class="exec-meta-item">
+                      <span class="exec-meta-label">Agente</span>
+                      <span id="exec-agent-name" class="exec-meta-val" style="font-size: 13px;">-</span>
+                    </div>
+                    <div class="exec-meta-item">
+                      <span class="exec-meta-label">Thread ID</span>
+                      <span id="exec-thread-id" class="exec-meta-val" style="font-family: var(--font-mono); font-size: 12px; color: var(--accent-cyan);">-</span>
+                    </div>
+                  </div>
+
+                  <!-- Prompt Box -->
+                  <div>
+                    <div class="form-label" style="margin-bottom: 6px;">Prompt de Entrada (AgentInput):</div>
+                    <div id="execution-prompt-box" class="execution-prompt-container">
+                      Introduce un Thread ID y pulsa "Cargar Traza", o dispara una nueva ejecución desde la izquierda.
+                    </div>
+                  </div>
+
+                  <!-- Step Execution Trace Timeline -->
+                  <div class="trace-steps-container">
+                    <div class="form-label" style="margin-bottom: 6px;">
+                      Flujo de Ejecución y Traza de Pasos:
+                    </div>
+                    <div id="execution-steps-timeline" class="trace-steps-timeline">
+                      <div style="font-size: 12px; color: var(--text-muted); padding: 12px 0;">
+                        No hay pasos registrados para mostrar.
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Output Box -->
+                  <div>
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                      <div class="form-label">Resultado Obtenido (AgentOutput):</div>
+                      <button type="button" id="btn-copy-exec-output" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px;">
+                        📋 Copiar
+                      </button>
+                    </div>
+                    <pre id="execution-output-box" class="execution-code-box">Esperando datos de ejecución...</pre>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

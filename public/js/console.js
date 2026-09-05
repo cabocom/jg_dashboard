@@ -18,6 +18,9 @@ document.addEventListener('DOMContentLoaded', () => {
       hitlRiskFilter: 'ALL',
       hitlSearchQuery: '',
       hitlAgentFilter: 'ALL',
+      currentExecution: null,
+      executionPollingInterval: null,
+      recentExecutions: [],
     },
 
     init() {
@@ -168,6 +171,31 @@ document.addEventListener('DOMContentLoaded', () => {
           this.submitTriggerExecution();
         });
       }
+
+      // Load Execution Button
+      const btnLoadExec = document.getElementById('btn-load-execution');
+      if (btnLoadExec) {
+        btnLoadExec.addEventListener('click', () => {
+          const agentId = document.getElementById('execution-query-agent')?.value;
+          const threadId = document.getElementById('execution-query-thread')?.value?.trim();
+          if (!agentId || !threadId) {
+            this.showToast('Selecciona un agente e introduce el Thread ID', 'error');
+            return;
+          }
+          this.loadExecutionTrace(agentId, threadId);
+        });
+      }
+
+      // Copy Execution Output Button
+      const btnCopyExec = document.getElementById('btn-copy-exec-output');
+      if (btnCopyExec) {
+        btnCopyExec.addEventListener('click', () => {
+          const text = document.getElementById('execution-output-box')?.textContent;
+          if (text) {
+            this.copyToClipboard(text, 'Resultado de ejecución copiado al portapapeles');
+          }
+        });
+      }
     },
 
     setAgentViewMode(mode) {
@@ -292,8 +320,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return true;
       });
 
-      // Populate Select in Trigger Form
+      // Populate Select in Trigger Form and Execution Query Toolbar
       const selectAgent = document.getElementById('trigger-agent-id');
+      const queryAgent = document.getElementById('execution-query-agent');
       if (selectAgent) {
         selectAgent.innerHTML = '';
         agents.forEach((agent) => {
@@ -302,6 +331,17 @@ document.addEventListener('DOMContentLoaded', () => {
           opt.textContent = `${agent.name} (${agent.status})`;
           if (agent.status !== 'ACTIVE') opt.disabled = true;
           selectAgent.appendChild(opt);
+        });
+      }
+      if (queryAgent) {
+        const currentVal = queryAgent.value;
+        queryAgent.innerHTML = '<option value="">Selecciona Agente</option>';
+        agents.forEach((agent) => {
+          const opt = document.createElement('option');
+          opt.value = agent.agent_id;
+          opt.textContent = `${agent.name} (${agent.agent_id})`;
+          if (agent.agent_id === currentVal) opt.selected = true;
+          queryAgent.appendChild(opt);
         });
       }
 
@@ -842,11 +882,19 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       try {
-        const res = await fetch('/api/v1/executions/trigger', {
+        let res = await fetch('/console/executions/trigger', {
           method: 'POST',
           headers: { ...this.getAuthHeaders(), 'Content-Type': 'application/json' },
           body: JSON.stringify({ agent_id: agentId, prompt: prompt.trim() }),
         });
+
+        if (!res.ok) {
+          res = await fetch('/api/v1/executions/trigger', {
+            method: 'POST',
+            headers: { ...this.getAuthHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ agent_id: agentId, prompt: prompt.trim() }),
+          });
+        }
 
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || 'Error al disparar ejecución');
@@ -855,6 +903,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (resultBox) {
           resultBox.textContent = JSON.stringify(data, null, 2);
         }
+
+        const threadId = data.thread_id || data.execution_id;
+        if (threadId) {
+          this.addRecentExecution(agentId, threadId);
+          this.loadExecutionTrace(agentId, threadId);
+        }
+
         this.fetchApprovals();
       } catch (err) {
         this.showToast(`Error: ${err.message}`, 'error');
@@ -863,6 +918,203 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
     },
+
+    addRecentExecution(agentId, threadId) {
+      if (!threadId) return;
+      this.state.recentExecutions = this.state.recentExecutions.filter((item) => item.thread_id !== threadId);
+      this.state.recentExecutions.unshift({
+        agent_id: agentId,
+        thread_id: threadId,
+        timestamp: new Date().toLocaleTimeString(),
+      });
+      if (this.state.recentExecutions.length > 5) {
+        this.state.recentExecutions.pop();
+      }
+      this.renderRecentExecutions();
+    },
+
+    renderRecentExecutions() {
+      const listEl = document.getElementById('recent-threads-list');
+      if (!listEl) return;
+
+      if (this.state.recentExecutions.length === 0) {
+        listEl.innerHTML = '<span style="font-size: 11px; color: var(--text-muted);">Sin ejecuciones en sesión</span>';
+        return;
+      }
+
+      listEl.innerHTML = this.state.recentExecutions
+        .map(
+          (item) => `
+          <button type="button" class="recent-thread-chip" onclick="window.ConsoleApp.loadExecutionTrace('${this.escapeHtml(item.agent_id)}', '${this.escapeHtml(item.thread_id)}')">
+            ⚡ ${this.escapeHtml(item.thread_id)} (${item.timestamp})
+          </button>
+        `
+        )
+        .join('');
+    },
+
+    async loadExecutionTrace(agentId, threadId) {
+      if (this.state.executionPollingInterval) {
+        clearInterval(this.state.executionPollingInterval);
+        this.state.executionPollingInterval = null;
+      }
+
+      const queryAgent = document.getElementById('execution-query-agent');
+      if (queryAgent && agentId) queryAgent.value = agentId;
+      const queryThread = document.getElementById('execution-query-thread');
+      if (queryThread && threadId) queryThread.value = threadId;
+
+      try {
+        let res = await fetch(`/console/executions/${encodeURIComponent(agentId)}/${encodeURIComponent(threadId)}`, {
+          headers: this.getAuthHeaders(),
+        });
+
+        if (!res.ok) {
+          res = await fetch(`/api/v1/executions/${encodeURIComponent(agentId)}/${encodeURIComponent(threadId)}`, {
+            headers: this.getAuthHeaders(),
+          });
+        }
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.message || `HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        this.state.currentExecution = data;
+        this.renderExecutionDetail(data);
+
+        if (data.status === 'in_progress') {
+          this.state.executionPollingInterval = setInterval(() => {
+            this.pollExecution(agentId, threadId);
+          }, 3000);
+        }
+      } catch (err) {
+        this.showToast(`Error al consultar ejecución: ${err.message}`, 'error');
+      }
+    },
+
+    async pollExecution(agentId, threadId) {
+      try {
+        let res = await fetch(`/console/executions/${encodeURIComponent(agentId)}/${encodeURIComponent(threadId)}`, {
+          headers: this.getAuthHeaders(),
+        });
+        if (!res.ok) {
+          res = await fetch(`/api/v1/executions/${encodeURIComponent(agentId)}/${encodeURIComponent(threadId)}`, {
+            headers: this.getAuthHeaders(),
+          });
+        }
+        if (!res.ok) return;
+
+        const data = await res.json();
+        this.state.currentExecution = data;
+        this.renderExecutionDetail(data);
+
+        if (data.status !== 'in_progress') {
+          clearInterval(this.state.executionPollingInterval);
+          this.state.executionPollingInterval = null;
+          this.showToast(`Ejecución finalizada: ${data.status}`, 'info');
+        }
+      } catch {
+        // Silent polling error
+      }
+    },
+
+    renderExecutionDetail(data) {
+      if (!data) return;
+
+      const statusBadge = document.getElementById('exec-status-badge');
+      if (statusBadge) {
+        const isProgress = data.status === 'in_progress';
+        const isCompleted = data.status === 'completed' || data.status === 'success';
+        const isWaiting = data.status === 'waiting_approval';
+        const isFailed = data.status === 'failed' || data.status === 'error';
+
+        statusBadge.className = 'badge ' + (
+          isCompleted ? 'badge-active' :
+          isProgress ? 'badge-active' :
+          isWaiting ? 'badge-pending' :
+          isFailed ? 'badge-critical' : 'badge-offline'
+        );
+        statusBadge.textContent = (data.status || 'UNKNOWN').toUpperCase();
+      }
+
+      this.setTextContent('exec-latency', data.latency_ms !== undefined ? `${data.latency_ms}ms` : '<10ms');
+      this.setTextContent('exec-agent-name', data.agent_name || data.agent_id || '-');
+      this.setTextContent('exec-thread-id', data.thread_id || '-');
+
+      const promptBox = document.getElementById('execution-prompt-box');
+      if (promptBox) {
+        promptBox.textContent = data.prompt || data.data?.prompt || 'Sin prompt registrado para esta ejecución.';
+      }
+
+      // Render Steps Timeline
+      const timeline = document.getElementById('execution-steps-timeline');
+      if (timeline) {
+        const rawSteps = data.steps || data.data?.steps || [];
+        let steps = [];
+
+        if (Array.isArray(rawSteps) && rawSteps.length > 0) {
+          steps = rawSteps;
+        } else if (data.plan && Array.isArray(data.plan.steps)) {
+          steps = data.plan.steps;
+        } else if (data.plan && Array.isArray(data.plan.actions)) {
+          steps = data.plan.actions;
+        }
+
+        if (steps.length === 0) {
+          timeline.innerHTML = `
+            <div style="font-size: 13px; color: var(--text-muted); padding: 12px 0;">
+              ✓ Grafo cognitivo completado en un solo ciclo (sin pasos intermedios registrados).
+            </div>
+          `;
+        } else {
+          timeline.innerHTML = steps
+            .map((s, idx) => {
+              const nodeName = s.node || s.engine || s.name || s.action || `Paso ${idx + 1}`;
+              const toolName = s.tool || s.tool_name || null;
+              const duration = s.duration_ms ? `${s.duration_ms}ms` : '';
+              const isError = s.status === 'error' || s.status === 'failed';
+              const isInProgress = s.status === 'in_progress';
+
+              const badgeClass = isError ? 'error' : isInProgress ? 'in-progress' : '';
+              const badgeIcon = isError ? '✕' : isInProgress ? '⏳' : '✓';
+
+              const cmdHtml = s.command ? `<div class="step-command-box"><code>$ ${this.escapeHtml(s.command)}</code></div>` : '';
+              const outputVal = s.output || s.result;
+              const outputHtml = outputVal ? `<div style="font-size: 11px; color: var(--text-secondary); background: rgba(0,0,0,0.25); padding: 6px 10px; border-radius: 4px; font-family: var(--font-mono); margin-top: 4px;">${this.escapeHtml(typeof outputVal === 'string' ? outputVal : JSON.stringify(outputVal))}</div>` : '';
+
+              return `
+                <div class="trace-step-node">
+                  <div class="trace-node-badge ${badgeClass}">${badgeIcon}</div>
+                  <div class="trace-node-header">
+                    <span class="trace-node-title">${this.escapeHtml(nodeName)}</span>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                      ${toolName ? `<span class="tool-tag">${this.escapeHtml(toolName)}</span>` : ''}
+                      ${duration ? `<span style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono);">${duration}</span>` : ''}
+                    </div>
+                  </div>
+                  ${cmdHtml}
+                  ${outputHtml}
+                </div>
+              `;
+            })
+            .join('');
+        }
+      }
+
+      // Render Output Box
+      const outputBox = document.getElementById('execution-output-box');
+      if (outputBox) {
+        const out = data.output || data.response || data.final_output || data.data?.output || data.data?.response;
+        if (out !== undefined && out !== null) {
+          outputBox.textContent = typeof out === 'string' ? out : JSON.stringify(out, null, 2);
+        } else {
+          outputBox.textContent = JSON.stringify(data, null, 2);
+        }
+      }
+    },
+
 
     async inspectCapabilities(agentId) {
       try {
