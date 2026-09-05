@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AdminAgentController;
 use App\Http\Controllers\Api\AuthController;
 use Illuminate\Support\Facades\Route;
 
@@ -10,6 +11,13 @@ Route::prefix('v1')->group(function () {
     Route::middleware('jwt.auth')->group(function () {
         Route::get('/auth/me', [AuthController::class, 'me'])->name('api.v1.auth.me');
         Route::post('/auth/logout', [AuthController::class, 'logout'])->name('api.v1.auth.logout');
+
+        // Admin endpoints
+        Route::middleware('role:admin')->prefix('admin')->group(function () {
+            Route::get('/agents', [AdminAgentController::class, 'index'])->name('api.v1.admin.agents.index');
+            Route::post('/agents', [AdminAgentController::class, 'store'])->name('api.v1.admin.agents.store');
+            Route::post('/agents/{agent_id}/regenerate-token', [AdminAgentController::class, 'regenerateToken'])->name('api.v1.admin.agents.regenerate_token');
+        });
 
         Route::middleware('role:admin')->get('/test/admin-only', function () {
             return response()->json(['status' => 'ok', 'message' => 'Admin resource accessed']);
@@ -33,4 +41,11 @@ Route::post('/auth/login', [AuthController::class, 'login'])->name('api.auth.log
 Route::middleware('jwt.auth')->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me'])->name('api.auth.me');
     Route::post('/auth/logout', [AuthController::class, 'logout'])->name('api.auth.logout');
+
+    Route::middleware('role:admin')->prefix('admin')->group(function () {
+        Route::get('/agents', [AdminAgentController::class, 'index'])->name('api.admin.agents.index');
+        Route::post('/agents', [AdminAgentController::class, 'store'])->name('api.admin.agents.store');
+        Route::post('/agents/{agent_id}/regenerate-token', [AdminAgentController::class, 'regenerateToken'])->name('api.admin.agents.regenerate_token');
+    });
 });
+
