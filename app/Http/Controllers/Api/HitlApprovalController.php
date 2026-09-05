@@ -102,4 +102,46 @@ class HitlApprovalController extends Controller
             'data' => $result['data'] ?? [],
         ], 200);
     }
+
+    /**
+     * Reject a pending HITL request with mandatory justification and cancel execution on jg_agente.
+     */
+    public function reject(Request $request, string|int $approvalId): JsonResponse
+    {
+        $validated = $request->validate([
+            'justification' => 'required|string|min:5|max:1000',
+        ], [
+            'justification.required' => 'El motivo o justificación del rechazo es obligatorio.',
+            'justification.min' => 'El motivo de rechazo debe contener al menos 5 caracteres.',
+        ]);
+
+        $user = $request->user();
+        if (!$user) {
+            return response()->json([
+                'error' => 'Unauthorized',
+                'message' => 'Autenticación requerida',
+            ], 401);
+        }
+
+        $result = $this->hitlService->rejectApproval(
+            approvalId: $approvalId,
+            resolver: $user,
+            justification: $validated['justification'],
+            ipAddress: $request->ip(),
+            userAgent: $request->userAgent()
+        );
+
+        if (!$result['success']) {
+            return response()->json([
+                'error' => 'RejectionFailed',
+                'message' => $result['error'] ?? 'No fue posible completar el rechazo',
+            ], $result['status_code'] ?? 500);
+        }
+
+        return response()->json([
+            'status' => 'rejected',
+            'message' => 'Solicitud HITL rechazada exitosamente y cancelada en el agente.',
+            'data' => $result['data'] ?? [],
+        ], 200);
+    }
 }

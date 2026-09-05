@@ -1,10 +1,10 @@
 # CONTEXTO DE PROYECTO: jg_dashboard
 
-**Versión del documento:** 3.14.0  
+**Versión del documento:** 3.15.0  
 **Fecha de consolidación:** 5 de septiembre de 2026  
 **Componente:** Control Plane (Plano de Control, Gestión, Gobernanza y HITL)  
 **Stack Tecnológico:** Laravel 11, Filament PHP v3, Livewire 3, Tailwind CSS, PostgreSQL, Pest PHP  
-**Estado:** Fases 01 a 06 completadas al 100%. Fase 07 en progreso con ISSUE-F07-T01, ISSUE-F07-T02 e ISSUE-F07-T03 (`POST /api/v1/approvals/{approval_id}/approve`, delegación hacia `jg_agente`, resolución de estado y auditoría). 188 tests pasando en Pest.  
+**Estado:** Fases 01 a 07 completadas al 100%. Fase 07 culminada con ISSUE-F07-T04 (`POST /api/v1/approvals/{approval_id}/reject`, justificación obligatoria, delegación a `jg_agente` y auditoría inmutable) y suite completa de documentación arquitectónica (`docs/architecture.md`, `security.md`, `database.md`, `hitl.md`, `agents.md`). 198 tests pasando en Pest.  
 
 ---
 
@@ -114,6 +114,7 @@ El registro de nuevos agentes sigue un protocolo de cuatro pasos a prueba de acc
 - `GET /api/v1/executions/{agent_id}/{thread_id}`: Consulta unificada de progreso, pasos y estado de ejecución hacia la API de `jg_agente` con estricto aislamiento de base de datos.
 - `GET /api/v1/approvals/pending`: Listado paginado de solicitudes HITL pendientes para operadores y administradores, con resumen de acciones, nivel de riesgo, herramientas involucradas y métricas de tiempo transcurrido.
 - `POST /api/v1/approvals/{approval_id}/approve`: Endpoint de resolución HITL para operadores y administradores que valida estado pendiente, delega `/executions/{thread_id}/approve` hacia `jg_agente` mediante `AgentHttpClient`, actualiza la solicitud a `APPROVED` y genera auditoría inmutable.
+- `POST /api/v1/approvals/{approval_id}/reject`: Endpoint de cancelación HITL para operadores y administradores con justificación obligatoria, delega `/executions/{thread_id}/reject` hacia `jg_agente`, actualiza la solicitud a `REJECTED` y genera auditoría inmutable.
 
 ### 5.2 Endpoints Invocados por `jg_dashboard` hacia `jg_agente` (Proxy Interno `AgentHttpClient`)
 El cliente `App\Services\Agents\AgentHttpClient` canaliza la comunicación cifrada y firmada mediante HMAC-SHA256 con las instancias internas de `jg_agente`:

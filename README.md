@@ -177,10 +177,10 @@ docker compose logs -f
   - [x] `ISSUE-F06-T02`: Pasarela para disparar ejecuciones: POST /api/v1/executions/trigger (`ExecutionController`, RBAC `role:operator`, normalización a `AgentInput`, auditoría y persistencia HITL).
   - [x] `ISSUE-F06-T03`: Consulta de estado de ejecuciones: GET /api/v1/executions/{agent_id}/{thread_id} (`ExecutionController@show`, aislamiento de BD, estado unificado y gobernanza HITL).
   - [x] `ISSUE-F06-T04`: Endpoint de inspección de capacidades: GET /api/v1/agents/{agent_id}/capabilities (`AgentController@capabilities`, consulta en vivo y sincronización en BD).
-- [ ] **Fase 07:** Consola y acciones de aprobación Human-In-The-Loop (HITL) (En progreso):
+- [x] **Fase 07:** Consola y acciones de aprobación Human-In-The-Loop (HITL) (100%):
   - [x] `ISSUE-F07-T01`: Gestión de solicitudes de aprobación HITL en Dashboard (`HitlApprovalService`, idempotencia por `thread_id`, planes de alto riesgo, herramientas involucradas y auditoría).
   - [x] `ISSUE-F07-T02`: Endpoint de listado de aprobaciones pendientes: GET /api/v1/approvals/pending (`HitlApprovalController@pending`, RBAC `role:operator`, resumen de acciones, nivel de riesgo y tiempo transcurrido).
   - [x] `ISSUE-F07-T03`: Endpoint de aprobación HITL: POST /api/v1/approvals/{approval_id}/approve (`HitlApprovalController@approve`, delegación hacia `jg_agente`, actualización de estado y auditoría).
-  - [ ] `ISSUE-F07-T04`: Integración reactiva en Filament y consola HITL en tiempo real.
+  - [x] `ISSUE-F07-T04`: Endpoint de rechazo HITL: POST /api/v1/approvals/{approval_id}/reject (`HitlApprovalController@reject`, justificación obligatoria, cancelación en `jg_agente` y auditoría inmutable).
 - [ ] **Fase 08:** Adaptador normalizador de entrada/salida (`AgentInput` / `AgentOutput`).
 - [ ] **Fase 09:** Integración end-to-end con `jg_agente` (Casos de Éxito A y B).
