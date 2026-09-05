@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AgentController;
 use App\Http\Controllers\Api\AgentHeartbeatController;
 use App\Http\Controllers\Api\AgentRegistrationController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ExecutionController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -20,6 +21,11 @@ Route::prefix('v1')->group(function () {
         // Agent queries and health status (accessible by all authenticated roles)
         Route::get('/agents', [AgentController::class, 'index'])->name('api.v1.agents.index');
         Route::get('/agents/{agent_id}', [AgentController::class, 'show'])->name('api.v1.agents.show');
+
+        // Execution triggers and HITL orchestration (accessible by operator and admin)
+        Route::middleware('role:operator')->group(function () {
+            Route::post('/executions/trigger', [ExecutionController::class, 'trigger'])->name('api.v1.executions.trigger');
+        });
 
         // Admin endpoints
         Route::middleware('role:admin')->prefix('admin')->group(function () {
@@ -55,6 +61,10 @@ Route::middleware('jwt.auth')->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout'])->name('api.auth.logout');
     Route::get('/agents', [AgentController::class, 'index'])->name('api.agents.index');
     Route::get('/agents/{agent_id}', [AgentController::class, 'show'])->name('api.agents.show');
+
+    Route::middleware('role:operator')->group(function () {
+        Route::post('/executions/trigger', [ExecutionController::class, 'trigger'])->name('api.executions.trigger');
+    });
 
     Route::middleware('role:admin')->prefix('admin')->group(function () {
         Route::get('/agents', [AdminAgentController::class, 'index'])->name('api.admin.agents.index');

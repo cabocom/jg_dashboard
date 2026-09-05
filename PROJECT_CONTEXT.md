@@ -1,10 +1,10 @@
 # CONTEXTO DE PROYECTO: jg_dashboard
 
-**Versión del documento:** 3.8.0  
+**Versión del documento:** 3.9.0  
 **Fecha de consolidación:** 5 de septiembre de 2026  
 **Componente:** Control Plane (Plano de Control, Gestión, Gobernanza y HITL)  
 **Stack Tecnológico:** Laravel 11, Filament PHP v3, Livewire 3, Tailwind CSS, PostgreSQL, Pest PHP  
-**Estado:** Fases 01, 02, 03, 04 y 05 completadas al 100%. Fase 06 iniciada con ISSUE-F06-T01 (`AgentHttpClient` interno con firmado HMAC-SHA256, timeouts, reintentos con backoff exponencial y resiliencia de red). 139 tests pasando en Pest.  
+**Estado:** Fases 01, 02, 03, 04 y 05 completadas al 100%. Fase 06 en progreso: completadas ISSUE-F06-T01 (`AgentHttpClient` con firmado HMAC-SHA256) e ISSUE-F06-T02 (Pasarela `POST /api/v1/executions/trigger` con autorización RBAC, normalización a `AgentInput`, auditoría y persistencia HITL). 150 tests pasando en Pest.  
 
 ---
 
@@ -102,10 +102,14 @@ El registro de nuevos agentes sigue un protocolo de cuatro pasos a prueba de acc
 
 ## 5. Arquitectura de la API de Comunicación
 
-### 5.1 Endpoints Expuestos por `jg_dashboard` para Agentes
-- `POST /api/v1/agents/register`: Validación del bootstrap token y emisión de credenciales permanentes.
-- `POST /api/v1/agents/heartbeat`: Recepción de estado de salud y métricas de agentes activos.
-- `POST /api/v1/agents/events`: Recepción de eventos asíncronos del ciclo de vida (`execution.started`, `execution.waiting_approval`, etc.).
+### 5.1 Endpoints Expuestos por `jg_dashboard`
+- `POST /api/v1/auth/login`: Autenticación JWT para administradores, operadores y observadores.
+- `GET /api/v1/auth/me`: Perfil de usuario, roles y permisos efectivos.
+- `POST /api/v1/agents/register`: Validación del bootstrap token y emisión de credenciales permanentes para agentes.
+- `POST /api/v1/agents/heartbeat`: Recepción de estado de salud y telemetría de agentes activos.
+- `GET /api/v1/agents`: Listado paginado con métricas agregadas y filtros por estado.
+- `GET /api/v1/agents/{agent_id}`: Consulta detallada de estado de un agente específico.
+- `POST /api/v1/executions/trigger`: Pasarela protegida (roles `admin` y `operator`) para disparar ejecuciones hacia `jg_agente` con normalización a `AgentInput`.
 
 ### 5.2 Endpoints Invocados por `jg_dashboard` hacia `jg_agente` (Proxy Interno `AgentHttpClient`)
 El cliente `App\Services\Agents\AgentHttpClient` canaliza la comunicación cifrada y firmada mediante HMAC-SHA256 con las instancias internas de `jg_agente`:
