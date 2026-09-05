@@ -1,10 +1,10 @@
 # CONTEXTO DE PROYECTO: jg_dashboard
 
-**Versión del documento:** 3.15.0  
+**Versión del documento:** 3.16.0  
 **Fecha de consolidación:** 5 de septiembre de 2026  
 **Componente:** Control Plane (Plano de Control, Gestión, Gobernanza y HITL)  
 **Stack Tecnológico:** Laravel 11, Filament PHP v3, Livewire 3, Tailwind CSS, PostgreSQL, Pest PHP  
-**Estado:** Fases 01 a 07 completadas al 100%. Fase 07 culminada con ISSUE-F07-T04 (`POST /api/v1/approvals/{approval_id}/reject`, justificación obligatoria, delegación a `jg_agente` y auditoría inmutable) y suite completa de documentación arquitectónica (`docs/architecture.md`, `security.md`, `database.md`, `hitl.md`, `agents.md`). 198 tests pasando en Pest.  
+**Estado:** Fases 01 a 07 completadas al 100%. Fase 09 iniciada con ISSUE-F09-T01 (`/console`, `/dashboard`, UI Vanilla CSS/JS y navegación de Agentes, HITL y Ejecuciones). 202 tests pasando en Pest.  
 
 ---
 

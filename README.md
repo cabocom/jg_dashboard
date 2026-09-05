@@ -182,5 +182,10 @@ docker compose logs -f
   - [x] `ISSUE-F07-T02`: Endpoint de listado de aprobaciones pendientes: GET /api/v1/approvals/pending (`HitlApprovalController@pending`, RBAC `role:operator`, resumen de acciones, nivel de riesgo y tiempo transcurrido).
   - [x] `ISSUE-F07-T03`: Endpoint de aprobación HITL: POST /api/v1/approvals/{approval_id}/approve (`HitlApprovalController@approve`, delegación hacia `jg_agente`, actualización de estado y auditoría).
   - [x] `ISSUE-F07-T04`: Endpoint de rechazo HITL: POST /api/v1/approvals/{approval_id}/reject (`HitlApprovalController@reject`, justificación obligatoria, cancelación en `jg_agente` y auditoría inmutable).
-- [ ] **Fase 08:** Adaptador normalizador de entrada/salida (`AgentInput` / `AgentOutput`).
-- [ ] **Fase 09:** Integración end-to-end con `jg_agente` (Casos de Éxito A y B).
+- [ ] **Fase 09:** Interfaz Gráfica Web y Consola HITL (En progreso):
+  - [x] `ISSUE-F09-T01`: Estructura base de la interfaz gráfica web (`/console`, Vanilla CSS `console.css`, Vanilla JS `console.js`, templates Blade y navegación entre Agentes, Aprobaciones HITL y Ejecuciones).
+  - [ ] `ISSUE-F09-T02`: Panel de agentes con visualización de telemetría y métricas de salud en tiempo real.
+  - [ ] `ISSUE-F09-T03`: Visor de trazas y estados de ejecución en tiempo real.
+  - [ ] `ISSUE-F09-T04`: Consola HITL interactiva con botones de acción directa de aprobación y rechazo.
+- [ ] **Fase 08:** Adaptadores de estímulos externos (Webhooks / Mock Chat).
+- [ ] **Fase 10:** Integración end-to-end con `jg_agente` (Casos de Éxito A y B).
