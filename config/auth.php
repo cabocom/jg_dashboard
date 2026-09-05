@@ -30,4 +30,10 @@ return [
     ],
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
+
+    'jwt' => [
+        'secret' => env('JWT_SECRET'),
+        'ttl' => (int) env('JWT_TTL_MINUTES', 60),
+        'algo' => 'HS256',
+    ],
 ];
