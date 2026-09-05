@@ -1184,7 +1184,14 @@ document.addEventListener('DOMContentLoaded', () => {
     },
 
     getAuthHeaders() {
-      const headers = { Accept: 'application/json' };
+      const headers = {
+        Accept: 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      };
+      const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+      if (csrfMeta && csrfMeta.content) {
+        headers['X-CSRF-TOKEN'] = csrfMeta.content;
+      }
       if (this.state.token) {
         headers['Authorization'] = `Bearer ${this.state.token}`;
       }

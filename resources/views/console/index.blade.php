@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>jG Control Plane | Consola Operativa y HITL</title>
   <meta name="description" content="Plano de Control y Consola de Gobernanza Human-In-The-Loop para agentes cognitivos del ecosistema jG.">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   
   <!-- CSS Stylesheet -->
   <link rel="stylesheet" href="/css/console.css">
