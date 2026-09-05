@@ -23,10 +23,13 @@ class DatabaseSeeder extends Seeder
             );
         }
 
+        $adminEmail = env('ADMIN_EMAIL', 'admin@devops60k.local');
+        $adminName = env('ADMIN_NAME', 'SRE Admin');
+
         User::updateOrCreate(
-            ['email' => 'admin@devops60k.local'],
+            ['email' => $adminEmail],
             [
-                'name' => 'SRE Admin',
+                'name' => $adminName,
                 'password' => Hash::make($adminPassword),
                 'role' => 'admin',
             ]

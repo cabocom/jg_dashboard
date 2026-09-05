@@ -158,11 +158,11 @@ docker compose logs -f
   - [x] `ISSUE-F02-T02`: Modelos de base de datos para agentes registrados (`dashboard_agents`, modelo Eloquent `Agent`, UUIDs, scopes y tests).
   - [x] `ISSUE-F02-T03`: Modelos de base de datos para tokens de aprovisionamiento (`dashboard_bootstrap_tokens`, modelo Eloquent `BootstrapToken`, TTL 24h, flag de uso único).
   - [x] `ISSUE-F02-T04`: Modelos de base de datos para solicitudes HITL y eventos de auditoría (`dashboard_approval_requests`, `dashboard_audit_events`).
-- [ ] **Fase 03:** Autenticación de usuarios y RBAC (Admin, Operator, Viewer):
+- [x] **Fase 03:** Autenticación de usuarios y RBAC (Admin, Operator, Viewer) (100%):
   - [x] `ISSUE-F03-T01`: Servicio de autenticación JWT y hashing de contraseñas (`JwtService`, `AuthService`, `/api/v1/auth/login`).
   - [x] `ISSUE-F03-T02`: Middleware y dependencias de autorización RBAC (`jwt.auth`, `role`, `permission`, 401/403).
   - [x] `ISSUE-F03-T03`: Endpoints de autenticación de usuarios: POST /auth/login y GET /auth/me (`/api/v1/auth/me`, `/api/v1/auth/logout`, roles y permisos).
-  - [ ] `ISSUE-F03-T04`: Script de inicialización para creación del usuario administrador inicial.
+  - [x] `ISSUE-F03-T04`: Script de inicialización para creación del usuario administrador inicial (`php artisan dashboard:init-admin`).
 - [ ] **Fase 04:** Sistema de registro de agentes con `bootstrap_token` de 24h y credencial permanente.
 - [ ] **Fase 05:** Monitoreo de agentes y procesamiento de heartbeats periódicos.
 - [ ] **Fase 06:** Cliente HTTP proxy y orquestación de ejecuciones hacia `jg_agente`.
