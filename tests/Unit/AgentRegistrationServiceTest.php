@@ -182,7 +182,7 @@ test('consumeBootstrapTokenAndActivate rejects already consumed token', function
     $this->service->consumeBootstrapTokenAndActivate($created['bootstrap_token']);
 
     $this->expectException(RuntimeException::class);
-    $this->expectExceptionMessage('El bootstrap token ya fue consumido.');
+    $this->expectExceptionMessage('Bootstrap token ya consumido.');
 
     $this->service->consumeBootstrapTokenAndActivate($created['bootstrap_token']);
 });
@@ -191,8 +191,45 @@ test('consumeBootstrapTokenAndActivate rejects expired token', function () {
     $created = $this->service->createAgent('Worker-Expired-Consume', ttlHours: -2);
 
     $this->expectException(RuntimeException::class);
-    $this->expectExceptionMessage('El bootstrap token ha expirado.');
+    $this->expectExceptionMessage('Bootstrap token expirado (>24h).');
 
     $this->service->consumeBootstrapTokenAndActivate($created['bootstrap_token']);
 });
+
+test('revokeBootstrapTokens invalidates active tokens and logs audit event', function () {
+    $created = $this->service->createAgent('Worker-To-Revoke', ttlHours: 24, adminUser: $this->admin);
+    $agentId = $created['agent_id'];
+    $token = $created['bootstrap_token'];
+
+    // Verify token initially valid
+    $checkBefore = $this->service->validateBootstrapToken($token);
+    expect($checkBefore['valid'])->toBeTrue();
+
+    // Revoke tokens
+    $revokedCount = $this->service->revokeBootstrapTokens($agentId, adminUser: $this->admin);
+    expect($revokedCount)->toBe(1);
+
+    // Verify token is now expired/invalid
+    $checkAfter = $this->service->validateBootstrapToken($token);
+    expect($checkAfter['valid'])->toBeFalse()
+        ->and($checkAfter['reason'])->toBe('TOKEN_EXPIRED');
+
+    // Attempting activation fails with 401
+    try {
+        $this->service->consumeBootstrapTokenAndActivate($token);
+        test()->fail('Expected RuntimeException was not thrown');
+    } catch (RuntimeException $e) {
+        expect($e->getCode())->toBe(401)
+            ->and($e->getMessage())->toBe('Bootstrap token expirado (>24h).');
+    }
+
+    // Verify audit event
+    $audit = AuditEvent::where('agent_id', $agentId)
+        ->where('event_type', 'AGENT_BOOTSTRAP_TOKENS_REVOKED')
+        ->first();
+    expect($audit)->not->toBeNull()
+        ->and($audit->payload_json['revoked_count'])->toBe(1);
+});
+
+
 

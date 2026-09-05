@@ -19,6 +19,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/agents', [AdminAgentController::class, 'index'])->name('api.v1.admin.agents.index');
             Route::post('/agents', [AdminAgentController::class, 'store'])->name('api.v1.admin.agents.store');
             Route::post('/agents/{agent_id}/regenerate-token', [AdminAgentController::class, 'regenerateToken'])->name('api.v1.admin.agents.regenerate_token');
+            Route::post('/agents/{agent_id}/revoke-tokens', [AdminAgentController::class, 'revokeTokens'])->name('api.v1.admin.agents.revoke_tokens');
         });
 
         Route::middleware('role:admin')->get('/test/admin-only', function () {
@@ -49,6 +50,7 @@ Route::middleware('jwt.auth')->group(function () {
         Route::get('/agents', [AdminAgentController::class, 'index'])->name('api.admin.agents.index');
         Route::post('/agents', [AdminAgentController::class, 'store'])->name('api.admin.agents.store');
         Route::post('/agents/{agent_id}/regenerate-token', [AdminAgentController::class, 'regenerateToken'])->name('api.admin.agents.regenerate_token');
+        Route::post('/agents/{agent_id}/revoke-tokens', [AdminAgentController::class, 'revokeTokens'])->name('api.admin.agents.revoke_tokens');
     });
 });
 

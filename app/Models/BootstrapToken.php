@@ -62,10 +62,19 @@ class BootstrapToken extends Model
 
     /**
      * Check if token has expired.
+     * Enforces explicit expires_at and strict absolute TTL limit of 24h from creation.
      */
     public function isExpired(): bool
     {
-        return $this->expires_at !== null && $this->expires_at->isPast();
+        if ($this->expires_at !== null && $this->expires_at->isPast()) {
+            return true;
+        }
+
+        if ($this->created_at !== null && $this->created_at->copy()->addHours(24)->isPast()) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -74,6 +83,16 @@ class BootstrapToken extends Model
     public function isValid(): bool
     {
         return !$this->isConsumed() && !$this->isExpired();
+    }
+
+    /**
+     * Revoke the token immediately by expiring it.
+     */
+    public function revoke(): bool
+    {
+        return $this->update([
+            'expires_at' => now(),
+        ]);
     }
 
     /**

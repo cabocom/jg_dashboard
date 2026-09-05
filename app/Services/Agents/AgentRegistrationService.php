@@ -203,12 +203,12 @@ class AgentRegistrationService
         if (!$validation['valid']) {
             $reason = $validation['reason'];
             if ($reason === 'TOKEN_ALREADY_CONSUMED') {
-                throw new RuntimeException('El bootstrap token ya fue consumido.', 409);
+                throw new RuntimeException('Bootstrap token ya consumido.', 401);
             }
             if ($reason === 'TOKEN_EXPIRED') {
-                throw new RuntimeException('El bootstrap token ha expirado.', 410);
+                throw new RuntimeException('Bootstrap token expirado (>24h).', 401);
             }
-            throw new RuntimeException('Bootstrap token no válido o inexistente.', 404);
+            throw new RuntimeException('Bootstrap token no válido o inexistente.', 401);
         }
 
         /** @var BootstrapToken $token */
@@ -217,16 +217,23 @@ class AgentRegistrationService
         $agent = $validation['agent'];
 
         if (!$agent) {
-            throw new RuntimeException('Agente asociado no encontrado.', 404);
+            throw new RuntimeException('Agente asociado no encontrado.', 401);
         }
 
         if ($agent->status !== 'PENDING') {
-            throw new RuntimeException("El agente no se encuentra en estado pendiente (estado actual: [{$agent->status}]).", 400);
+            throw new RuntimeException("El agente no se encuentra en estado pendiente (estado actual: [{$agent->status}]).", 401);
         }
 
         return DB::transaction(function () use ($token, $agent, $version, $capabilities, $metadata) {
+            // Lock row for update to prevent concurrent double consumption
+            $lockedToken = BootstrapToken::where('id', $token->id)->lockForUpdate()->first();
+
+            if (!$lockedToken || !$lockedToken->isValid()) {
+                throw new RuntimeException('Bootstrap token no válido o ya consumido.', 401);
+            }
+
             // 1. Mark token as consumed
-            $token->consume();
+            $lockedToken->consume();
 
             // 2. Generate permanent secret
             $permanentSecret = 'sec_' . Str::random(48);
@@ -268,5 +275,40 @@ class AgentRegistrationService
             ];
         });
     }
+
+    /**
+     * Revoke all unconsumed bootstrap tokens for a given agent.
+     *
+     * @return int Number of tokens revoked.
+     */
+    public function revokeBootstrapTokens(
+        Agent|string $agent,
+        ?User $adminUser = null
+    ): int {
+        $agentModel = $agent instanceof Agent ? $agent : Agent::find($agent);
+
+        if (!$agentModel) {
+            throw new RuntimeException('Agente no encontrado.', 404);
+        }
+
+        $count = $agentModel->bootstrapTokens()
+            ->where('consumed', false)
+            ->where('expires_at', '>', now())
+            ->update(['expires_at' => now()]);
+
+        AuditEvent::record(
+            eventType: 'AGENT_BOOTSTRAP_TOKENS_REVOKED',
+            actionSummary: "Se revocaron {$count} bootstrap token(s) para el agente [{$agentModel->name}]",
+            payload: [
+                'agent_id' => $agentModel->agent_id,
+                'revoked_count' => $count,
+            ],
+            user: $adminUser,
+            agent: $agentModel
+        );
+
+        return $count;
+    }
 }
+
 

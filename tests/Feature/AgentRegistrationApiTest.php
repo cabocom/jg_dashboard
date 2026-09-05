@@ -97,7 +97,7 @@ test('agent registers successfully using bootstrap_token in request body', funct
     expect($permanentSecret)->toStartWith('sec_');
 });
 
-test('subsequent registration attempt with already consumed token returns 409 conflict', function () {
+test('subsequent registration attempt with already consumed token returns 401 unauthorized', function () {
     $creation = $this->registrationService->createAgent('one-time-agent', ttlHours: 24);
     $plainToken = $creation['bootstrap_token'];
 
@@ -106,39 +106,58 @@ test('subsequent registration attempt with already consumed token returns 409 co
         ->postJson('/api/v1/agents/register');
     $firstResponse->assertStatus(200);
 
-    // Second call with the same consumed token fails
+    // Second call with the same consumed token fails with 401 Unauthorized
     $secondResponse = $this->withHeader('Authorization', "Bearer {$plainToken}")
         ->postJson('/api/v1/agents/register');
 
-    $secondResponse->assertStatus(409)
+    $secondResponse->assertStatus(401)
         ->assertJson([
-            'error' => 'Conflict',
-            'message' => 'El bootstrap token ya fue consumido.',
+            'error' => 'Unauthorized',
+            'message' => 'Bootstrap token ya consumido.',
         ]);
 });
 
-test('registration attempt with expired bootstrap token returns 410 gone', function () {
+test('registration attempt with expired bootstrap token (>24h) returns 401 unauthorized', function () {
     $creation = $this->registrationService->createAgent('expired-token-agent', ttlHours: -2);
     $plainToken = $creation['bootstrap_token'];
 
     $response = $this->withHeader('Authorization', "Bearer {$plainToken}")
         ->postJson('/api/v1/agents/register');
 
-    $response->assertStatus(410)
+    $response->assertStatus(401)
         ->assertJson([
-            'error' => 'Gone',
-            'message' => 'El bootstrap token ha expirado.',
+            'error' => 'Unauthorized',
+            'message' => 'Bootstrap token expirado (>24h).',
         ]);
 });
 
-test('registration attempt with non-existent token returns 404 not found', function () {
+test('registration attempt with non-existent token returns 401 unauthorized', function () {
     $response = $this->withHeader('Authorization', 'Bearer invalid_and_unknown_token_xyz')
         ->postJson('/api/v1/agents/register');
 
-    $response->assertStatus(404)
+    $response->assertStatus(401)
         ->assertJson([
-            'error' => 'Not Found',
+            'error' => 'Unauthorized',
             'message' => 'Bootstrap token no válido o inexistente.',
+        ]);
+});
+
+test('registration attempt with revoked token returns 401 unauthorized', function () {
+    $creation = $this->registrationService->createAgent('revoked-test-agent', ttlHours: 24);
+    $agentId = $creation['agent_id'];
+    $plainToken = $creation['bootstrap_token'];
+
+    // Revoke token
+    $this->registrationService->revokeBootstrapTokens($agentId);
+
+    // Attempt registration
+    $response = $this->withHeader('Authorization', "Bearer {$plainToken}")
+        ->postJson('/api/v1/agents/register');
+
+    $response->assertStatus(401)
+        ->assertJson([
+            'error' => 'Unauthorized',
+            'message' => 'Bootstrap token expirado (>24h).',
         ]);
 });
 
@@ -155,3 +174,4 @@ test('root alias /api/agents/register functions identically', function () {
             'name' => 'alias-test-agent',
         ]);
 });
+

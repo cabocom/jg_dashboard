@@ -163,11 +163,11 @@ docker compose logs -f
   - [x] `ISSUE-F03-T02`: Middleware y dependencias de autorización RBAC (`jwt.auth`, `role`, `permission`, 401/403).
   - [x] `ISSUE-F03-T03`: Endpoints de autenticación de usuarios: POST /auth/login y GET /auth/me (`/api/v1/auth/me`, `/api/v1/auth/logout`, roles y permisos).
   - [x] `ISSUE-F03-T04`: Script de inicialización para creación del usuario administrador inicial (`php artisan dashboard:init-admin`).
-- [ ] **Fase 04:** Sistema de registro de agentes con `bootstrap_token` de 24h y credencial permanente:
+- [x] **Fase 04:** Sistema de registro de agentes con `bootstrap_token` de 24h y credencial permanente (100%):
   - [x] `ISSUE-F04-T01`: Servicio de registro de agentes y generación de bootstrap tokens (`AgentRegistrationService`, TTL 24h, Zero-Trust).
   - [x] `ISSUE-F04-T02`: Endpoint administrativo: POST /api/v1/admin/agents (`AdminAgentController`, RBAC `role:admin`, 201 Created con token y agent_id).
   - [x] `ISSUE-F04-T03`: Endpoint de consumo de registro por el agente: POST /api/v1/agents/register (`AgentRegistrationController`, intercambio por `permanent_secret`, activación y un solo uso).
-  - [ ] `ISSUE-F04-T04`: Validación de expiración y uso único del bootstrap_token.
+  - [x] `ISSUE-F04-T04`: Validación de expiración y uso único del bootstrap_token (`BootstrapToken@isExpired`, rechazo 401 Unauthorized ante tokens expirados/consumidos y revocación administrativa).
 - [ ] **Fase 05:** Monitoreo de agentes y procesamiento de heartbeats periódicos.
 - [ ] **Fase 06:** Cliente HTTP proxy y orquestación de ejecuciones hacia `jg_agente`.
 - [ ] **Fase 07:** Consola y acciones de aprobación Human-In-The-Loop (HITL).

@@ -90,4 +90,29 @@ class AdminAgentController extends Controller
             ], 400);
         }
     }
+
+    /**
+     * Revoke all unconsumed bootstrap tokens for an agent.
+     */
+    public function revokeTokens(Request $request, string $agentId): JsonResponse
+    {
+        try {
+            $revokedCount = $this->registrationService->revokeBootstrapTokens(
+                agent: $agentId,
+                adminUser: $request->user()
+            );
+
+            return response()->json([
+                'status' => 'success',
+                'message' => "Se revocaron {$revokedCount} token(s) de aprovisionamiento",
+                'revoked_count' => $revokedCount,
+            ], 200);
+        } catch (RuntimeException $e) {
+            return response()->json([
+                'error' => 'Bad Request',
+                'message' => $e->getMessage(),
+            ], $e->getCode() === 404 ? 404 : 400);
+        }
+    }
 }
+

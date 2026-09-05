@@ -227,3 +227,29 @@ test('regenerate token returns 400 if agent is already ACTIVE', function () {
             'error' => 'Bad Request',
         ]);
 });
+
+test('admin can revoke tokens via POST /api/v1/admin/agents/{id}/revoke-tokens', function () {
+    $create = $this->withHeader('Authorization', "Bearer {$this->adminToken}")
+        ->postJson('/api/v1/admin/agents', ['name' => 'agent-for-admin-revoke']);
+    $agentId = $create->json('agent_id');
+
+    $response = $this->withHeader('Authorization', "Bearer {$this->adminToken}")
+        ->postJson("/api/v1/admin/agents/{$agentId}/revoke-tokens");
+
+    $response->assertStatus(200)
+        ->assertJson([
+            'status' => 'success',
+            'revoked_count' => 1,
+        ]);
+});
+
+test('operator and viewer cannot revoke tokens', function () {
+    $response = $this->withHeader('Authorization', "Bearer {$this->operatorToken}")
+        ->postJson('/api/v1/admin/agents/dummy-id/revoke-tokens');
+    $response->assertStatus(403);
+
+    $responseViewer = $this->withHeader('Authorization', "Bearer {$this->viewerToken}")
+        ->postJson('/api/v1/admin/agents/dummy-id/revoke-tokens');
+    $responseViewer->assertStatus(403);
+});
+
