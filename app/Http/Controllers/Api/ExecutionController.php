@@ -138,20 +138,20 @@ class ExecutionController extends Controller
         $requiresApproval = ($responseData['requires_approval'] ?? false) === true ||
             ($responseData['status'] ?? '') === 'waiting_approval';
 
-        // 6. Si la ejecución queda detenida en HITL, persistir solicitud en dashboard_approval_requests
+        // 6. Si la ejecución queda detenida en HITL, persistir solicitud mediante HitlApprovalService
         if ($requiresApproval) {
             $effectiveThreadId = $responseData['thread_id'] ?? $threadId;
             $effectiveTaskId = $responseData['execution_id'] ?? $executionId;
 
-            ApprovalRequest::create([
+            app(\App\Services\Hitl\HitlApprovalService::class)->registerPendingApproval([
                 'thread_id' => $effectiveThreadId,
                 'agent_id' => $targetAgentId,
                 'task_id' => $effectiveTaskId,
-                'status' => 'PENDING',
                 'risk_level' => $responseData['risk_level'] ?? 'HIGH',
-                'proposed_plan_json' => $responseData['plan'] ?? $responseData['proposed_plan'] ?? [],
-                'compensation_commands_json' => $responseData['compensation_commands'] ?? [],
-            ]);
+                'proposed_plan' => $responseData['plan'] ?? $responseData['proposed_plan'] ?? [],
+                'compensation_commands' => $responseData['compensation_commands'] ?? [],
+                'tools' => $responseData['tools'] ?? null,
+            ], $user, $request->ip(), $request->userAgent());
         }
 
         $statusCode = ($isAsync || ($responseData['status'] ?? '') === 'in_progress') ? 202 : 200;

@@ -1,10 +1,10 @@
 # CONTEXTO DE PROYECTO: jg_dashboard
 
-**Versión del documento:** 3.11.0  
+**Versión del documento:** 3.12.0  
 **Fecha de consolidación:** 5 de septiembre de 2026  
 **Componente:** Control Plane (Plano de Control, Gestión, Gobernanza y HITL)  
 **Stack Tecnológico:** Laravel 11, Filament PHP v3, Livewire 3, Tailwind CSS, PostgreSQL, Pest PHP  
-**Estado:** Fases 01, 02, 03, 04, 05 y 06 completadas al 100%. Fase 06 culminada con ISSUE-F06-T04 (`AgentController@capabilities`, consulta en vivo y sincronización en BD). 166 tests pasando en Pest.  
+**Estado:** Fases 01 a 06 completadas al 100%. Fase 07 iniciada con ISSUE-F07-T01 (`HitlApprovalService`, registro de planes de riesgo, normalización de herramientas, idempotencia y auditoría). 171 tests pasando en Pest.  
 
 ---
 
@@ -110,7 +110,7 @@ El registro de nuevos agentes sigue un protocolo de cuatro pasos a prueba de acc
 - `GET /api/v1/agents`: Listado paginado con métricas agregadas y filtros por estado.
 - `GET /api/v1/agents/{agent_id}`: Consulta detallada de estado de un agente específico.
 - `GET /api/v1/agents/{agent_id}/capabilities`: Inspección en vivo del catálogo de herramientas, engines cognitivos y plugins del agente con sincronización local.
-- `POST /api/v1/executions/trigger`: Pasarela protegida (roles `admin` y `operator`) para disparar ejecuciones hacia `jg_agente` con normalización a `AgentInput`.
+- `POST /api/v1/executions/trigger`: Pasarela protegida (roles `admin` y `operator`) para disparar ejecuciones hacia `jg_agente` con normalización a `AgentInput`, captura y registro automático de solicitudes HITL vía `HitlApprovalService`.
 - `GET /api/v1/executions/{agent_id}/{thread_id}`: Consulta unificada de progreso, pasos y estado de ejecución hacia la API de `jg_agente` con estricto aislamiento de base de datos.
 
 ### 5.2 Endpoints Invocados por `jg_dashboard` hacia `jg_agente` (Proxy Interno `AgentHttpClient`)
