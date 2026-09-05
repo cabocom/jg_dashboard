@@ -79,7 +79,7 @@ class ExecutionController extends Controller
             'thread_id' => $threadId,
             'prompt' => $prompt,
             'user_prompt' => $prompt,
-            'parameters' => $parameters,
+            'parameters' => (object) $parameters,
             'user_context' => [
                 'user_id' => (string) $user->id,
                 'username' => $user->name ?? $user->email,
@@ -87,7 +87,7 @@ class ExecutionController extends Controller
                 'role' => $user->role,
                 'permissions' => method_exists($user, 'getPermissions') ? $user->getPermissions() : [],
             ],
-            'metadata' => array_merge((array) ($validated['metadata'] ?? []), [
+            'metadata' => (object) array_merge((array) ($validated['metadata'] ?? []), [
                 'triggered_by' => $user->email,
                 'user_role' => $user->role,
                 'client_ip' => $request->ip(),

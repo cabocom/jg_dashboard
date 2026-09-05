@@ -262,9 +262,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async fetchAgents() {
       try {
-        const res = await fetch('/api/v1/agents', {
+        let res = await fetch('/console/agents', {
           headers: this.getAuthHeaders(),
         });
+        if (!res.ok) {
+          res = await fetch('/api/v1/agents', {
+            headers: this.getAuthHeaders(),
+          });
+        }
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         this.state.agents = data.data || [];
@@ -380,14 +385,15 @@ document.addEventListener('DOMContentLoaded', () => {
               ? 'badge-pending'
               : 'badge-offline';
 
-          const metrics = agent.metrics || {};
-          const cpuUsage = metrics.cpu_percent ? `${metrics.cpu_percent}%` : 'N/A';
-          const memUsage = metrics.memory_percent ? `${metrics.memory_percent}%` : 'N/A';
-          const latency = metrics.latency_ms ? `${metrics.latency_ms}ms` : '<10ms';
+          const metrics = agent.metrics || agent.metrics_json || {};
+          const cpuUsage = metrics.cpu_percent != null ? `${metrics.cpu_percent}%` : (metrics.cpu_load != null ? `${metrics.cpu_load}%` : '< 1%');
+          const memUsage = metrics.memory_mb != null ? `${metrics.memory_mb} MB` : (metrics.memory_percent != null ? `${metrics.memory_percent}%` : 'N/A');
+          const latency = metrics.latency_ms ? `${metrics.latency_ms}ms` : '< 10ms';
 
-          const capabilities = agent.capabilities || {};
-          const toolsCount = capabilities.tools ? Object.keys(capabilities.tools).length : 0;
-          const enginesCount = capabilities.engines ? Object.keys(capabilities.engines).length : 0;
+          const capabilities = agent.capabilities || agent.capabilities_json || {};
+          const toolsCount = capabilities.tools_count != null ? capabilities.tools_count : (capabilities.tools ? (Array.isArray(capabilities.tools) ? capabilities.tools.length : Object.keys(capabilities.tools).length) : 0);
+          const enginesCount = capabilities.engines_count != null ? capabilities.engines_count : (capabilities.engines ? (Array.isArray(capabilities.engines) ? capabilities.engines.length : Object.keys(capabilities.engines).length) : 0);
+          const isHealthy = agent.is_healthy ?? (agent.status === 'ACTIVE');
 
           return `
             <div class="agent-card ${statusClass}">
@@ -429,7 +435,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
               <div class="agent-card-footer">
                 <div class="agent-heartbeat-text">
-                  <span>${agent.is_healthy ? '🟢 En línea' : '⚪ Desconectado'}</span>
+                  <span>${isHealthy ? '🟢 En línea' : '⚪ Desconectado'}</span>
                   <span>(${agent.last_heartbeat_at ? new Date(agent.last_heartbeat_at).toLocaleTimeString() : 'Sin reporte'})</span>
                 </div>
                 <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 11px;" onclick="window.ConsoleApp.inspectCapabilities('${this.escapeHtml(agent.agent_id)}')">
@@ -460,6 +466,8 @@ document.addEventListener('DOMContentLoaded', () => {
               ? 'badge-pending'
               : 'badge-offline';
 
+          const isHealthy = agent.is_healthy ?? (agent.status === 'ACTIVE');
+
           return `
             <tr>
               <td>
@@ -472,8 +480,8 @@ document.addEventListener('DOMContentLoaded', () => {
               <td>${agent.version || '1.0.0'}</td>
               <td>${agent.last_heartbeat_at ? new Date(agent.last_heartbeat_at).toLocaleTimeString() : 'Sin reporte'}</td>
               <td>
-                <span style="font-size: 12px; color: ${agent.is_healthy ? 'var(--accent-emerald)' : 'var(--accent-rose)'}; font-weight: 600;">
-                  ${agent.is_healthy ? '● En Línea' : '○ Desconectado'}
+                <span style="font-size: 12px; color: ${isHealthy ? 'var(--accent-emerald)' : 'var(--accent-rose)'}; font-weight: 600;">
+                  ${isHealthy ? '● En Línea' : '○ Desconectado'}
                 </span>
               </td>
               <td>
@@ -1118,13 +1126,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async inspectCapabilities(agentId) {
       try {
-        const res = await fetch(`/api/v1/agents/${agentId}/capabilities`, {
+        let res = await fetch(`/console/agents/${agentId}/capabilities`, {
           headers: this.getAuthHeaders(),
         });
+        if (!res.ok) {
+          res = await fetch(`/api/v1/agents/${agentId}/capabilities`, {
+            headers: this.getAuthHeaders(),
+          });
+        }
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.message || `HTTP ${res.status}`);
+        }
         const data = await res.json();
-        alert(`Capacidades del agente [${agentId}]:\n` + JSON.stringify(data.capabilities || data, null, 2));
+        const caps = data.capabilities || data;
+        const formatted = JSON.stringify(caps, null, 2);
+
+        const modal = document.getElementById('modal-inspect-plan');
+        const modalContent = document.getElementById('inspect-plan-content');
+        const threadIdEl = document.getElementById('inspect-modal-thread-id');
+        const titleEl = modal ? modal.querySelector('h3') : null;
+        if (modal && modalContent) {
+          if (titleEl) titleEl.textContent = '🛠️ Inspección de Capacidades del Agente';
+          if (threadIdEl) threadIdEl.textContent = agentId;
+          modalContent.textContent = formatted;
+          modal.classList.add('open');
+        } else {
+          alert(`Capacidades del agente [${agentId}]:\n` + formatted);
+        }
       } catch (err) {
-        this.showToast('Error al inspeccionar capacidades del agente', 'error');
+        this.showToast(`Error al consultar capacidades: ${err.message}`, 'error');
       }
     },
 

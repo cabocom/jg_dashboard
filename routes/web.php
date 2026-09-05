@@ -9,6 +9,8 @@ Route::get('/', function () {
 
 Route::get('/console', [WebConsoleController::class, 'index'])->name('console');
 Route::get('/dashboard', [WebConsoleController::class, 'index'])->name('dashboard');
+Route::get('/console/agents', [WebConsoleController::class, 'listAgents'])->name('console.agents.index');
+Route::get('/console/agents/{agent_id}/capabilities', [WebConsoleController::class, 'agentCapabilities'])->name('console.agents.capabilities');
 Route::post('/console/agents', [WebConsoleController::class, 'storeAgent'])->name('console.agents.store');
 
 Route::get('/console/approvals/pending', [WebConsoleController::class, 'pendingApprovals'])->name('console.approvals.pending');

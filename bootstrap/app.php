@@ -13,6 +13,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->trustProxies(at: '*');
+        $middleware->validateCsrfTokens(except: [
+            'console/*',
+        ]);
         $middleware->alias([
             'jwt.auth' => \App\Http\Middleware\JwtAuthenticate::class,
             'role' => \App\Http\Middleware\RequireRole::class,

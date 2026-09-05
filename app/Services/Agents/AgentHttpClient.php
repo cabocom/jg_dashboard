@@ -186,11 +186,14 @@ class AgentHttpClient
                 'agent_id' => $this->agentId,
             ]);
 
+            $detail = $response->json('detail');
+            $detailStr = is_array($detail) ? json_encode($detail, JSON_UNESCAPED_UNICODE) : ($detail ?? $response->body());
+
             return [
                 'success' => false,
                 'status_code' => $response->status(),
                 'data' => $response->json() ?? ['raw' => $response->body()],
-                'error' => 'HTTP ' . $response->status() . ': ' . ($response->json('detail') ?? $response->body()),
+                'error' => 'HTTP ' . $response->status() . ': ' . $detailStr,
                 'latency_ms' => $latencyMs,
             ];
         } catch (RequestException $e) {
@@ -198,6 +201,7 @@ class AgentHttpClient
             $response = $e->response;
             $statusCode = $response ? $response->status() : 500;
             $detail = $response ? ($response->json('detail') ?? $response->body()) : $e->getMessage();
+            $detailStr = is_array($detail) ? json_encode($detail, JSON_UNESCAPED_UNICODE) : (string) $detail;
 
             Log::warning('[AgentHttpClient] HTTP request exception de jg_agente', [
                 'method' => $method,
@@ -211,7 +215,7 @@ class AgentHttpClient
                 'success' => false,
                 'status_code' => $statusCode,
                 'data' => $response ? $response->json() : null,
-                'error' => 'HTTP ' . $statusCode . ': ' . $detail,
+                'error' => 'HTTP ' . $statusCode . ': ' . $detailStr,
                 'latency_ms' => $latencyMs,
             ];
         } catch (ConnectionException $e) {
@@ -240,6 +244,8 @@ class AgentHttpClient
                 'method' => $method,
                 'endpoint' => $endpoint,
                 'message' => $e->getMessage(),
+                'file' => $e->getFile() . ':' . $e->getLine(),
+                'trace' => $e->getTraceAsString(),
                 'agent_id' => $this->agentId,
             ]);
 

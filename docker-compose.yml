@@ -50,10 +50,14 @@ services:
       - "${WEB_PORT:-8080}:8080"
     networks:
       - jg_dashboard_net
+      - jg_network
 
 networks:
   jg_dashboard_net:
     driver: bridge
+  jg_network:
+    name: jg_network
+    external: true
 
 volumes:
   jg_dashboard_postgres_data:

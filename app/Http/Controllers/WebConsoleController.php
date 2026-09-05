@@ -30,6 +30,53 @@ class WebConsoleController extends Controller
     }
 
     /**
+     * List all registered agents with real-time status and summary KPIs for the web console.
+     */
+    public function listAgents(Request $request): JsonResponse
+    {
+        $agents = Agent::orderBy('created_at', 'desc')->get();
+        $total = $agents->count();
+        $active = $agents->where('status', 'ACTIVE')->count();
+        $offline = $agents->where('status', 'OFFLINE')->count();
+
+        $items = $agents->map(function (Agent $agent) {
+            $metrics = $agent->metrics_json ?? [];
+            $capabilities = $agent->capabilities_json ?? [];
+            return [
+                'agent_id' => $agent->agent_id,
+                'name' => $agent->name,
+                'status' => $agent->status,
+                'version' => $agent->version,
+                'is_healthy' => $agent->status === 'ACTIVE' || $agent->isHealthy(90),
+                'last_heartbeat_at' => $agent->last_heartbeat_at?->toIso8601String(),
+                'capabilities' => $capabilities,
+                'capabilities_json' => $capabilities,
+                'metrics' => $metrics,
+                'metrics_json' => $metrics,
+                'metadata' => $agent->metadata_json ?? [],
+                'created_at' => $agent->created_at?->toIso8601String(),
+            ];
+        });
+
+        return response()->json([
+            'data' => $items,
+            'summary' => [
+                'total' => $total,
+                'active' => $active,
+                'offline' => $offline,
+            ],
+        ]);
+    }
+
+    /**
+     * Fetch the live capabilities for an agent for the web console.
+     */
+    public function agentCapabilities(string $agentId, \App\Http\Controllers\Api\AgentController $agentController): JsonResponse
+    {
+        return $agentController->capabilities($agentId);
+    }
+
+    /**
      * Provision a new agent from the web console and return its one-time bootstrap token.
      */
     public function storeAgent(Request $request, AgentRegistrationService $service): JsonResponse
