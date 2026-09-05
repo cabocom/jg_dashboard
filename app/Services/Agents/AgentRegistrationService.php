@@ -1,0 +1,176 @@
+<?php
+
+namespace App\Services\Agents;
+
+use App\Models\Agent;
+use App\Models\AuditEvent;
+use App\Models\BootstrapToken;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
+use RuntimeException;
+
+class AgentRegistrationService
+{
+    /**
+     * Create a new agent in PENDING state and generate a secure bootstrap token with 24h TTL.
+     * The plaintext token is returned only once and only its hash is persisted in the database.
+     *
+     * @param array<string, mixed>|null $capabilities
+     * @param array<string, mixed>|null $metadata
+     * @return array{
+     *     agent: Agent,
+     *     agent_id: string,
+     *     name: string,
+     *     status: string,
+     *     bootstrap_token: string,
+     *     expires_at: string,
+     *     ttl_hours: int
+     * }
+     */
+    public function createAgent(
+        string $name,
+        ?string $version = null,
+        ?array $capabilities = null,
+        ?array $metadata = null,
+        int $ttlHours = 24,
+        ?User $adminUser = null
+    ): array {
+        $trimmedName = trim($name);
+        if (empty($trimmedName)) {
+            throw new InvalidArgumentException('El nombre del agente no puede estar vacío.');
+        }
+
+        return DB::transaction(function () use ($trimmedName, $version, $capabilities, $metadata, $ttlHours, $adminUser) {
+            $agent = Agent::create([
+                'name' => $trimmedName,
+                'version' => $version,
+                'status' => 'PENDING',
+                'capabilities_json' => $capabilities,
+                'metadata_json' => $metadata,
+            ]);
+
+            $tokenData = BootstrapToken::createTokenForAgent($agent, $ttlHours);
+
+            AuditEvent::record(
+                eventType: 'AGENT_CREATED',
+                actionSummary: "Agente [{$agent->name}] creado en estado PENDING con bootstrap token de {$ttlHours}h",
+                payload: [
+                    'agent_id' => $agent->agent_id,
+                    'name' => $agent->name,
+                    'ttl_hours' => $ttlHours,
+                    'expires_at' => $tokenData['token']->expires_at->toIso8601String(),
+                ],
+                user: $adminUser,
+                agent: $agent
+            );
+
+            return [
+                'agent' => $agent,
+                'agent_id' => $agent->agent_id,
+                'name' => $agent->name,
+                'status' => $agent->status,
+                'bootstrap_token' => $tokenData['plaintext_token'],
+                'expires_at' => $tokenData['token']->expires_at->toIso8601String(),
+                'ttl_hours' => $ttlHours,
+            ];
+        });
+    }
+
+    /**
+     * Regenerate a new bootstrap token for a PENDING agent, expiring any unconsumed tokens.
+     *
+     * @return array{agent: Agent, bootstrap_token: string, expires_at: string}
+     */
+    public function regenerateBootstrapToken(
+        Agent|string $agent,
+        int $ttlHours = 24,
+        ?User $adminUser = null
+    ): array {
+        $agentModel = $agent instanceof Agent ? $agent : Agent::find($agent);
+
+        if (!$agentModel) {
+            throw new RuntimeException('Agente no encontrado.');
+        }
+
+        if ($agentModel->status !== 'PENDING') {
+            throw new RuntimeException("No se puede regenerar el bootstrap token para un agente en estado [{$agentModel->status}].");
+        }
+
+        return DB::transaction(function () use ($agentModel, $ttlHours, $adminUser) {
+            // Invalidate existing unconsumed tokens
+            $agentModel->bootstrapTokens()
+                ->where('consumed', false)
+                ->update(['expires_at' => now()]);
+
+            $tokenData = BootstrapToken::createTokenForAgent($agentModel, $ttlHours);
+
+            AuditEvent::record(
+                eventType: 'AGENT_BOOTSTRAP_TOKEN_REGENERATED',
+                actionSummary: "Bootstrap token regenerado para el agente [{$agentModel->name}]",
+                payload: [
+                    'agent_id' => $agentModel->agent_id,
+                    'ttl_hours' => $ttlHours,
+                ],
+                user: $adminUser,
+                agent: $agentModel
+            );
+
+            return [
+                'agent' => $agentModel,
+                'bootstrap_token' => $tokenData['plaintext_token'],
+                'expires_at' => $tokenData['token']->expires_at->toIso8601String(),
+            ];
+        });
+    }
+
+    /**
+     * Validate a presented plaintext bootstrap token.
+     *
+     * @return array{
+     *     valid: bool,
+     *     reason: ?string,
+     *     token: ?BootstrapToken,
+     *     agent: ?Agent
+     * }
+     */
+    public function validateBootstrapToken(string $plainToken): array
+    {
+        $hash = BootstrapToken::hashToken(trim($plainToken));
+        $token = BootstrapToken::where('token_hash', $hash)->with('agent')->first();
+
+        if (!$token) {
+            return [
+                'valid' => false,
+                'reason' => 'TOKEN_NOT_FOUND',
+                'token' => null,
+                'agent' => null,
+            ];
+        }
+
+        if ($token->isConsumed()) {
+            return [
+                'valid' => false,
+                'reason' => 'TOKEN_ALREADY_CONSUMED',
+                'token' => $token,
+                'agent' => $token->agent,
+            ];
+        }
+
+        if ($token->isExpired()) {
+            return [
+                'valid' => false,
+                'reason' => 'TOKEN_EXPIRED',
+                'token' => $token,
+                'agent' => $token->agent,
+            ];
+        }
+
+        return [
+            'valid' => true,
+            'reason' => null,
+            'token' => $token,
+            'agent' => $token->agent,
+        ];
+    }
+}
