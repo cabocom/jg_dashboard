@@ -185,7 +185,7 @@ docker compose logs -f
 - [ ] **Fase 09:** Interfaz Gráfica Web y Consola HITL (En progreso):
   - [x] `ISSUE-F09-T01`: Estructura base de la interfaz gráfica web (`/console`, Vanilla CSS `console.css`, Vanilla JS `console.js`, templates Blade y navegación entre Agentes, Aprobaciones HITL y Ejecuciones).
   - [x] `ISSUE-F09-T02`: Panel de agentes con visualización de telemetría y métricas de salud en tiempo real (tarjetas con KPIs, tabla alternativa, búsqueda/filtros, modal de provisión con Bootstrap Token de 24h y endpoint `POST /console/agents`).
-  - [ ] `ISSUE-F09-T03`: Visor de trazas y estados de ejecución en tiempo real.
-  - [ ] `ISSUE-F09-T04`: Consola HITL interactiva con botones de acción directa de aprobación y rechazo.
+  - [x] `ISSUE-F09-T03`: Vista UI: Consola de aprobación Human-In-The-Loop (HITL) (desglose secuencial de pasos, indicadores de riesgo, comandos de compensación, inspector de JSON y acciones directas de aprobación y rechazo).
+  - [ ] `ISSUE-F09-T04`: Visor de trazas y estados de ejecución en tiempo real.
 - [ ] **Fase 08:** Adaptadores de estímulos externos (Webhooks / Mock Chat).
 - [ ] **Fase 10:** Integración end-to-end con `jg_agente` (Casos de Éxito A y B).

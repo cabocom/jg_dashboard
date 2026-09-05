@@ -226,6 +226,34 @@
             </div>
           </div>
 
+          <!-- HITL Toolbar: Risk Filters, Search & Agent Dropdown -->
+          <div class="hitl-toolbar">
+            <div class="hitl-pills-container">
+              <button type="button" class="hitl-pill-btn active" data-risk="ALL">
+                Todos (<span id="hitl-count-all">{{ $pendingApprovalsCount ?? 0 }}</span>)
+              </button>
+              <button type="button" class="hitl-pill-btn" data-risk="CRITICAL">
+                Crítico (<span id="hitl-count-critical">0</span>)
+              </button>
+              <button type="button" class="hitl-pill-btn" data-risk="HIGH">
+                Alto (<span id="hitl-count-high">0</span>)
+              </button>
+            </div>
+
+            <div class="hitl-filter-group">
+              <div class="search-input-wrapper">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input type="text" id="hitl-search" class="form-control" placeholder="Buscar por hilo, plan o acción...">
+              </div>
+
+              <select id="hitl-filter-agent" class="form-control" style="width: auto; min-width: 180px;">
+                <option value="ALL">Todos los Agentes</option>
+              </select>
+            </div>
+          </div>
+
           <!-- HITL Cards Container -->
           <div class="panel">
             <div class="panel-header">
@@ -384,6 +412,26 @@
           <button type="button" id="btn-copy-token" class="btn btn-primary">📋 Copiar Token</button>
           <button type="button" class="btn btn-secondary" data-modal-dismiss>Cerrar</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Inspect Plan (Technical JSON Inspection) -->
+  <div id="modal-inspect-plan" class="modal-backdrop">
+    <div class="modal-dialog" style="max-width: 680px;">
+      <div class="modal-header">
+        <h3>🔍 Inspección Técnica del Plan Cognitivo</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">
+          Hilo de Ejecución: <strong id="inspect-modal-thread-id" style="color: var(--text-primary); font-family: var(--font-mono);"></strong>
+        </div>
+        <pre id="inspect-plan-content" class="json-inspector-box"></pre>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="btn-copy-plan-json" class="btn btn-primary">📋 Copiar JSON</button>
+        <button type="button" class="btn btn-secondary" data-modal-dismiss>Cerrar</button>
       </div>
     </div>
   </div>

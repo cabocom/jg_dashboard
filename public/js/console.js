@@ -15,6 +15,9 @@ document.addEventListener('DOMContentLoaded', () => {
       agentViewMode: 'cards', // 'cards' or 'table'
       agentFilterStatus: 'ALL',
       agentSearchQuery: '',
+      hitlRiskFilter: 'ALL',
+      hitlSearchQuery: '',
+      hitlAgentFilter: 'ALL',
     },
 
     init() {
@@ -99,6 +102,43 @@ document.addEventListener('DOMContentLoaded', () => {
           if (tokenVal) {
             this.copyToClipboard(tokenVal, 'Bootstrap Token copiado al portapapeles');
           }
+        });
+      }
+
+      // Copy Plan JSON Button in Inspector Modal
+      const copyPlanBtn = document.getElementById('btn-copy-plan-json');
+      if (copyPlanBtn) {
+        copyPlanBtn.addEventListener('click', () => {
+          const planJson = document.getElementById('inspect-plan-content')?.textContent;
+          if (planJson) {
+            this.copyToClipboard(planJson, 'JSON del plan copiado al portapapeles');
+          }
+        });
+      }
+
+      // HITL Risk Filter Pills
+      document.querySelectorAll('.hitl-pill-btn[data-risk]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const risk = btn.getAttribute('data-risk');
+          this.setHitlRiskFilter(risk);
+        });
+      });
+
+      // HITL Search Input
+      const hitlSearch = document.getElementById('hitl-search');
+      if (hitlSearch) {
+        hitlSearch.addEventListener('input', (e) => {
+          this.state.hitlSearchQuery = e.target.value.toLowerCase().trim();
+          this.renderFilteredApprovals();
+        });
+      }
+
+      // HITL Agent Filter Select
+      const hitlAgentSelect = document.getElementById('hitl-filter-agent');
+      if (hitlAgentSelect) {
+        hitlAgentSelect.addEventListener('change', (e) => {
+          this.state.hitlAgentFilter = e.target.value;
+          this.renderFilteredApprovals();
         });
       }
 
@@ -209,13 +249,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async fetchApprovals() {
       try {
-        const res = await fetch('/api/v1/approvals/pending', {
+        let res = await fetch('/console/approvals/pending', {
           headers: this.getAuthHeaders(),
         });
+        if (!res.ok) {
+          res = await fetch('/api/v1/approvals/pending', {
+            headers: this.getAuthHeaders(),
+          });
+        }
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         this.state.pendingApprovals = data.data || [];
-        this.renderApprovals(this.state.pendingApprovals, data.summary);
+        this.updateHitlSummaryKPI(data.summary);
+        this.populateHitlAgentFilter();
+        this.renderFilteredApprovals();
       } catch (err) {
         console.warn('Fallo al obtener aprobaciones pendientes:', err.message);
       }
@@ -400,19 +447,115 @@ document.addEventListener('DOMContentLoaded', () => {
         .join('');
     },
 
-    renderApprovals(approvals, summary) {
+    setHitlRiskFilter(risk) {
+      this.state.hitlRiskFilter = risk;
+      document.querySelectorAll('.hitl-pill-btn[data-risk]').forEach((btn) => {
+        btn.classList.toggle('active', btn.getAttribute('data-risk') === risk);
+      });
+      this.renderFilteredApprovals();
+    },
+
+    populateHitlAgentFilter() {
+      const select = document.getElementById('hitl-filter-agent');
+      if (!select) return;
+
+      const currentVal = this.state.hitlAgentFilter;
+      const agentsMap = new Map();
+
+      this.state.pendingApprovals.forEach((app) => {
+        if (app.agent_id) {
+          agentsMap.set(app.agent_id, app.agent_name || app.agent_id);
+        }
+      });
+
+      select.innerHTML = '<option value="ALL">Todos los Agentes</option>';
+      agentsMap.forEach((name, id) => {
+        const opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = `${name} (${id})`;
+        if (id === currentVal) opt.selected = true;
+        select.appendChild(opt);
+      });
+    },
+
+    updateHitlSummaryKPI(summary) {
+      const total = summary?.total_pending ?? this.state.pendingApprovals.length;
+      const critical = summary?.critical_count ?? this.state.pendingApprovals.filter(a => a.risk_level === 'CRITICAL').length;
+      const high = summary?.high_count ?? this.state.pendingApprovals.filter(a => a.risk_level === 'HIGH').length;
+
+      this.setTextContent('counter-hitl-pending', total);
       const counterEl = document.getElementById('counter-hitl-pending');
       if (counterEl) {
-        counterEl.textContent = approvals.length;
-        counterEl.classList.toggle('alert', approvals.length > 0);
+        counterEl.classList.toggle('alert', total > 0);
       }
 
-      if (summary) {
-        this.setTextContent('kpi-hitl-total', summary.total_pending ?? approvals.length);
-        this.setTextContent('kpi-hitl-critical', summary.critical_count ?? 0);
-        this.setTextContent('kpi-hitl-high', summary.high_count ?? 0);
-      }
+      this.setTextContent('kpi-hitl-total', total);
+      this.setTextContent('kpi-hitl-critical', critical);
+      this.setTextContent('kpi-hitl-high', high);
 
+      this.setTextContent('hitl-count-all', total);
+      this.setTextContent('hitl-count-critical', critical);
+      this.setTextContent('hitl-count-high', high);
+    },
+
+    renderFilteredApprovals() {
+      const { pendingApprovals, hitlRiskFilter, hitlAgentFilter, hitlSearchQuery } = this.state;
+
+      const filtered = pendingApprovals.filter((app) => {
+        // Risk level filter
+        if (hitlRiskFilter !== 'ALL' && app.risk_level !== hitlRiskFilter) {
+          return false;
+        }
+        // Agent filter
+        if (hitlAgentFilter !== 'ALL' && app.agent_id !== hitlAgentFilter) {
+          return false;
+        }
+        // Search filter
+        if (hitlSearchQuery) {
+          const summary = (app.action_summary || '').toLowerCase();
+          const thread = (app.thread_id || '').toLowerCase();
+          const agent = (app.agent_name || app.agent_id || '').toLowerCase();
+          return summary.includes(hitlSearchQuery) || thread.includes(hitlSearchQuery) || agent.includes(hitlSearchQuery);
+        }
+        return true;
+      });
+
+      this.renderApprovalsCards(filtered);
+    },
+
+    extractPlanSteps(app) {
+      const plan = app.proposed_plan || {};
+      let steps = [];
+
+      if (Array.isArray(plan.steps) && plan.steps.length > 0) {
+        steps = plan.steps.map((s, idx) => {
+          if (typeof s === 'string') {
+            return { index: idx + 1, action: s, command: null, tool: null };
+          }
+          return {
+            index: idx + 1,
+            action: s.action || s.name || s.step || s.description || `Paso ${idx + 1}`,
+            command: s.command || s.cmd || null,
+            tool: s.tool || s.tool_name || null,
+          };
+        });
+      } else if (Array.isArray(plan.actions) && plan.actions.length > 0) {
+        steps = plan.actions.map((a, idx) => ({
+          index: idx + 1,
+          action: typeof a === 'string' ? a : (a.action || a.name || `Acción ${idx + 1}`),
+          command: a.command || null,
+          tool: a.tool || null,
+        }));
+      } else {
+        const action = plan.action || plan.description || plan.summary || 'Ejecución de plan cognitivo';
+        const command = plan.command || plan.cmd || null;
+        const tool = (app.tools_involved && app.tools_involved.length > 0) ? app.tools_involved.join(', ') : null;
+        steps = [{ index: 1, action, command, tool }];
+      }
+      return steps;
+    },
+
+    renderApprovalsCards(approvals) {
       const container = document.getElementById('hitl-cards-container');
       if (!container) return;
 
@@ -434,33 +577,88 @@ document.addEventListener('DOMContentLoaded', () => {
             .map((t) => `<span class="tool-tag">${this.escapeHtml(t)}</span>`)
             .join(' ');
 
+          const steps = this.extractPlanSteps(app);
+          const stepsHtml = steps
+            .map(
+              (s) => `
+              <div class="step-item">
+                <span class="step-badge">${s.index}</span>
+                <div class="step-header">
+                  <span class="step-action-text">${this.escapeHtml(s.action)}</span>
+                  ${s.tool ? `<span class="tool-tag">${this.escapeHtml(s.tool)}</span>` : ''}
+                </div>
+                ${s.command ? `<div class="step-command-box"><code>$ ${this.escapeHtml(s.command)}</code></div>` : ''}
+              </div>
+            `
+            )
+            .join('');
+
+          const compensations = app.compensation_commands || app.proposed_plan?.compensation || [];
+          let compensationHtml = '';
+          if (Array.isArray(compensations) && compensations.length > 0) {
+            const compItems = compensations
+              .map((c) => `<div class="compensation-item">${this.escapeHtml(typeof c === 'string' ? c : (c.command || JSON.stringify(c)))}</div>`)
+              .join('');
+            compensationHtml = `
+              <div class="compensation-box">
+                <div class="compensation-header">
+                  <span>🛡️ Comandos de Reversión (Rollback Automático)</span>
+                </div>
+                <div class="compensation-list">${compItems}</div>
+              </div>
+            `;
+          }
+
           return `
-            <div class="hitl-card ${isCritical ? 'risk-critical' : ''}">
+            <div class="hitl-card ${isCritical ? 'risk-critical' : ''}" id="hitl-card-${app.id}">
               <div class="hitl-card-header">
                 <div>
                   <div class="hitl-title">${this.escapeHtml(app.action_summary || 'Plan de Alto Riesgo')}</div>
                   <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
                     Agente: <strong style="color: var(--text-primary);">${this.escapeHtml(app.agent_name || app.agent_id)}</strong>
+                    <span style="margin: 0 6px;">•</span>
+                    <span style="font-family: var(--font-mono); cursor: pointer;" title="Copiar Thread ID" onclick="window.ConsoleApp.copyToClipboard('${this.escapeHtml(app.thread_id)}', 'Thread ID copiado')">
+                      🧵 ${this.escapeHtml(app.thread_id)}
+                    </span>
                   </div>
                 </div>
                 <span class="badge ${isCritical ? 'badge-critical' : 'badge-high'}">${app.risk_level}</span>
               </div>
 
-              <div class="hitl-summary-box">
-                <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px;">Herramientas Críticas</div>
-                <div class="tools-tag-list">${toolsHtml || '<span style="color: var(--text-muted);">Sin herramientas explícitas</span>'}</div>
+              <!-- Steps Breakdown Timeline -->
+              <div class="hitl-steps-container">
+                <div class="hitl-steps-title">
+                  <span>📋 Desglose de Pasos (${steps.length})</span>
+                </div>
+                <div class="hitl-steps-timeline">
+                  ${stepsHtml}
+                </div>
               </div>
+
+              <!-- Critical Tools -->
+              ${toolsHtml ? `
+                <div class="hitl-summary-box">
+                  <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px;">Herramientas Críticas Requeridas</div>
+                  <div class="tools-tag-list">${toolsHtml}</div>
+                </div>
+              ` : ''}
+
+              <!-- Compensation / Rollback -->
+              ${compensationHtml}
 
               <div class="hitl-time">
                 ⏱️ Pausado: <strong>${app.elapsed_time || 'Recientemente'}</strong>
               </div>
 
               <div class="hitl-actions">
-                <button class="btn btn-primary" style="flex: 1;" onclick="window.ConsoleApp.openApproveModal(${app.id}, '${this.escapeHtml(app.thread_id)}')">
+                <button type="button" class="btn btn-primary" style="flex: 1;" onclick="window.ConsoleApp.openApproveModal(${app.id}, '${this.escapeHtml(app.thread_id)}')">
                   ✓ Aprobar
                 </button>
-                <button class="btn btn-danger" style="flex: 1;" onclick="window.ConsoleApp.openRejectModal(${app.id}, '${this.escapeHtml(app.thread_id)}')">
+                <button type="button" class="btn btn-danger" style="flex: 1;" onclick="window.ConsoleApp.openRejectModal(${app.id}, '${this.escapeHtml(app.thread_id)}')">
                   ✕ Rechazar
+                </button>
+                <button type="button" class="btn btn-secondary" style="padding: 10px 14px;" title="Inspeccionar JSON del Plan" onclick="window.ConsoleApp.openInspectPlanModal(${app.id})">
+                  🔍 Inspeccionar
                 </button>
               </div>
             </div>
@@ -507,7 +705,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || 'Error al aprovisionar agente');
 
-        // Show generated token box
         const form = document.getElementById('form-create-agent');
         if (form) form.style.display = 'none';
 
@@ -543,6 +740,20 @@ document.addEventListener('DOMContentLoaded', () => {
       if (modal) modal.classList.add('open');
     },
 
+    openInspectPlanModal(id) {
+      const app = this.state.pendingApprovals.find((a) => a.id === id);
+      if (!app) return;
+
+      this.setTextContent('inspect-modal-thread-id', app.thread_id);
+      const contentEl = document.getElementById('inspect-plan-content');
+      if (contentEl) {
+        contentEl.textContent = JSON.stringify(app.proposed_plan || app, null, 2);
+      }
+
+      const modal = document.getElementById('modal-inspect-plan');
+      if (modal) modal.classList.add('open');
+    },
+
     closeAllModals() {
       document.querySelectorAll('.modal-backdrop').forEach((m) => m.classList.remove('open'));
       this.state.currentApprovalId = null;
@@ -554,16 +765,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const justification = document.getElementById('approve-justification')?.value || '';
       try {
-        const res = await fetch(`/api/v1/approvals/${id}/approve`, {
+        let res = await fetch(`/console/approvals/${id}/approve`, {
           method: 'POST',
           headers: { ...this.getAuthHeaders(), 'Content-Type': 'application/json' },
           body: JSON.stringify({ justification }),
         });
 
+        if (!res.ok) {
+          res = await fetch(`/api/v1/approvals/${id}/approve`, {
+            method: 'POST',
+            headers: { ...this.getAuthHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ justification }),
+          });
+        }
+
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || 'Error al aprobar');
 
-        this.showToast('Solicitud HITL aprobada y reanudada en el agente', 'success');
+        this.showToast('✓ Solicitud HITL aprobada y ejecución reanudada en el agente', 'success');
         this.closeAllModals();
         this.fetchApprovals();
       } catch (err) {
@@ -582,22 +801,31 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       try {
-        const res = await fetch(`/api/v1/approvals/${id}/reject`, {
+        let res = await fetch(`/console/approvals/${id}/reject`, {
           method: 'POST',
           headers: { ...this.getAuthHeaders(), 'Content-Type': 'application/json' },
           body: JSON.stringify({ justification }),
         });
 
+        if (!res.ok) {
+          res = await fetch(`/api/v1/approvals/${id}/reject`, {
+            method: 'POST',
+            headers: { ...this.getAuthHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ justification }),
+          });
+        }
+
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || 'Error al rechazar');
 
-        this.showToast('Solicitud rechazada y cancelada en el agente', 'success');
+        this.showToast('✕ Solicitud HITL rechazada y ejecución cancelada en el agente', 'success');
         this.closeAllModals();
         this.fetchApprovals();
       } catch (err) {
         this.showToast(`Error: ${err.message}`, 'error');
       }
     },
+
 
     async submitTriggerExecution() {
       const agentId = document.getElementById('trigger-agent-id')?.value;
