@@ -156,7 +156,7 @@ docker compose logs -f
 - [ ] **Fase 02:** Persistencia y modelos de base de datos PostgreSQL:
   - [x] `ISSUE-F02-T01`: Modelos de base de datos para usuarios y roles RBAC (Eloquent User, FilamentUser, contraseñas hasheadas y migración).
   - [x] `ISSUE-F02-T02`: Modelos de base de datos para agentes registrados (`dashboard_agents`, modelo Eloquent `Agent`, UUIDs, scopes y tests).
-  - [ ] `ISSUE-F02-T03`: Modelos de base de datos para tokens de aprovisionamiento (`dashboard_bootstrap_tokens`).
+  - [x] `ISSUE-F02-T03`: Modelos de base de datos para tokens de aprovisionamiento (`dashboard_bootstrap_tokens`, modelo Eloquent `BootstrapToken`, TTL 24h, flag de uso único).
   - [ ] `ISSUE-F02-T04`: Modelos de base de datos para solicitudes HITL y eventos de auditoría.
 - [ ] **Fase 03:** Autenticación de usuarios y RBAC (Admin, Operator, Viewer).
 - [ ] **Fase 04:** Sistema de registro de agentes con `bootstrap_token` de 24h y credencial permanente.

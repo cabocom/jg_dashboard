@@ -86,5 +86,17 @@ abstract class TestCase extends BaseTestCase
                 $table->timestamps();
             });
         }
+
+        if (!Schema::hasTable('dashboard_bootstrap_tokens')) {
+            Schema::create('dashboard_bootstrap_tokens', function (Blueprint $table) {
+                $table->id();
+                $table->string('token_hash', 64)->unique();
+                $table->uuid('agent_id')->index();
+                $table->timestamp('expires_at')->index();
+                $table->boolean('consumed')->default(false)->index();
+                $table->timestamp('consumed_at')->nullable();
+                $table->timestamps();
+            });
+        }
     }
 }

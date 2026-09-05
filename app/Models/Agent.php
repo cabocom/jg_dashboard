@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 class Agent extends Model
@@ -153,5 +154,13 @@ class Agent extends Model
         }
 
         $this->update($payload);
+    }
+
+    /**
+     * Bootstrap tokens generated for onboarding this agent.
+     */
+    public function bootstrapTokens(): HasMany
+    {
+        return $this->hasMany(BootstrapToken::class, 'agent_id', 'agent_id');
     }
 }
