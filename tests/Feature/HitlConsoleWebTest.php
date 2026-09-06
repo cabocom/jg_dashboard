@@ -27,6 +27,8 @@ beforeEach(function () {
         'status' => 'ACTIVE',
         'metadata_json' => ['api_url' => 'http://test-agent:8000'],
     ]);
+
+    $this->actingAs($this->operatorUser);
 });
 
 test('GET /console renders the interactive HITL console toolbar, filter pills and inspector modal', function () {

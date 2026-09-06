@@ -3,6 +3,18 @@
 use App\Models\Agent;
 use App\Models\AuditEvent;
 use App\Models\BootstrapToken;
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
+
+beforeEach(function () {
+    $this->operatorUser = User::create([
+        'name' => 'Agent Panel Operator',
+        'email' => 'operator-agent@devops60k.local',
+        'password' => Hash::make('secret123'),
+        'role' => 'operator',
+    ]);
+    $this->actingAs($this->operatorUser);
+});
 
 test('GET /console renders the agent panel toolbar, containers, and provisioning modal', function () {
     $response = $this->get('/console');
@@ -10,7 +22,7 @@ test('GET /console renders the agent panel toolbar, containers, and provisioning
     $response->assertStatus(200)
         ->assertSee('id="agents-search"', false)
         ->assertSee('id="agents-filter-status"', false)
-        ->assertSee('id="btn-create-agent"', false)
+        ->assertDontSee('id="btn-create-agent"', false)
         ->assertSee('data-view="cards"', false)
         ->assertSee('data-view="table"', false)
         ->assertSee('id="agents-cards-container"', false)

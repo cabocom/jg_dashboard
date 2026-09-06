@@ -26,7 +26,7 @@ class ActiveTasksOverview extends BaseWidget
                 ->color($queued > 0 ? 'warning' : 'gray'),
 
             Stat::make('En Ejecución Activa', $processing)
-                ->description('Procesando grafos SRE')
+                ->description('Procesando grafos cognitivos')
                 ->descriptionIcon('heroicon-m-arrow-path')
                 ->color($processing > 0 ? 'info' : 'gray'),
 

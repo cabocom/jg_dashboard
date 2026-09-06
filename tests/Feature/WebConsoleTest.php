@@ -2,9 +2,28 @@
 
 use App\Models\Agent;
 use App\Models\ApprovalRequest;
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 
-test('GET /console returns 200 OK with modern HTML console view', function () {
+beforeEach(function () {
+    $this->user = User::create([
+        'name' => 'Operator SRE',
+        'email' => 'operator-test@devops60k.local',
+        'password' => Hash::make('password123'),
+        'role' => 'operator',
+    ]);
+});
+
+test('unauthenticated user is redirected to /admin/login when accessing /console or /dashboard', function () {
     $response = $this->get('/console');
+    $response->assertRedirect('/admin/login');
+
+    $responseDash = $this->get('/dashboard');
+    $responseDash->assertRedirect('/admin/login');
+});
+
+test('GET /console returns 200 OK with modern HTML console view when authenticated', function () {
+    $response = $this->actingAs($this->user)->get('/console');
 
     $response->assertStatus(200)
         ->assertSee('jG Control Plane', false)
@@ -15,8 +34,8 @@ test('GET /console returns 200 OK with modern HTML console view', function () {
         ->assertSee('/js/console.js', false);
 });
 
-test('GET /dashboard alias returns 200 OK identical to /console', function () {
-    $response = $this->get('/dashboard');
+test('GET /dashboard alias returns 200 OK identical to /console when authenticated', function () {
+    $response = $this->actingAs($this->user)->get('/dashboard');
 
     $response->assertStatus(200)
         ->assertSee('jG Control Plane', false)
@@ -25,7 +44,7 @@ test('GET /dashboard alias returns 200 OK identical to /console', function () {
         ->assertSee('id="view-executions"', false);
 });
 
-test('web console displays preloaded database counts', function () {
+test('web console displays preloaded database counts when authenticated', function () {
     Agent::create([
         'agent_id' => 'agent-ui-01',
         'name' => 'Agent UI Alpha',
@@ -46,7 +65,7 @@ test('web console displays preloaded database counts', function () {
         'proposed_plan_json' => ['action' => 'test hitl ui'],
     ]);
 
-    $response = $this->get('/console');
+    $response = $this->actingAs($this->user)->get('/console');
 
     $response->assertStatus(200)
         ->assertSee('id="kpi-agents-total"', false)
@@ -59,7 +78,7 @@ test('web console displays preloaded database counts', function () {
     expect($response->viewData('pendingApprovalsCount'))->toBe(1);
 });
 
-test('root URL GET / continues to redirect to /admin preserving Filament compatibility', function () {
+test('root URL GET / continues to redirect to /admin preserving Filament panel path', function () {
     $response = $this->get('/');
 
     $response->assertRedirect('/admin');

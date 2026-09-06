@@ -55,23 +55,27 @@ class TopologyMap extends Page
             $this->warningNodes = $topology->warning_count;
             $this->totalEdges = $topology->edges_count;
         } else {
-            // Fallback con nodos locales si aún no hay descubrimiento guardado
+            // Fallback con nodos locales de la arquitectura jg_agente
             $this->nodes = [
                 ['id' => 'host', 'label' => 'Host SRE System', 'type' => 'host', 'status' => 'healthy', 'metadata' => ['os' => 'Linux / Docker']],
-                ['id' => 'devops60k_agent', 'label' => 'devops60k_agent', 'type' => 'container', 'status' => 'healthy', 'metadata' => ['image' => 'devops60k:latest', 'state' => 'running']],
-                ['id' => 'devops60k_web', 'label' => 'devops60k_web', 'type' => 'container', 'status' => 'healthy', 'metadata' => ['image' => 'devops60k-web:latest', 'state' => 'running']],
-                ['id' => 'devops60k_postgres', 'label' => 'devops60k_postgres', 'type' => 'database', 'status' => 'healthy', 'metadata' => ['image' => 'postgres:16-alpine', 'state' => 'running']],
-                ['id' => 'devops60k_docker_proxy', 'label' => 'devops60k_docker_proxy', 'type' => 'container', 'status' => 'healthy', 'metadata' => ['image' => 'docker-socket-proxy:latest', 'state' => 'running']],
+                ['id' => 'jg_dashboard', 'label' => 'jg_dashboard', 'type' => 'container', 'status' => 'healthy', 'metadata' => ['image' => 'jg_dashboard:latest', 'state' => 'running']],
+                ['id' => 'jg_dashboard_postgres', 'label' => 'jg_dashboard_postgres', 'type' => 'database', 'status' => 'healthy', 'metadata' => ['image' => 'postgres:16-alpine', 'state' => 'running']],
+                ['id' => 'jg_agente_conversacional', 'label' => 'jg_agente_conversacional', 'type' => 'container', 'status' => 'healthy', 'metadata' => ['image' => 'jg_agente:latest', 'state' => 'running', 'plugin' => 'conversational']],
+                ['id' => 'jg_agente_devops', 'label' => 'jg_agente_devops', 'type' => 'container', 'status' => 'healthy', 'metadata' => ['image' => 'jg_agente:latest', 'state' => 'running', 'plugin' => 'devops']],
+                ['id' => 'jg_agente_postgres', 'label' => 'jg_agente_postgres', 'type' => 'database', 'status' => 'healthy', 'metadata' => ['image' => 'postgres:16-alpine', 'state' => 'running']],
             ];
             $this->edges = [
-                ['from' => 'host', 'to' => 'devops60k_agent', 'relation' => 'contains'],
-                ['from' => 'host', 'to' => 'devops60k_web', 'relation' => 'contains'],
-                ['from' => 'host', 'to' => 'devops60k_postgres', 'relation' => 'contains'],
-                ['from' => 'host', 'to' => 'devops60k_docker_proxy', 'relation' => 'contains'],
-                ['from' => 'devops60k_agent', 'to' => 'devops60k_postgres', 'relation' => 'database_connection'],
-                ['from' => 'devops60k_web', 'to' => 'devops60k_postgres', 'relation' => 'database_connection'],
-                ['from' => 'devops60k_agent', 'to' => 'devops60k_docker_proxy', 'relation' => 'socket_proxy'],
-                ['from' => 'devops60k_web', 'to' => 'devops60k_agent', 'relation' => 'rest_api'],
+                ['from' => 'host', 'to' => 'jg_dashboard', 'relation' => 'contains'],
+                ['from' => 'host', 'to' => 'jg_dashboard_postgres', 'relation' => 'contains'],
+                ['from' => 'host', 'to' => 'jg_agente_conversacional', 'relation' => 'contains'],
+                ['from' => 'host', 'to' => 'jg_agente_devops', 'relation' => 'contains'],
+                ['from' => 'host', 'to' => 'jg_agente_postgres', 'relation' => 'contains'],
+                ['from' => 'jg_dashboard', 'to' => 'jg_dashboard_postgres', 'relation' => 'database_connection'],
+                ['from' => 'jg_agente_conversacional', 'to' => 'jg_agente_postgres', 'relation' => 'database_connection'],
+                ['from' => 'jg_agente_devops', 'to' => 'jg_agente_postgres', 'relation' => 'database_connection'],
+                ['from' => 'jg_dashboard', 'to' => 'jg_agente_conversacional', 'relation' => 'rest_api'],
+                ['from' => 'jg_dashboard', 'to' => 'jg_agente_devops', 'relation' => 'rest_api'],
+                ['from' => 'jg_agente_devops', 'to' => 'host', 'relation' => 'docker_socket'],
             ];
             $this->lastUpdated = 'Por defecto';
             $this->totalNodes = count($this->nodes);

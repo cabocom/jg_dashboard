@@ -58,6 +58,11 @@ class AgentHeartbeatService
 
         if ($metrics !== null) {
             $agent->metrics_json = $metrics;
+            if (!empty($metrics['api_url'])) {
+                $meta = $agent->metadata_json ?? [];
+                $meta['api_url'] = $metrics['api_url'];
+                $agent->metadata_json = $meta;
+            }
         }
 
         $agent->save();

@@ -34,5 +34,51 @@ class DatabaseSeeder extends Seeder
                 'role' => 'admin',
             ]
         );
+
+        // Seed Pre-provisioned Agents para la arquitectura multi-agente
+        \App\Models\Agent::updateOrCreate(
+            ['agent_id' => 'a0000000-0000-0000-0000-000000000001'],
+            [
+                'name' => 'Agente Conversacional',
+                'version' => '0.1.0',
+                'status' => 'ACTIVE',
+                'permanent_secret_hash' => hash('sha256', 'sec_conversational_agent_preprovisioned_key_12345'),
+                'metadata_json' => [
+                    'api_url' => 'http://jg_agente_conversacional:8000',
+                    'plugin' => 'conversational',
+                ],
+                'capabilities_json' => [
+                    'tools' => [
+                        ['name' => 'get_weather', 'description' => 'Consulta meteorológica en tiempo real'],
+                        ['name' => 'get_news', 'description' => 'Titulares y noticias de actualidad'],
+                    ],
+                    'engines' => [],
+                ],
+                'last_heartbeat_at' => now(),
+            ]
+        );
+
+        \App\Models\Agent::updateOrCreate(
+            ['agent_id' => 'a0000000-0000-0000-0000-000000000002'],
+            [
+                'name' => 'Agente DevOps',
+                'version' => '0.1.0',
+                'status' => 'ACTIVE',
+                'permanent_secret_hash' => hash('sha256', 'sec_devops_agent_preprovisioned_key_12345'),
+                'metadata_json' => [
+                    'api_url' => 'http://jg_agente_devops:8000',
+                    'plugin' => 'devops',
+                ],
+                'capabilities_json' => [
+                    'tools' => [
+                        ['name' => 'docker_list_containers', 'description' => 'Lista de contenedores Docker'],
+                        ['name' => 'docker_inspect_container', 'description' => 'Inspección de contenedor Docker'],
+                        ['name' => 'docker_restart', 'description' => 'Reinicio seguro de contenedor con compensación'],
+                    ],
+                    'engines' => ['dag_planner', 'infra_discovery', 'devops_verifier'],
+                ],
+                'last_heartbeat_at' => now(),
+            ]
+        );
     }
 }

@@ -27,8 +27,13 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
-            ->brandName('DevOps60K SRE Control')
+            ->brandName('jG Control Plane')
             ->brandLogoHeight('2rem')
+            ->navigationGroups([
+                'Gobernanza de Agentes',
+                'Seguridad y Accesos',
+                'Observabilidad y Resiliencia',
+            ])
             ->darkMode(true)
             ->colors([
                 'primary' => Color::Emerald,

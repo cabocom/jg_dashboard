@@ -149,10 +149,6 @@
                   Tabla
                 </button>
               </div>
-
-              <button type="button" id="btn-create-agent" class="btn btn-primary">
-                + Nuevo Agente
-              </button>
             </div>
           </div>
 

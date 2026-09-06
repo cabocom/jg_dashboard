@@ -22,13 +22,13 @@ class AgentTaskResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-cpu-chip';
 
-    protected static ?string $navigationGroup = 'Operaciones SRE';
+    protected static ?string $navigationGroup = 'Gobernanza de Agentes';
 
     protected static ?string $modelLabel = 'Tarea de Agente';
 
-    protected static ?string $pluralModelLabel = 'Cola de Tareas SRE';
+    protected static ?string $pluralModelLabel = 'Historial de Tareas';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 2;
 
     public static function getNavigationBadge(): ?string
     {
