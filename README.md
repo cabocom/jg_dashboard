@@ -129,11 +129,16 @@ jg_dashboard/
 ## 6. Verificación de Calidad y Despliegue Local
 
 ### Pruebas Automatizadas (Pest PHP)
+La suite automatizada incluye **35 pruebas de unidad e integración** que validan autenticación JWT, RBAC, registro de agentes Zero-Trust, heartbeats y orquestación HITL:
+
 ```bash
+# Ejecución en el host con dependencias de desarrollo
 ./scripts/check.sh
 # o directamente:
 ./vendor/bin/pest
 ```
+
+> **Nota:** La imagen Docker de producción se construye con `--no-dev` por seguridad y optimización de tamaño, por lo que la suite Pest se ejecuta en el entorno de desarrollo del host o en el pipeline de CI.
 
 ### Ejecución con Docker Compose
 ```bash
@@ -147,7 +152,16 @@ docker compose logs -f
 
 ---
 
-## 7. Roadmap y Estado
+## 7. Documentación y Deuda Técnica
+
+Para profundizar en el diseño del plano de control y sus pendientes técnicos:
+- **[Contexto de Proyecto](PROJECT_CONTEXT.md):** Arquitectura de Laravel, RBAC y modelos de persistencia.
+- **[Tareas Pendientes y Deuda Técnica](TODO-PENDIENTES.md):** Registro exhaustivo de ítems pendientes para la auditoría técnica.
+- **[Documentación Global](../docs/):** Especificaciones de arquitectura, APIs y protocolos del ecosistema.
+
+---
+
+## 8. Roadmap y Estado
 
 - [x] **Fase 01:** Bootstrap, Documentación y Tooling (100%):
   - [x] `ISSUE-F01-T01`: Estructura base del repositorio jg_dashboard y configuración de entorno (Laravel 11, Filament v3, Livewire 3, Pest PHP).
@@ -189,3 +203,5 @@ docker compose logs -f
   - [x] `ISSUE-F09-T04`: Vista UI: Visor de ejecuciones y traza de pasos en tiempo real (prompt de entrada AgentInput, línea de tiempo interactiva de herramientas con estado/latencia, visor de salida AgentOutput con portapapeles, chips rápidos de hilos de sesión y polling en vivo cada 3s).
 - [ ] **Fase 08:** Adaptadores de estímulos externos (Webhooks / Mock Chat).
 - [ ] **Fase 10:** Integración end-to-end con `jg_agente` (Casos de Éxito A y B).
+
+Consulte [TODO-PENDIENTES.md](TODO-PENDIENTES.md) para el desglose detallado de tareas pendientes y deuda técnica para la siguiente fase.

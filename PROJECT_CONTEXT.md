@@ -1,10 +1,14 @@
 # CONTEXTO DE PROYECTO: jg_dashboard
 
-**Versión del documento:** 3.19.0  
-**Fecha de consolidación:** 5 de septiembre de 2026  
+**Versión del documento:** 3.20.0  
+**Fecha de consolidación:** 6 de septiembre de 2026  
 **Componente:** Control Plane (Plano de Control, Gestión, Gobernanza y HITL)  
 **Stack Tecnológico:** Laravel 11, Filament PHP v3, Livewire 3, Tailwind CSS, PostgreSQL, Pest PHP  
-**Estado:** Fases 01 a 07 completadas al 100%. Fase 09 completada al 100%: ISSUE-F09-T01, ISSUE-F09-T02, ISSUE-F09-T03 y ISSUE-F09-T04 completados (Consola Web `/console` con panel de agentes, monitor de salud, consola interactiva de aprobación HITL con desglose secuencial de pasos e inspector de JSON, y visor de ejecuciones en tiempo real con traza de herramientas, latencias, chips rápidos y resultado final AgentOutput).  
+**Estado:** Fases 01 a 07 y Fase 09 completadas al 100%.  
+- Soporte Multi-Agente: Orquestación y enrutamiento simultáneo de `jg_agente_conversacional` (puerto 8001) y `jg_agente_devops` (puerto 8002) mediante `AgentHttpClient` con firma HMAC-SHA256.  
+- Consola Web Unificada: `/console` operativa con panel reactivo de agentes, métricas de salud en tiempo real, gestión de aprobaciones HITL con visualización de planes de remediación y visor de ejecuciones en vivo.  
+- Aislamiento Total de Persistencia: PostgreSQL propio `jg_dashboard_postgres` (puerto 5434), sin acceso directo a la base de datos de los agentes (`jg_agente_postgres`:5433).  
+- Para detalles de deuda técnica y tareas pendientes, consulte [TODO-PENDIENTES.md](TODO-PENDIENTES.md).
 
 ---
 
