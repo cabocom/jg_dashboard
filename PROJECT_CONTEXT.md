@@ -1,12 +1,13 @@
 # CONTEXTO DE PROYECTO: jg_dashboard
 
-**Versión del documento:** 3.21.0  
+**Versión del documento:** 3.22.0  
 **Fecha de consolidación:** 10 de septiembre de 2026  
 **Componente:** Control Plane (Plano de Control, Gestión, Gobernanza y HITL)  
 **Stack Tecnológico:** Laravel 11, Filament PHP v3, Livewire 3, Tailwind CSS, PostgreSQL, Pest PHP  
 **Estado:** Fases 01 a 07 y Fase 09 completadas al 100%. Post-Auditoría Codex en curso.  
 - Soporte Multi-Agente: Orquestación y enrutamiento simultáneo de `jg_agente_conversacional` (puerto 8001) y `jg_agente_devops` (puerto 8002) mediante `AgentHttpClient` con firma canónica HMAC-SHA256 (`METHOD\nPATH\nTIMESTAMP\nSHA256(BODY)`).  
 - Post-Auditoría Codex (GLOBAL-001 / ISSUE-DASH-002): Eliminación de la cabecera en texto plano `X-Control-Plane-Secret` y alineación estricta con el contrato de firma canónica y anti-replay del agente.  
+- Post-Auditoría Codex (GLOBAL-003 / ISSUE-DASH-003): Transaccionalidad, bloqueo pesimista `lockForUpdate` y control de concurrencia en HITL con estado `PROCESSING` y reconciliación automática ante fallos de red.  
 - Consola Web Unificada: `/console` operativa con panel reactivo de agentes, métricas de salud en tiempo real, gestión de aprobaciones HITL con visualización de planes de remediación y visor de ejecuciones en vivo.  
 - Aislamiento Total de Persistencia: PostgreSQL propio `jg_dashboard_postgres` (puerto 5434), sin acceso directo a la base de datos de los agentes (`jg_agente_postgres`:5433).  
 - Para detalles de deuda técnica y tareas pendientes, consulte [TODO-PENDIENTES.md](TODO-PENDIENTES.md).
@@ -118,8 +119,8 @@ El registro de nuevos agentes sigue un protocolo de cuatro pasos a prueba de acc
 - `POST /api/v1/executions/trigger`: Pasarela protegida (roles `admin` y `operator`) para disparar ejecuciones hacia `jg_agente` con normalización a `AgentInput`, captura y registro automático de solicitudes HITL vía `HitlApprovalService`.
 - `GET /api/v1/executions/{agent_id}/{thread_id}`: Consulta unificada de progreso, pasos y estado de ejecución hacia la API de `jg_agente` con estricto aislamiento de base de datos.
 - `GET /api/v1/approvals/pending`: Listado paginado de solicitudes HITL pendientes para operadores y administradores, con resumen de acciones, nivel de riesgo, herramientas involucradas y métricas de tiempo transcurrido.
-- `POST /api/v1/approvals/{approval_id}/approve`: Endpoint de resolución HITL para operadores y administradores que valida estado pendiente, delega `/executions/{thread_id}/approve` hacia `jg_agente` mediante `AgentHttpClient`, actualiza la solicitud a `APPROVED` y genera auditoría inmutable.
-- `POST /api/v1/approvals/{approval_id}/reject`: Endpoint de cancelación HITL para operadores y administradores con justificación obligatoria, delega `/executions/{thread_id}/reject` hacia `jg_agente`, actualiza la solicitud a `REJECTED` y genera auditoría inmutable.
+- `POST /api/v1/approvals/{approval_id}/approve`: Endpoint de resolución HITL para operadores y administradores con bloqueo pesimista `lockForUpdate` en `HitlApprovalService`, transición inmediata a `PROCESSING`, delegación `/executions/{thread_id}/approve` hacia `jg_agente` mediante `AgentHttpClient`, reconciliación a `PENDING` si la llamada de red falla, o transición definitiva a `APPROVED` con auditoría inmutable tras éxito.
+- `POST /api/v1/approvals/{approval_id}/reject`: Endpoint de cancelación HITL para operadores y administradores con justificación obligatoria, bloqueo pesimista `lockForUpdate`, transición a `PROCESSING`, delegación `/executions/{thread_id}/reject` hacia `jg_agente`, reconciliación a `PENDING` ante fallos de red, o transición a `REJECTED` con auditoría inmutable tras confirmación.
 
 ### 5.2 Endpoints Invocados por `jg_dashboard` hacia `jg_agente` (Proxy Interno `AgentHttpClient`)
 El cliente `App\Services\Agents\AgentHttpClient` canaliza la comunicación firmada mediante HMAC-SHA256 con las instancias internas de `jg_agente`:

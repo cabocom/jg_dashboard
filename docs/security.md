@@ -61,12 +61,27 @@ La jerarquía de roles satisface: `ADMIN > OPERATOR > VIEWER`.
 
 ---
 
-## 4. Firmado HMAC-SHA256 Inter-Servicios
+## 4. Firmado Canónico HMAC-SHA256 Inter-Servicios (GLOBAL-001)
 
-Todas las peticiones del cliente `AgentHttpClient` hacia la API interna del agente incluyen:
+Todas las peticiones del cliente `AgentHttpClient` hacia la API interna del agente implementan el contrato canónico estricto de autenticación e integridad:
 
-- `X-Control-Plane`: `jg_dashboard`
-- `X-Timestamp`: Unix timestamp actual (ventana de tolerancia para mitigar replay attacks).
-- `X-Correlation-ID`: UUID correlacionador de traza distribuida.
+### 4.1 Cadena Canónica
+```text
+canonical_string = METHOD\nPATH\nTIMESTAMP\nSHA256(RAW_BODY)
+```
+- **`METHOD`**: Método HTTP en mayúsculas (`POST`, `GET`).
+- **`PATH`**: Ruta del recurso (ej. `/executions/trigger`).
+- **`TIMESTAMP`**: Unix timestamp actual en segundos.
+- **`SHA256(RAW_BODY)`**: Hash SHA-256 de los bytes exactos enviados por el cable HTTP (o hash de cadena vacía `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` en peticiones sin cuerpo).
+
+### 4.2 Cabeceras Emitidas
+- `X-Signature`: `hash_hmac('sha256', $canonicalString, $internalSecret)` en formato hexadecimal.
+- `X-Timestamp`: Unix timestamp utilizado para calcular la firma.
 - `X-Agent-ID`: Identificador del agente destino.
-- `X-Signature`: `hash_hmac('sha256', $timestamp . '.' . $body, $internalSecret)`.
+
+> [!IMPORTANT]
+> **Eliminación del Secreto en Texto Plano:**
+> La cabecera `X-Control-Plane-Secret` ha sido completamente suprimida de todas las comunicaciones de red para prevenir fugas de secretos en tránsito o logs de red.
+
+### 4.3 Ventana Anti-Replay
+El agente valida que el `X-Timestamp` se encuentre dentro de un margen de tolerancia estricto de $\pm 300$ segundos (5 minutos) respecto a la hora del sistema, descartando inmediatamente con HTTP `401 Unauthorized` cualquier petición con timestamps fuera de dicha ventana.

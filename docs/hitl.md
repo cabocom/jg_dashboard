@@ -30,21 +30,35 @@ Cuando una ejecución orquestada por `jg_agente` determina que su plan de acció
 
 ```text
                ┌───────────────────────┐
-               │        PENDING        │
-               └───────────┬───────────┘
-                           │
-             ┌─────────────┴─────────────┐
-             │                           │
-    (Operador aprueba)          (Operador rechaza)
-             ▼                           ▼
-    ┌─────────────────┐         ┌─────────────────┐
-    │    APPROVED     │         │    REJECTED     │
-    └─────────────────┘         └─────────────────┘
+               │        PENDING        │◄─────────────────────────┐
+               └───────────┬───────────┘                          │
+                           │                                      │
+            (lockForUpdate: DB::transaction)                      │
+                           │                                      │
+                           ▼                                      │
+               ┌───────────────────────┐                          │
+               │      PROCESSING       │                          │
+               └───────────┬───────────┘                          │
+                           │                                      │
+               ┌───────────┴───────────┐                          │
+               │                       │                          │
+         (HTTP 200 Agente)      (Error HTTP / Red) ───────────────┘
+               │                (Reconciliación automática)
+    ┌──────────┴──────────┐
+    │                     │
+(Aprobación)          (Rechazo)
+    ▼                     ▼
+┌─────────────────┐ ┌─────────────────┐
+│    APPROVED     │ │    REJECTED     │
+└─────────────────┘ └─────────────────┘
 ```
 
+- **Bloqueo Pesimista (`lockForUpdate`) y Estado `PROCESSING` (GLOBAL-003):** 
+  Al recibir una petición de aprobación o rechazo, `HitlApprovalService` inicia una micro-transacción de base de datos adquiriendo un bloqueo exclusivo de fila (`lockForUpdate()`). Si la solicitud se encuentra en estado `PROCESSING` u otro estado resuelto, rechaza la operación inmediatamente con `409 Conflict`. Si está en `PENDING`, pasa de forma atómica a `PROCESSING` y se libera el cerrojo de fila antes de despachar la petición de red a `jg_agente`.
+- **Reconciliación Automática ante Fallos de Red:** Si la llamada HTTP al agente experimenta un fallo de transporte, desconexión de red, timeout (`504`) o error HTTP (`>= 400`), el estado de la solicitud en base de datos revierte atómicamente a `PENDING` para permitir posteriores reintentos y evitar bloqueos permanentes.
 - **Idempotencia:** Si un agente emite actualizaciones de un mismo plan sobre el mismo `thread_id` mientras se encuentra en estado `PENDING`, el Dashboard actualiza el registro existente en lugar de generar duplicados.
-- **Inmutabilidad tras Resolución:** Una solicitud con estado `APPROVED` o `REJECTED` no puede volver a modificarse. Cualquier intento posterior de resolución retorna `409 Conflict`.
-- **Garantía de Consistencia Estado-Agente:** El cambio a `APPROVED` o `REJECTED` en la base de datos del Dashboard solo se consolida si `jg_agente` responde satisfactoriamente (200 OK / 202 Accepted). Si la llamada sufre un error de red o timeout, la solicitud se preserva en `PENDING` para permitir reintentos.
+- **Inmutabilidad tras Resolución:** Una solicitud con estado terminal `APPROVED` o `REJECTED` no puede volver a modificarse. Cualquier intento posterior de resolución retorna `409 Conflict`.
+- **Garantía de Consistencia Estado-Agente:** El cambio a `APPROVED` o `REJECTED` en la base de datos del Dashboard solo se consolida si `jg_agente` responde satisfactoriamente (200 OK).
 
 ---
 

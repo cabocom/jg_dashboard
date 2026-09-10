@@ -66,6 +66,11 @@ class ApprovalRequest extends Model
         return $this->status === 'PENDING';
     }
 
+    public function isProcessing(): bool
+    {
+        return $this->status === 'PROCESSING';
+    }
+
     public function isApproved(): bool
     {
         return $this->status === 'APPROVED';
@@ -86,7 +91,7 @@ class ApprovalRequest extends Model
      */
     public function approve(User|int $user, ?string $justification = null): bool
     {
-        if (!$this->isPending()) {
+        if (!$this->isPending() && !$this->isProcessing()) {
             return false;
         }
 
@@ -105,7 +110,7 @@ class ApprovalRequest extends Model
      */
     public function reject(User|int $user, ?string $justification = null): bool
     {
-        if (!$this->isPending()) {
+        if (!$this->isPending() && !$this->isProcessing()) {
             return false;
         }
 

@@ -7,6 +7,7 @@ use App\Models\AuditEvent;
 use App\Models\User;
 use App\Services\Agents\AgentHttpClient;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class HitlApprovalService
@@ -222,43 +223,54 @@ class HitlApprovalService
         ?string $ipAddress = null,
         ?string $userAgent = null
     ): array {
-        /** @var ApprovalRequest|null $approval */
-        $approval = $this->findApproval($approvalId);
+        // 1. Bloqueo pesimista con lockForUpdate dentro de transacción para garantizar concurrencia segura
+        $lockResult = DB::transaction(function () use ($approvalId) {
+            /** @var ApprovalRequest|null $record */
+            $record = ApprovalRequest::with(['agent', 'resolver'])
+                ->where('id', $approvalId)
+                ->lockForUpdate()
+                ->first();
 
-        if (!$approval) {
+            if (!$record) {
+                return ['status_code' => 404, 'error' => "Solicitud de aprobación con ID '{$approvalId}' no encontrada."];
+            }
+
+            if ($record->status === 'PROCESSING') {
+                return ['status_code' => 409, 'error' => "La solicitud '{$approvalId}' ya se encuentra en procesamiento."];
+            }
+
+            if (!$record->isPending()) {
+                return ['status_code' => 409, 'error' => "La solicitud '{$approvalId}' ya fue resuelta previamente con estado '{$record->status}'."];
+            }
+
+            $agent = $record->agent;
+            if (!$agent) {
+                return ['status_code' => 400, 'error' => "No se encontró el agente registrado asociado a la solicitud '{$approvalId}'."];
+            }
+
+            if ($agent->status === 'PENDING') {
+                return ['status_code' => 400, 'error' => "El agente '{$agent->agent_id}' aún está en estado PENDING y no puede recibir aprobaciones."];
+            }
+
+            // Transicionar a PROCESSING para bloquear dobles aprobaciones concurrentes
+            $record->update(['status' => 'PROCESSING']);
+
+            return ['status_code' => 200, 'record' => $record];
+        });
+
+        if ($lockResult['status_code'] !== 200) {
             return [
                 'success' => false,
-                'status_code' => 404,
-                'error' => "Solicitud de aprobación con ID '{$approvalId}' no encontrada.",
+                'status_code' => $lockResult['status_code'],
+                'error' => $lockResult['error'],
             ];
         }
 
-        if (!$approval->isPending()) {
-            return [
-                'success' => false,
-                'status_code' => 409,
-                'error' => "La solicitud '{$approvalId}' ya fue resuelta previamente con estado '{$approval->status}'.",
-            ];
-        }
-
+        /** @var ApprovalRequest $approval */
+        $approval = $lockResult['record'];
         $agent = $approval->agent;
-        if (!$agent) {
-            return [
-                'success' => false,
-                'status_code' => 400,
-                'error' => "No se encontró el agente registrado asociado a la solicitud '{$approvalId}'.",
-            ];
-        }
 
-        if ($agent->status === 'PENDING') {
-            return [
-                'success' => false,
-                'status_code' => 400,
-                'error' => "El agente '{$agent->agent_id}' aún está en estado PENDING y no puede recibir aprobaciones.",
-            ];
-        }
-
-        // Delegar el comando /approve hacia jg_agente a través de AgentHttpClient
+        // 2. Delegar el comando /approve hacia jg_agente a través de AgentHttpClient
         $client = AgentHttpClient::forAgent($agent);
         $payload = [
             'thread_id' => $approval->thread_id,
@@ -272,9 +284,25 @@ class HitlApprovalService
             ],
         ];
 
-        $agentResponse = $client->approveExecution($approval->thread_id, $payload);
+        try {
+            $agentResponse = $client->approveExecution($approval->thread_id, $payload);
+        } catch (\Throwable $e) {
+            // Reconciliar estado a PENDING ante fallo de red / excepción de transporte
+            $approval->update(['status' => 'PENDING']);
+            Log::error("[HitlApprovalService] Excepción de red al delegar aprobación al agente '{$agent->agent_id}' para thread '{$approval->thread_id}'", [
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'status_code' => 500,
+                'error' => "Fallo de conexión al comunicar la aprobación con el agente: " . $e->getMessage(),
+            ];
+        }
 
         if (!$agentResponse['success']) {
+            // Reconciliar estado a PENDING ante error retornado por el agente
+            $approval->update(['status' => 'PENDING']);
             Log::error("[HitlApprovalService] Error al delegar aprobación al agente '{$agent->agent_id}' para thread '{$approval->thread_id}'", [
                 'status_code' => $agentResponse['status_code'],
                 'error' => $agentResponse['error'],
@@ -287,7 +315,7 @@ class HitlApprovalService
             ];
         }
 
-        // Marcar solicitud como aprobada
+        // 3. Marcar solicitud como aprobada
         $approval->approve($resolver, $justification);
         $freshApproval = $approval->fresh(['agent', 'resolver']);
 
@@ -348,43 +376,54 @@ class HitlApprovalService
             ];
         }
 
-        /** @var ApprovalRequest|null $approval */
-        $approval = $this->findApproval($approvalId);
+        // 1. Bloqueo pesimista con lockForUpdate dentro de transacción para garantizar concurrencia segura
+        $lockResult = DB::transaction(function () use ($approvalId) {
+            /** @var ApprovalRequest|null $record */
+            $record = ApprovalRequest::with(['agent', 'resolver'])
+                ->where('id', $approvalId)
+                ->lockForUpdate()
+                ->first();
 
-        if (!$approval) {
+            if (!$record) {
+                return ['status_code' => 404, 'error' => "Solicitud de aprobación con ID '{$approvalId}' no encontrada."];
+            }
+
+            if ($record->status === 'PROCESSING') {
+                return ['status_code' => 409, 'error' => "La solicitud '{$approvalId}' ya se encuentra en procesamiento."];
+            }
+
+            if (!$record->isPending()) {
+                return ['status_code' => 409, 'error' => "La solicitud '{$approvalId}' ya fue resuelta previamente con estado '{$record->status}'."];
+            }
+
+            $agent = $record->agent;
+            if (!$agent) {
+                return ['status_code' => 400, 'error' => "No se encontró el agente registrado asociado a la solicitud '{$approvalId}'."];
+            }
+
+            if ($agent->status === 'PENDING') {
+                return ['status_code' => 400, 'error' => "El agente '{$agent->agent_id}' aún está en estado PENDING y no puede recibir órdenes de rechazo."];
+            }
+
+            // Transicionar a PROCESSING antes de invocar la API del agente para impedir rechazos concurrentes
+            $record->update(['status' => 'PROCESSING']);
+
+            return ['status_code' => 200, 'record' => $record];
+        });
+
+        if ($lockResult['status_code'] !== 200) {
             return [
                 'success' => false,
-                'status_code' => 404,
-                'error' => "Solicitud de aprobación con ID '{$approvalId}' no encontrada.",
+                'status_code' => $lockResult['status_code'],
+                'error' => $lockResult['error'],
             ];
         }
 
-        if (!$approval->isPending()) {
-            return [
-                'success' => false,
-                'status_code' => 409,
-                'error' => "La solicitud '{$approvalId}' ya fue resuelta previamente con estado '{$approval->status}'.",
-            ];
-        }
-
+        /** @var ApprovalRequest $approval */
+        $approval = $lockResult['record'];
         $agent = $approval->agent;
-        if (!$agent) {
-            return [
-                'success' => false,
-                'status_code' => 400,
-                'error' => "No se encontró el agente registrado asociado a la solicitud '{$approvalId}'.",
-            ];
-        }
 
-        if ($agent->status === 'PENDING') {
-            return [
-                'success' => false,
-                'status_code' => 400,
-                'error' => "El agente '{$agent->agent_id}' aún está en estado PENDING y no puede recibir órdenes de rechazo.",
-            ];
-        }
-
-        // Delegar el comando /reject hacia jg_agente a través de AgentHttpClient
+        // 2. Delegar el comando /reject hacia jg_agente a través de AgentHttpClient
         $client = AgentHttpClient::forAgent($agent);
         $payload = [
             'thread_id' => $approval->thread_id,
@@ -400,9 +439,25 @@ class HitlApprovalService
             ],
         ];
 
-        $agentResponse = $client->rejectExecution($approval->thread_id, $payload);
+        try {
+            $agentResponse = $client->rejectExecution($approval->thread_id, $payload);
+        } catch (\Throwable $e) {
+            // Reconciliar estado a PENDING ante fallo de red / excepción de transporte
+            $approval->update(['status' => 'PENDING']);
+            Log::error("[HitlApprovalService] Excepción de red al delegar rechazo al agente '{$agent->agent_id}' para thread '{$approval->thread_id}'", [
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'status_code' => 500,
+                'error' => "Fallo de conexión al comunicar el rechazo con el agente: " . $e->getMessage(),
+            ];
+        }
 
         if (!$agentResponse['success']) {
+            // Reconciliar estado a PENDING ante error retornado por el agente
+            $approval->update(['status' => 'PENDING']);
             Log::error("[HitlApprovalService] Error al delegar rechazo al agente '{$agent->agent_id}' para thread '{$approval->thread_id}'", [
                 'status_code' => $agentResponse['status_code'],
                 'error' => $agentResponse['error'],
@@ -415,7 +470,7 @@ class HitlApprovalService
             ];
         }
 
-        // Marcar solicitud como rechazada
+        // 3. Marcar solicitud como rechazada
         $approval->reject($resolver, $justification);
         $freshApproval = $approval->fresh(['agent', 'resolver']);
 
