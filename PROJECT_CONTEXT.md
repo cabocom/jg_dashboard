@@ -1,11 +1,12 @@
 # CONTEXTO DE PROYECTO: jg_dashboard
 
-**Versión del documento:** 3.20.0  
-**Fecha de consolidación:** 6 de septiembre de 2026  
+**Versión del documento:** 3.21.0  
+**Fecha de consolidación:** 10 de septiembre de 2026  
 **Componente:** Control Plane (Plano de Control, Gestión, Gobernanza y HITL)  
 **Stack Tecnológico:** Laravel 11, Filament PHP v3, Livewire 3, Tailwind CSS, PostgreSQL, Pest PHP  
-**Estado:** Fases 01 a 07 y Fase 09 completadas al 100%.  
-- Soporte Multi-Agente: Orquestación y enrutamiento simultáneo de `jg_agente_conversacional` (puerto 8001) y `jg_agente_devops` (puerto 8002) mediante `AgentHttpClient` con firma HMAC-SHA256.  
+**Estado:** Fases 01 a 07 y Fase 09 completadas al 100%. Post-Auditoría Codex en curso.  
+- Soporte Multi-Agente: Orquestación y enrutamiento simultáneo de `jg_agente_conversacional` (puerto 8001) y `jg_agente_devops` (puerto 8002) mediante `AgentHttpClient` con firma canónica HMAC-SHA256 (`METHOD\nPATH\nTIMESTAMP\nSHA256(BODY)`).  
+- Post-Auditoría Codex (GLOBAL-001 / ISSUE-DASH-002): Eliminación de la cabecera en texto plano `X-Control-Plane-Secret` y alineación estricta con el contrato de firma canónica y anti-replay del agente.  
 - Consola Web Unificada: `/console` operativa con panel reactivo de agentes, métricas de salud en tiempo real, gestión de aprobaciones HITL con visualización de planes de remediación y visor de ejecuciones en vivo.  
 - Aislamiento Total de Persistencia: PostgreSQL propio `jg_dashboard_postgres` (puerto 5434), sin acceso directo a la base de datos de los agentes (`jg_agente_postgres`:5433).  
 - Para detalles de deuda técnica y tareas pendientes, consulte [TODO-PENDIENTES.md](TODO-PENDIENTES.md).
@@ -121,7 +122,7 @@ El registro de nuevos agentes sigue un protocolo de cuatro pasos a prueba de acc
 - `POST /api/v1/approvals/{approval_id}/reject`: Endpoint de cancelación HITL para operadores y administradores con justificación obligatoria, delega `/executions/{thread_id}/reject` hacia `jg_agente`, actualiza la solicitud a `REJECTED` y genera auditoría inmutable.
 
 ### 5.2 Endpoints Invocados por `jg_dashboard` hacia `jg_agente` (Proxy Interno `AgentHttpClient`)
-El cliente `App\Services\Agents\AgentHttpClient` canaliza la comunicación cifrada y firmada mediante HMAC-SHA256 con las instancias internas de `jg_agente`:
+El cliente `App\Services\Agents\AgentHttpClient` canaliza la comunicación firmada mediante HMAC-SHA256 con las instancias internas de `jg_agente`:
 - `GET /health` (o `GET /`): Verificación de disponibilidad y latencia de subsistemas.
 - `GET /capabilities`: Inspección de herramientas y plugins activos del agente.
 - `POST /executions/trigger`: Envía un payload formal `AgentInput` para disparar una ejecución cognitiva.
@@ -129,6 +130,11 @@ El cliente `App\Services\Agents\AgentHttpClient` canaliza la comunicación cifra
 - `POST /executions/{thread_id}/approve`: Reanuda una ejecución detenida en el checkpoint HITL.
 - `POST /executions/{thread_id}/reject`: Cancela una ejecución detenida en HITL.
 - `GET /metrics`: Inspección de métricas de telemetría y rendimiento.
+
+> [!NOTE]
+> **Contrato Criptográfico Canónico:**
+> `canonical_string = METHOD\nPATH\nTIMESTAMP\nSHA256(RAW_BODY)`  
+> Las cabeceras emitidas son `X-Signature`, `X-Timestamp` y `X-Agent-ID`. La cabecera en texto plano `X-Control-Plane-Secret` ha sido completamente retirada de las peticiones para prevenir fugas de secretos.
 
 ---
 

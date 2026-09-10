@@ -20,22 +20,23 @@ test('generateSignatureHeaders generates valid HMAC-SHA256 signature and securit
     $client = new AgentHttpClient();
     $body = json_encode(['prompt' => 'Test execution']);
     
-    $headers = $client->generateSignatureHeaders($body);
+    $headers = $client->generateSignatureHeaders($body, 'POST', '/executions/trigger');
 
     expect($headers)->toHaveKeys([
         'Accept',
         'User-Agent',
         'X-Control-Plane',
-        'X-Control-Plane-Secret',
         'X-Timestamp',
         'X-Signature',
         'X-Correlation-ID',
     ]);
 
+    expect($headers)->not->toHaveKey('X-Control-Plane-Secret');
     expect($headers['X-Control-Plane'])->toBe('jg_dashboard');
-    expect($headers['X-Control-Plane-Secret'])->toBe('test_secret_key_123');
 
-    $expectedSignature = hash_hmac('sha256', $headers['X-Timestamp'] . '.' . $body, 'test_secret_key_123');
+    $bodyHash = hash('sha256', $body);
+    $canonicalString = "POST\n/executions/trigger\n" . $headers['X-Timestamp'] . "\n" . $bodyHash;
+    $expectedSignature = hash_hmac('sha256', $canonicalString, 'test_secret_key_123');
     expect($headers['X-Signature'])->toBe($expectedSignature);
 });
 

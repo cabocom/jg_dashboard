@@ -34,7 +34,8 @@ class AgentHttpClient
         ?int $timeout = null,
         ?int $retryTimes = null,
         ?int $retrySleepMs = null,
-        ?bool $verifySsl = null
+        ?bool $verifySsl = null,
+        ?string $agentId = null
     ) {
         $this->baseUrl = rtrim(
             $baseUrl ?? Config::get('agent.base_url', Config::get('devops60k.api_url', 'http://jg_agente:8000')),
@@ -45,6 +46,7 @@ class AgentHttpClient
         $this->retryTimes = $retryTimes ?? (int) Config::get('agent.retry_times', 2);
         $this->retrySleepMs = $retrySleepMs ?? (int) Config::get('agent.retry_sleep_ms', 200);
         $this->verifySsl = $verifySsl ?? (bool) Config::get('agent.verify_ssl', true);
+        $this->agentId = $agentId;
     }
 
     /**
@@ -97,18 +99,24 @@ class AgentHttpClient
     }
 
     /**
-     * Generate security headers, HMAC signature and correlation tags.
+     * Generate security headers, HMAC signature and correlation tags
+     * following the canonical contract:
+     * canonical_string = METHOD\nPATH\nTIMESTAMP\nSHA256(RAW_BODY)
      */
-    public function generateSignatureHeaders(string $body = ''): array
+    public function generateSignatureHeaders(string $body = '', string $method = 'POST', string $path = '/executions/trigger'): array
     {
         $timestamp = (string) time();
-        $signature = hash_hmac('sha256', $timestamp . '.' . $body, $this->internalSecret);
+        $normalizedMethod = strtoupper(trim($method));
+        $normalizedPath = '/' . ltrim($path, '/');
+        $bodyHash = hash('sha256', $body);
+
+        $canonicalString = $normalizedMethod . "\n" . $normalizedPath . "\n" . $timestamp . "\n" . $bodyHash;
+        $signature = hash_hmac('sha256', $canonicalString, $this->internalSecret);
 
         $headers = [
             'Accept' => 'application/json',
             'User-Agent' => 'jg_dashboard-ControlPlane/1.0',
             'X-Control-Plane' => 'jg_dashboard',
-            'X-Control-Plane-Secret' => $this->internalSecret,
             'X-Timestamp' => $timestamp,
             'X-Signature' => $signature,
             'X-Correlation-ID' => $this->correlationId ?? (string) Str::uuid(),
@@ -124,10 +132,15 @@ class AgentHttpClient
     /**
      * Build prepared PendingRequest with timeout, retries, SSL and signing headers.
      */
-    protected function prepareClient(string $body = '', array $customHeaders = [], ?string $baseUrl = null): PendingRequest
-    {
+    protected function prepareClient(
+        string $body = '',
+        array $customHeaders = [],
+        ?string $baseUrl = null,
+        string $method = 'POST',
+        string $endpoint = '/executions/trigger'
+    ): PendingRequest {
         $targetUrl = $baseUrl ? rtrim($baseUrl, '/') : $this->baseUrl;
-        $headers = array_merge($this->generateSignatureHeaders($body), $customHeaders);
+        $headers = array_merge($this->generateSignatureHeaders($body, $method, $endpoint), $customHeaders);
 
         return Http::baseUrl($targetUrl)
             ->timeout($this->timeout)
@@ -152,17 +165,22 @@ class AgentHttpClient
         ?string $baseUrl = null
     ): array {
         $startTime = microtime(true);
-        $encodedBody = !empty($data) ? json_encode($data, JSON_UNESCAPED_SLASHES) : '';
-        $client = $this->prepareClient($encodedBody, $headers, $baseUrl);
         $endpoint = '/' . ltrim($endpoint, '/');
+        $isGet = strtoupper($method) === 'GET';
+        $encodedBody = (!$isGet && !empty($data)) ? json_encode($data, JSON_UNESCAPED_SLASHES) : '';
+        $client = $this->prepareClient($encodedBody, $headers, $baseUrl, $method, $endpoint);
 
         try {
             /** @var Response $response */
+            if ($encodedBody !== '') {
+                $client = $client->withBody($encodedBody, 'application/json');
+            }
+
             $response = match (strtoupper($method)) {
                 'GET' => $client->get($endpoint, $data),
-                'POST' => $client->post($endpoint, $data),
-                'PUT' => $client->put($endpoint, $data),
-                'DELETE' => $client->delete($endpoint, $data),
+                'POST' => $client->post($endpoint),
+                'PUT' => $client->put($endpoint),
+                'DELETE' => $client->delete($endpoint),
                 default => throw new AgentHttpException("Método HTTP no soportado: {$method}"),
             };
 
