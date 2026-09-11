@@ -10,6 +10,13 @@ beforeEach(function () {
     unset($_ENV['ADMIN_DEFAULT_PASSWORD'], $_ENV['ADMIN_EMAIL'], $_ENV['ADMIN_NAME']);
 });
 
+afterEach(function () {
+    putenv('ADMIN_DEFAULT_PASSWORD');
+    putenv('ADMIN_EMAIL');
+    putenv('ADMIN_NAME');
+    unset($_ENV['ADMIN_DEFAULT_PASSWORD'], $_ENV['ADMIN_EMAIL'], $_ENV['ADMIN_NAME']);
+});
+
 test('dashboard:init-admin creates new admin user with cli options', function () {
     $this->artisan('dashboard:init-admin', [
         '--email' => 'new_admin@example.com',

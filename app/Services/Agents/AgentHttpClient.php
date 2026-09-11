@@ -20,7 +20,7 @@ use Throwable;
 class AgentHttpClient
 {
     protected string $baseUrl;
-    protected string $internalSecret;
+    protected ?string $internalSecret = null;
     protected int $timeout;
     protected int $retryTimes;
     protected int $retrySleepMs;
@@ -41,7 +41,7 @@ class AgentHttpClient
             $baseUrl ?? Config::get('agent.base_url', Config::get('devops60k.api_url', 'http://jg_agente:8000')),
             '/'
         );
-        $this->internalSecret = $internalSecret ?? Config::get('agent.internal_secret', Config::get('devops60k.api_key', 'secret_internal_control_plane'));
+        $this->internalSecret = $internalSecret ?? Config::get('agent.internal_secret') ?? Config::get('devops60k.api_key');
         $this->timeout = $timeout ?? (int) Config::get('agent.timeout', 15);
         $this->retryTimes = $retryTimes ?? (int) Config::get('agent.retry_times', 2);
         $this->retrySleepMs = $retrySleepMs ?? (int) Config::get('agent.retry_sleep_ms', 200);
@@ -109,6 +109,10 @@ class AgentHttpClient
         $normalizedMethod = strtoupper(trim($method));
         $normalizedPath = '/' . ltrim($path, '/');
         $bodyHash = hash('sha256', $body);
+
+        if (empty($this->internalSecret)) {
+            throw new \RuntimeException("Seguridad (CWE-798): El secreto interno para firma HMAC no está configurado (JG_AGENTE_SECRET).");
+        }
 
         $canonicalString = $normalizedMethod . "\n" . $normalizedPath . "\n" . $timestamp . "\n" . $bodyHash;
         $signature = hash_hmac('sha256', $canonicalString, $this->internalSecret);

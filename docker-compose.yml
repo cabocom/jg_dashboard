@@ -7,7 +7,7 @@ services:
     environment:
       POSTGRES_DB: ${DB_DATABASE:-jg_dashboard}
       POSTGRES_USER: ${DB_USERNAME:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres_secure_pass}
+      POSTGRES_PASSWORD: "${DB_PASSWORD:?Error: DB_PASSWORD es obligatoria. Defínala en su archivo .env}"
     volumes:
       - jg_dashboard_postgres_data:/var/lib/postgresql/data
     ports:
@@ -36,19 +36,20 @@ services:
     environment:
       APP_NAME: ${APP_NAME:-jG Dashboard}
       APP_ENV: ${APP_ENV:-local}
-      APP_KEY: ${APP_KEY:-base64:3vKjQ+7eZk1A9jH2wP5T6m8V0xY1Z4aB7c8D9E0F1G2=}
-      APP_DEBUG: ${APP_DEBUG:-true}
+      APP_KEY: "${APP_KEY:?Error: APP_KEY es obligatoria. Genere una con 'php artisan key:generate' y defínala en su archivo .env}"
+      APP_DEBUG: ${APP_DEBUG:-false}
       APP_URL: ${APP_URL:-http://localhost:8080}
       DB_CONNECTION: pgsql
       DB_HOST: jg_dashboard_postgres
       DB_PORT: 5432
       DB_DATABASE: ${DB_DATABASE:-jg_dashboard}
       DB_USERNAME: ${DB_USERNAME:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:-postgres_secure_pass}
+      DB_PASSWORD: "${DB_PASSWORD:?Error: DB_PASSWORD es obligatoria. Defínala en su archivo .env}"
       JG_AGENTE_API_URL: ${JG_AGENTE_API_URL:-http://jg_agente:8000}
+      JG_AGENTE_SECRET: ${JG_AGENTE_SECRET:-}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@devops60k.local}
-      ADMIN_DEFAULT_PASSWORD: ${ADMIN_DEFAULT_PASSWORD:-admin1234567890!}
-      RUN_MIGRATIONS: "true"
+      ADMIN_DEFAULT_PASSWORD: "${ADMIN_DEFAULT_PASSWORD:?Error: ADMIN_DEFAULT_PASSWORD es obligatoria. Defínala en su archivo .env}"
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
     volumes:
       - ./app:/var/www/html/app
       - ./bootstrap:/var/www/html/bootstrap

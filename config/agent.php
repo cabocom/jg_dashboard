@@ -13,7 +13,7 @@ return [
 
     'base_url' => env('JG_AGENTE_API_URL', env('AGENT_API_URL', 'http://jg_agente:8000')),
 
-    'internal_secret' => env('JG_AGENTE_SECRET', env('AGENT_INTERNAL_SECRET', 'secret_internal_control_plane')),
+    'internal_secret' => env('JG_AGENTE_SECRET', env('AGENT_INTERNAL_SECRET', null)),
 
     'timeout' => (int) env('AGENT_HTTP_TIMEOUT', 15),
 

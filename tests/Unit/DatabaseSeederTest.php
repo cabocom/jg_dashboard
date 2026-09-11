@@ -4,12 +4,15 @@ namespace Tests\Unit;
 
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use RuntimeException;
 use Tests\TestCase;
 
 class DatabaseSeederTest extends TestCase
 {
+    use RefreshDatabase;
+
     protected function tearDown(): void
     {
         putenv('ADMIN_DEFAULT_PASSWORD');
