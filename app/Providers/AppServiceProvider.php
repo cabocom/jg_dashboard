@@ -2,7 +2,6 @@
 
 namespace App\Providers;
 
-use App\Services\DevOps60kApiClient;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
@@ -13,9 +12,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->singleton(DevOps60kApiClient::class, function () {
-            return new DevOps60kApiClient();
-        });
+        //
     }
 
     /**

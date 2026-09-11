@@ -3,8 +3,9 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\AgentTaskResource\Pages;
+use App\Models\Agent;
 use App\Models\AgentTask;
-use App\Services\DevOps60kApiClient;
+use App\Services\Agents\AgentHttpClient;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Infolists;
@@ -130,16 +131,40 @@ class AgentTaskResource extends Resource
                             ->default(fn () => auth()->user()?->name ?? 'sre_admin')
                             ->required(),
                     ])
-                    ->action(function (array $data, DevOps60kApiClient $apiClient): void {
+                    ->action(function (array $data, AgentHttpClient $apiClient): void {
                         try {
-                            $res = $apiClient->triggerTask(
-                                prompt: $data['prompt'],
-                                username: $data['username'],
-                            );
+                            $targetAgent = Agent::active()->first();
+                            $client = $targetAgent ? AgentHttpClient::forAgent($targetAgent) : $apiClient;
+
+                            $threadId = (string) \Illuminate\Support\Str::uuid();
+                            $res = $client->triggerExecution([
+                                'prompt' => $data['prompt'],
+                                'user_prompt' => $data['prompt'],
+                                'thread_id' => $threadId,
+                                'user_context' => [
+                                    'username' => $data['username'],
+                                    'role' => auth()->user()?->role ?? 'admin',
+                                ],
+                            ]);
+
+                            if (!$res['success']) {
+                                throw new \Exception($res['error'] ?? 'Fallo al disparar tarea en el agente');
+                            }
+
+                            $taskId = $res['data']['task_id'] ?? $threadId;
+                            $returnedThread = $res['data']['thread_id'] ?? $threadId;
+
+                            AgentTask::create([
+                                'task_id' => $taskId,
+                                'thread_id' => $returnedThread,
+                                'status' => 'QUEUED',
+                                'payload_json' => ['user_prompt' => $data['prompt'], 'username' => $data['username']],
+                                'created_at' => now(),
+                            ]);
 
                             Notification::make()
                                 ->title('Tarea SRE encolada con éxito')
-                                ->body("Task ID: {$res['task_id']} | Thread: {$res['thread_id']}")
+                                ->body("Task ID: {$taskId} | Thread: {$returnedThread}")
                                 ->success()
                                 ->send();
                         } catch (\Exception $e) {
@@ -171,10 +196,25 @@ class AgentTaskResource extends Resource
                             ->required(),
                     ])
                     ->visible(fn (AgentTask $record): bool => in_array($record->status, ['WAITING_APPROVAL', 'PAUSED']) && in_array(auth()->user()?->role, ['admin', 'operator']))
-                    ->action(function (AgentTask $record, array $data, DevOps60kApiClient $apiClient): void {
+                    ->action(function (AgentTask $record, array $data, AgentHttpClient $apiClient): void {
                         try {
                             $user = auth()->user()?->name ?? 'sre_operator';
-                            $apiClient->approveExecution($record->thread_id, $data['notes'], $user);
+                            $targetAgent = Agent::active()->first();
+                            $client = $targetAgent ? AgentHttpClient::forAgent($targetAgent) : $apiClient;
+
+                            $res = $client->approveExecution($record->thread_id, [
+                                'justification' => $data['notes'],
+                                'approved' => true,
+                                'user' => [
+                                    'name' => $user,
+                                ],
+                            ]);
+
+                            if (!$res['success']) {
+                                throw new \Exception($res['error'] ?? 'Fallo al aprobar ejecución');
+                            }
+
+                            $record->update(['status' => 'COMPLETED']);
 
                             Notification::make()
                                 ->title('Ejecución aprobada y reanudada')
@@ -204,10 +244,24 @@ class AgentTaskResource extends Resource
                             ->required(),
                     ])
                     ->visible(fn (AgentTask $record): bool => in_array($record->status, ['WAITING_APPROVAL', 'PAUSED']) && in_array(auth()->user()?->role, ['admin', 'operator']))
-                    ->action(function (AgentTask $record, array $data, DevOps60kApiClient $apiClient): void {
+                    ->action(function (AgentTask $record, array $data, AgentHttpClient $apiClient): void {
                         try {
                             $user = auth()->user()?->name ?? 'sre_operator';
-                            $apiClient->rejectExecution($record->thread_id, $data['reason'], $user);
+                            $targetAgent = Agent::active()->first();
+                            $client = $targetAgent ? AgentHttpClient::forAgent($targetAgent) : $apiClient;
+
+                            $res = $client->rejectExecution($record->thread_id, [
+                                'justification' => $data['reason'],
+                                'user' => [
+                                    'name' => $user,
+                                ],
+                            ]);
+
+                            if (!$res['success']) {
+                                throw new \Exception($res['error'] ?? 'Fallo al rechazar ejecución');
+                            }
+
+                            $record->update(['status' => 'FAILED']);
 
                             Notification::make()
                                 ->title('Ejecución rechazada y abortada')

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Agent;
 use App\Models\AgentTask;
 use App\Models\User;
 use Tests\TestCase;
@@ -116,6 +117,49 @@ class AgentTaskResourceTest extends TestCase
             ->assertTableActionHidden('reject_hitl', $queuedTask)
             ->assertTableActionVisible('approve_hitl', $waitingTask)
             ->assertTableActionVisible('reject_hitl', $waitingTask);
+    }
+
+    public function test_hitl_approval_action_delegates_to_agent_http_client(): void
+    {
+        $operator = User::create([
+            'name' => 'SRE Lead Operator',
+            'email' => 'operator_exec@devops60k.local',
+            'password' => bcrypt('password123'),
+            'role' => 'operator',
+        ]);
+
+        $agent = Agent::create([
+            'agent_id' => 'agent-task-01',
+            'name' => 'Agent SRE Kubernetes',
+            'status' => 'ACTIVE',
+            'metadata_json' => ['api_url' => 'http://test-agent:8000'],
+        ]);
+
+        $task = AgentTask::create([
+            'task_id' => 'task_hitl_action_test',
+            'thread_id' => 'th_hitl_action_test',
+            'status' => 'WAITING_APPROVAL',
+            'payload_json' => ['user_prompt' => 'Drain node-01'],
+            'created_at' => now(),
+        ]);
+
+        \Illuminate\Support\Facades\Http::fake([
+            'http://test-agent:8000/executions/th_hitl_action_test/approve' => \Illuminate\Support\Facades\Http::response([
+                'status' => 'resumed',
+                'thread_id' => 'th_hitl_action_test',
+            ], 200),
+        ]);
+
+        $this->actingAs($operator);
+
+        \Livewire\Livewire::test(\App\Filament\Resources\AgentTaskResource\Pages\ListAgentTasks::class)
+            ->callTableAction('approve_hitl', $task, data: [
+                'notes' => 'Aprobado desde Filament vía AgentHttpClient',
+            ])
+            ->assertHasNoTableActionErrors();
+
+        $task->refresh();
+        $this->assertEquals('COMPLETED', $task->status);
     }
 }
 

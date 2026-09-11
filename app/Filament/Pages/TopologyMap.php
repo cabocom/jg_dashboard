@@ -2,7 +2,9 @@
 
 namespace App\Filament\Pages;
 
+use App\Models\Agent;
 use App\Models\InfraTopology;
+use App\Services\Agents\AgentHttpClient;
 use Filament\Pages\Page;
 use Illuminate\Contracts\Support\Htmlable;
 
@@ -31,13 +33,14 @@ class TopologyMap extends Page
     }
 
     /**
-     * Refresca los datos de la topología desde PostgreSQL.
+     * Refresca los datos de la topología desde PostgreSQL o modelos Eloquent de agentes.
      */
     public function refreshTopology(bool $forceBackendSync = false): void
     {
         if ($forceBackendSync) {
             try {
-                app(\App\Services\DevOps60kApiClient::class)->getTopology(refresh: true);
+                $client = app(AgentHttpClient::class);
+                $client->checkHealth();
             } catch (\Throwable $e) {
                 // ignore
             }
@@ -55,33 +58,54 @@ class TopologyMap extends Page
             $this->warningNodes = $topology->warning_count;
             $this->totalEdges = $topology->edges_count;
         } else {
-            // Fallback con nodos locales de la arquitectura jg_agente
-            $this->nodes = [
+            // Nodos dinámicos a partir de agentes registrados y contenedores base
+            $agents = Agent::all();
+            $agentNodes = [];
+            $agentEdges = [];
+
+            foreach ($agents as $agent) {
+                $isHealthy = $agent->status === 'ACTIVE' && $agent->isHealthy(90);
+                $nodeStatus = $isHealthy ? 'healthy' : ($agent->status === 'PENDING' ? 'warning' : 'down');
+                $agentNodes[] = [
+                    'id' => $agent->agent_id,
+                    'label' => $agent->name,
+                    'type' => 'container',
+                    'status' => $nodeStatus,
+                    'metadata' => [
+                        'version' => $agent->version ?? '1.0.0',
+                        'last_heartbeat' => $agent->last_heartbeat_at?->toIso8601String(),
+                        'api_url' => $agent->metadata_json['api_url'] ?? 'internal',
+                    ],
+                ];
+                $agentEdges[] = [
+                    'from' => 'jg_dashboard',
+                    'to' => $agent->agent_id,
+                    'relation' => 'rest_api',
+                ];
+            }
+
+            $baseNodes = [
                 ['id' => 'host', 'label' => 'Host SRE System', 'type' => 'host', 'status' => 'healthy', 'metadata' => ['os' => 'Linux / Docker']],
                 ['id' => 'jg_dashboard', 'label' => 'jg_dashboard', 'type' => 'container', 'status' => 'healthy', 'metadata' => ['image' => 'jg_dashboard:latest', 'state' => 'running']],
                 ['id' => 'jg_dashboard_postgres', 'label' => 'jg_dashboard_postgres', 'type' => 'database', 'status' => 'healthy', 'metadata' => ['image' => 'postgres:16-alpine', 'state' => 'running']],
-                ['id' => 'jg_agente_conversacional', 'label' => 'jg_agente_conversacional', 'type' => 'container', 'status' => 'healthy', 'metadata' => ['image' => 'jg_agente:latest', 'state' => 'running', 'plugin' => 'conversational']],
-                ['id' => 'jg_agente_devops', 'label' => 'jg_agente_devops', 'type' => 'container', 'status' => 'healthy', 'metadata' => ['image' => 'jg_agente:latest', 'state' => 'running', 'plugin' => 'devops']],
                 ['id' => 'jg_agente_postgres', 'label' => 'jg_agente_postgres', 'type' => 'database', 'status' => 'healthy', 'metadata' => ['image' => 'postgres:16-alpine', 'state' => 'running']],
             ];
-            $this->edges = [
+
+            $baseEdges = [
                 ['from' => 'host', 'to' => 'jg_dashboard', 'relation' => 'contains'],
                 ['from' => 'host', 'to' => 'jg_dashboard_postgres', 'relation' => 'contains'],
-                ['from' => 'host', 'to' => 'jg_agente_conversacional', 'relation' => 'contains'],
-                ['from' => 'host', 'to' => 'jg_agente_devops', 'relation' => 'contains'],
                 ['from' => 'host', 'to' => 'jg_agente_postgres', 'relation' => 'contains'],
                 ['from' => 'jg_dashboard', 'to' => 'jg_dashboard_postgres', 'relation' => 'database_connection'],
-                ['from' => 'jg_agente_conversacional', 'to' => 'jg_agente_postgres', 'relation' => 'database_connection'],
-                ['from' => 'jg_agente_devops', 'to' => 'jg_agente_postgres', 'relation' => 'database_connection'],
-                ['from' => 'jg_dashboard', 'to' => 'jg_agente_conversacional', 'relation' => 'rest_api'],
-                ['from' => 'jg_dashboard', 'to' => 'jg_agente_devops', 'relation' => 'rest_api'],
-                ['from' => 'jg_agente_devops', 'to' => 'host', 'relation' => 'docker_socket'],
             ];
-            $this->lastUpdated = 'Por defecto';
+
+            $this->nodes = array_merge($baseNodes, $agentNodes);
+            $this->edges = array_merge($baseEdges, $agentEdges);
+
+            $this->lastUpdated = 'Dinámico (Eloquent Agent)';
             $this->totalNodes = count($this->nodes);
-            $this->healthyNodes = $this->totalNodes;
-            $this->downNodes = 0;
-            $this->warningNodes = 0;
+            $this->healthyNodes = collect($this->nodes)->where('status', 'healthy')->count();
+            $this->downNodes = collect($this->nodes)->where('status', 'down')->count();
+            $this->warningNodes = collect($this->nodes)->where('status', 'warning')->count();
             $this->totalEdges = count($this->edges);
         }
 

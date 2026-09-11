@@ -3,7 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Models\Agent;
-use App\Services\DevOps60kApiClient;
+use App\Services\Agents\AgentHttpClient;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 
@@ -14,17 +14,18 @@ class AgentHealthWidget extends BaseWidget
 
     protected function getStats(): array
     {
-        /** @var DevOps60kApiClient $client */
-        $client = app(DevOps60kApiClient::class);
+        /** @var AgentHttpClient $client */
+        $client = app(AgentHttpClient::class);
         $health = $client->checkHealth();
 
-        $isOnline = $health['online'] ?? false;
+        $isOnline = $health['success'] ?? false;
         $statusText = $isOnline ? 'Online / Healthy' : 'Inaccesible';
         $color = $isOnline ? 'success' : 'danger';
         $icon = $isOnline ? 'heroicon-m-signal' : 'heroicon-m-signal-slash';
 
-        $totalAgents = Agent::count();
-        $activeAgents = Agent::where('status', 'ACTIVE')->count();
+        $agents = Agent::all();
+        $totalAgents = $agents->count();
+        $activeAgents = $agents->filter(fn (Agent $a) => $a->status === 'ACTIVE' && $a->isHealthy(90))->count();
 
         return [
             Stat::make('Motor jg_agente (Execution Plane)', $statusText)
