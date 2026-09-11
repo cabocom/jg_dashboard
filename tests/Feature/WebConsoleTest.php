@@ -49,6 +49,7 @@ test('web console displays preloaded database counts when authenticated', functi
         'agent_id' => 'agent-ui-01',
         'name' => 'Agent UI Alpha',
         'status' => 'ACTIVE',
+        'last_heartbeat_at' => now(),
     ]);
 
     Agent::create([
@@ -76,6 +77,22 @@ test('web console displays preloaded database counts when authenticated', functi
     expect($response->viewData('activeAgents'))->toBe(1);
     expect($response->viewData('offlineAgents'))->toBe(1);
     expect($response->viewData('pendingApprovalsCount'))->toBe(1);
+});
+
+test('web console preloads agent with expired heartbeat as offline', function () {
+    Agent::create([
+        'agent_id' => 'agent-ui-stale',
+        'name' => 'Agent UI Stale',
+        'status' => 'ACTIVE',
+        'last_heartbeat_at' => now()->subSeconds(120),
+    ]);
+
+    $response = $this->actingAs($this->user)->get('/console');
+
+    $response->assertStatus(200);
+    expect($response->viewData('totalAgents'))->toBe(1);
+    expect($response->viewData('activeAgents'))->toBe(0);
+    expect($response->viewData('offlineAgents'))->toBe(1);
 });
 
 test('root URL GET / continues to redirect to /admin preserving Filament panel path', function () {

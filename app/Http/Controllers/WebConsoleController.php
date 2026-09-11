@@ -16,9 +16,10 @@ class WebConsoleController extends Controller
      */
     public function index(Request $request): View
     {
-        $totalAgents = Agent::count();
-        $activeAgents = Agent::where('status', 'ACTIVE')->count();
-        $offlineAgents = Agent::where('status', 'OFFLINE')->count();
+        $agents = Agent::all();
+        $totalAgents = $agents->count();
+        $activeAgents = $agents->filter(fn (Agent $a) => $a->status === 'ACTIVE' && $a->isHealthy(90))->count();
+        $offlineAgents = $agents->filter(fn (Agent $a) => $a->status === 'OFFLINE' || ($a->status === 'ACTIVE' && !$a->isHealthy(90)))->count();
         $pendingApprovalsCount = ApprovalRequest::pending()->count();
 
         return view('console.index', [
@@ -35,19 +36,19 @@ class WebConsoleController extends Controller
     public function listAgents(Request $request): JsonResponse
     {
         $agents = Agent::orderBy('created_at', 'desc')->get();
-        $total = $agents->count();
-        $active = $agents->where('status', 'ACTIVE')->count();
-        $offline = $agents->where('status', 'OFFLINE')->count();
 
         $items = $agents->map(function (Agent $agent) {
             $metrics = $agent->metrics_json ?? [];
             $capabilities = $agent->capabilities_json ?? [];
+            $isHealthy = $agent->status === 'ACTIVE' && $agent->isHealthy(90);
+            $effectiveStatus = ($agent->status === 'ACTIVE' && !$isHealthy) ? 'OFFLINE' : $agent->status;
+
             return [
                 'agent_id' => $agent->agent_id,
                 'name' => $agent->name,
-                'status' => $agent->status,
+                'status' => $effectiveStatus,
                 'version' => $agent->version,
-                'is_healthy' => $agent->status === 'ACTIVE' || $agent->isHealthy(90),
+                'is_healthy' => $isHealthy,
                 'last_heartbeat_at' => $agent->last_heartbeat_at?->toIso8601String(),
                 'capabilities' => $capabilities,
                 'capabilities_json' => $capabilities,
@@ -57,6 +58,10 @@ class WebConsoleController extends Controller
                 'created_at' => $agent->created_at?->toIso8601String(),
             ];
         });
+
+        $total = $items->count();
+        $active = $items->where('status', 'ACTIVE')->count();
+        $offline = $items->where('status', 'OFFLINE')->count();
 
         return response()->json([
             'data' => $items,

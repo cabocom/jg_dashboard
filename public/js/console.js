@@ -393,7 +393,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const capabilities = agent.capabilities || agent.capabilities_json || {};
           const toolsCount = capabilities.tools_count != null ? capabilities.tools_count : (capabilities.tools ? (Array.isArray(capabilities.tools) ? capabilities.tools.length : Object.keys(capabilities.tools).length) : 0);
           const enginesCount = capabilities.engines_count != null ? capabilities.engines_count : (capabilities.engines ? (Array.isArray(capabilities.engines) ? capabilities.engines.length : Object.keys(capabilities.engines).length) : 0);
-          const isHealthy = agent.is_healthy ?? (agent.status === 'ACTIVE');
+          const isHealthy = Boolean(agent.is_healthy);
 
           return `
             <div class="agent-card ${statusClass}">
@@ -466,7 +466,7 @@ document.addEventListener('DOMContentLoaded', () => {
               ? 'badge-pending'
               : 'badge-offline';
 
-          const isHealthy = agent.is_healthy ?? (agent.status === 'ACTIVE');
+          const isHealthy = Boolean(agent.is_healthy);
 
           return `
             <tr>
