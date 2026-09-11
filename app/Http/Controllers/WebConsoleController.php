@@ -81,6 +81,21 @@ class WebConsoleController extends Controller
      */
     public function storeAgent(Request $request, AgentRegistrationService $service): JsonResponse
     {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json([
+                'error' => 'Unauthorized',
+                'message' => 'Autenticación requerida para aprovisionar agentes.',
+            ], 401);
+        }
+
+        if (!$user->hasRole('admin')) {
+            return response()->json([
+                'error' => 'Forbidden',
+                'message' => 'Acceso denegado: se requiere rol de administrador para aprovisionar agentes.',
+            ], 403);
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:128',
             'version' => 'nullable|string|max:32',
@@ -91,7 +106,7 @@ class WebConsoleController extends Controller
             name: $validated['name'],
             version: $validated['version'] ?? '1.0.0',
             ttlHours: (int) ($validated['ttl_hours'] ?? 24),
-            adminUser: $request->user()
+            adminUser: $user
         );
 
         return response()->json([
@@ -154,22 +169,24 @@ class WebConsoleController extends Controller
      */
     public function approveApproval(Request $request, string|int $id, \App\Services\Hitl\HitlApprovalService $service): JsonResponse
     {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json([
+                'error' => 'Unauthorized',
+                'message' => 'Autenticación requerida para resolver solicitudes HITL.',
+            ], 401);
+        }
+
+        if (!$user->hasRole(['admin', 'operator'])) {
+            return response()->json([
+                'error' => 'Forbidden',
+                'message' => 'Acceso denegado: rol insuficiente para resolver solicitudes HITL.',
+            ], 403);
+        }
+
         $validated = $request->validate([
             'justification' => 'nullable|string|max:1000',
         ]);
-
-        $user = $request->user()
-            ?? \App\Models\User::whereIn('role', ['operator', 'admin'])->first()
-            ?? \App\Models\User::first();
-
-        if (!$user) {
-            $user = \App\Models\User::create([
-                'name' => 'Web Console Operator',
-                'email' => 'operator.console@example.com',
-                'password' => bcrypt(\Illuminate\Support\Str::random(16)),
-                'role' => 'operator',
-            ]);
-        }
 
         $result = $service->approveApproval(
             approvalId: $id,
@@ -198,25 +215,27 @@ class WebConsoleController extends Controller
      */
     public function rejectApproval(Request $request, string|int $id, \App\Services\Hitl\HitlApprovalService $service): JsonResponse
     {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json([
+                'error' => 'Unauthorized',
+                'message' => 'Autenticación requerida para resolver solicitudes HITL.',
+            ], 401);
+        }
+
+        if (!$user->hasRole(['admin', 'operator'])) {
+            return response()->json([
+                'error' => 'Forbidden',
+                'message' => 'Acceso denegado: rol insuficiente para resolver solicitudes HITL.',
+            ], 403);
+        }
+
         $validated = $request->validate([
             'justification' => 'required|string|min:5|max:1000',
         ], [
             'justification.required' => 'El motivo o justificación del rechazo es obligatorio.',
             'justification.min' => 'El motivo de rechazo debe contener al menos 5 caracteres.',
         ]);
-
-        $user = $request->user()
-            ?? \App\Models\User::whereIn('role', ['operator', 'admin'])->first()
-            ?? \App\Models\User::first();
-
-        if (!$user) {
-            $user = \App\Models\User::create([
-                'name' => 'Web Console Operator',
-                'email' => 'operator.console@example.com',
-                'password' => bcrypt(\Illuminate\Support\Str::random(16)),
-                'role' => 'operator',
-            ]);
-        }
 
         $result = $service->rejectApproval(
             approvalId: $id,
@@ -245,11 +264,19 @@ class WebConsoleController extends Controller
      */
     public function triggerExecution(Request $request, \App\Http\Controllers\Api\ExecutionController $controller): JsonResponse
     {
-        if (!$request->user()) {
-            $operator = \App\Models\User::whereIn('role', ['operator', 'admin'])->first() ?? \App\Models\User::first();
-            if ($operator) {
-                $request->setUserResolver(fn () => $operator);
-            }
+        $user = $request->user();
+        if (!$user) {
+            return response()->json([
+                'error' => 'Unauthorized',
+                'message' => 'Autenticación requerida para disparar ejecuciones.',
+            ], 401);
+        }
+
+        if (!$user->hasRole(['admin', 'operator'])) {
+            return response()->json([
+                'error' => 'Forbidden',
+                'message' => 'Acceso denegado: rol insuficiente para disparar ejecuciones.',
+            ], 403);
         }
 
         return $controller->trigger($request);

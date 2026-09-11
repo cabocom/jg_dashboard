@@ -8,6 +8,7 @@
 - Soporte Multi-Agente: Orquestación y enrutamiento simultáneo de `jg_agente_conversacional` (puerto 8001) y `jg_agente_devops` (puerto 8002) mediante `AgentHttpClient` con firma canónica HMAC-SHA256 (`METHOD\nPATH\nTIMESTAMP\nSHA256(BODY)`).  
 - Post-Auditoría Codex (GLOBAL-001 / ISSUE-DASH-002): Eliminación de la cabecera en texto plano `X-Control-Plane-Secret` y alineación estricta con el contrato de firma canónica y anti-replay del agente.  
 - Post-Auditoría Codex (GLOBAL-003 / ISSUE-DASH-003): Transaccionalidad, bloqueo pesimista `lockForUpdate` y control de concurrencia en HITL con estado `PROCESSING` y reconciliación automática ante fallos de red.  
+- Post-Auditoría Codex (ISSUE-DASH-001): Control de acceso RBAC estricto en la Consola Web (/console) mediante middlewares `role:admin` y `role:admin,operator`, eliminando de raíz fallbacks que instanciaban usuarios dummy (`operator.console@example.com`).  
 - Consola Web Unificada: `/console` operativa con panel reactivo de agentes, métricas de salud en tiempo real, gestión de aprobaciones HITL con visualización de planes de remediación y visor de ejecuciones en vivo.  
 - Aislamiento Total de Persistencia: PostgreSQL propio `jg_dashboard_postgres` (puerto 5434), sin acceso directo a la base de datos de los agentes (`jg_agente_postgres`:5433).  
 - Para detalles de deuda técnica y tareas pendientes, consulte [TODO-PENDIENTES.md](TODO-PENDIENTES.md).

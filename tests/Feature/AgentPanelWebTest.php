@@ -13,6 +13,14 @@ beforeEach(function () {
         'password' => Hash::make('secret123'),
         'role' => 'operator',
     ]);
+
+    $this->adminUser = User::create([
+        'name' => 'Agent Panel Admin',
+        'email' => 'admin-agent@devops60k.local',
+        'password' => Hash::make('secret123'),
+        'role' => 'admin',
+    ]);
+
     $this->actingAs($this->operatorUser);
 });
 
@@ -33,14 +41,26 @@ test('GET /console renders the agent panel toolbar, containers, and provisioning
         ->assertSee('id="btn-copy-token"', false);
 });
 
-test('POST /console/agents provisions a new agent and returns one-time bootstrap token', function () {
+test('POST /console/agents rejects operator role with 403 Forbidden', function () {
+    $response = $this->actingAs($this->operatorUser)->postJson('/console/agents', [
+        'name' => 'Agent Operator Attempt',
+        'version' => '1.0.0',
+    ]);
+
+    $response->assertStatus(403)
+        ->assertJson([
+            'error' => 'Forbidden',
+        ]);
+});
+
+test('POST /console/agents provisions a new agent and returns one-time bootstrap token when admin', function () {
     $payload = [
         'name' => 'Agent SRE Worker 01',
         'version' => '1.2.0',
         'ttl_hours' => 24,
     ];
 
-    $response = $this->postJson('/console/agents', $payload);
+    $response = $this->actingAs($this->adminUser)->postJson('/console/agents', $payload);
 
     $response->assertStatus(201)
         ->assertJsonStructure([
@@ -85,7 +105,7 @@ test('POST /console/agents provisions a new agent and returns one-time bootstrap
 });
 
 test('POST /console/agents validates required agent name', function () {
-    $response = $this->postJson('/console/agents', [
+    $response = $this->actingAs($this->adminUser)->postJson('/console/agents', [
         'name' => '',
         'version' => '1.0.0',
     ]);
