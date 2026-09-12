@@ -240,7 +240,7 @@ class AgentRegistrationService
             $secretHash = hash('sha256', $permanentSecret);
 
             // 3. Update agent attributes and activate
-            $agent->markAsActive($secretHash);
+            $agent->markAsActive($secretHash, $permanentSecret);
 
             if ($version !== null) {
                 $agent->version = $version;

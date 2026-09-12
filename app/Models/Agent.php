@@ -27,6 +27,7 @@ class Agent extends Model
         'version',
         'status',
         'permanent_secret_hash',
+        'permanent_secret_encrypted',
         'last_heartbeat_at',
         'capabilities_json',
         'metrics_json',
@@ -35,6 +36,7 @@ class Agent extends Model
 
     protected $hidden = [
         'permanent_secret_hash',
+        'permanent_secret_encrypted',
     ];
 
     /**
@@ -49,6 +51,7 @@ class Agent extends Model
             'metrics_json' => 'array',
             'metadata_json' => 'array',
             'last_heartbeat_at' => 'datetime',
+            'permanent_secret_encrypted' => 'encrypted',
         ];
     }
 
@@ -134,13 +137,40 @@ class Agent extends Model
     /**
      * Transition agent to ACTIVE with permanent credential.
      */
-    public function markAsActive(string $secretHash): void
+    public function markAsActive(string $secretHash, ?string $plainSecret = null): void
     {
-        $this->update([
+        $payload = [
             'status' => 'ACTIVE',
             'permanent_secret_hash' => $secretHash,
             'last_heartbeat_at' => now(),
-        ]);
+        ];
+
+        if ($plainSecret !== null) {
+            $payload['permanent_secret_encrypted'] = $plainSecret;
+        }
+
+        $this->update($payload);
+    }
+
+    /**
+     * Safely decrypts and retrieves the permanent secret for HMAC computation.
+     */
+    public function getDecryptedSecret(): ?string
+    {
+        if (empty($this->permanent_secret_encrypted)) {
+            return null;
+        }
+
+        try {
+            return $this->permanent_secret_encrypted;
+        } catch (\Throwable) {
+            try {
+                $raw = $this->getRawOriginal('permanent_secret_encrypted');
+                return $raw ? \Illuminate\Support\Facades\Crypt::decryptString($raw) : null;
+            } catch (\Throwable) {
+                return null;
+            }
+        }
     }
 
     /**

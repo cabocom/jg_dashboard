@@ -298,7 +298,7 @@
                   </div>
 
                   <div style="display: flex; justify-content: flex-end;">
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" id="btn-trigger-execution" class="btn btn-primary">
                       ▶ Disparar Ejecución en Agente
                     </button>
                   </div>

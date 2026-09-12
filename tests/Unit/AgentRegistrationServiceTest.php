@@ -154,7 +154,8 @@ test('consumeBootstrapTokenAndActivate activates agent, marks token consumed, an
         ->and($agent->last_heartbeat_at)->not->toBeNull();
 
     $expectedHash = hash('sha256', $result['permanent_secret']);
-    expect($agent->getRawOriginal('permanent_secret_hash'))->toBe($expectedHash);
+    expect($agent->getRawOriginal('permanent_secret_hash'))->toBe($expectedHash)
+        ->and($agent->getDecryptedSecret())->toBe($result['permanent_secret']);
 
     // Verify token is now consumed
     $tokenRecord = BootstrapToken::where('agent_id', $agentId)->first();

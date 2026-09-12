@@ -130,6 +130,7 @@ test('GET /console renders the dedicated agent capabilities modal and execution 
         ->assertSee('id="modal-agent-capabilities"', false)
         ->assertSee('id="agent-caps-json-content"', false)
         ->assertSee('id="table-executions-history"', false)
+        ->assertSee('id="btn-trigger-execution"', false)
         ->assertSee('Historial de Ejecuciones Recientes');
 });
 

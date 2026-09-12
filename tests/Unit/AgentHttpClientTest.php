@@ -56,6 +56,28 @@ test('forAgent factory configures agent_id and custom api_url if present in meta
     expect($headers['X-Agent-ID'])->toBe($agent->agent_id);
 });
 
+test('forAgent decrypts permanent_secret_encrypted and computes valid HMAC signature for dynamic agent', function () {
+    $dynamicSecret = 'sec_dynamic_custom_worker_random_token_9999999999';
+    $agent = Agent::create([
+        'name' => 'Dynamic-Scale-Worker',
+        'status' => 'ACTIVE',
+        'permanent_secret_hash' => hash('sha256', $dynamicSecret),
+        'permanent_secret_encrypted' => $dynamicSecret,
+        'metadata_json' => ['api_url' => 'http://dynamic-agent:8000'],
+    ]);
+
+    $client = AgentHttpClient::forAgent($agent);
+
+    $body = json_encode(['prompt' => 'ping test']);
+    $headers = $client->generateSignatureHeaders($body, 'POST', '/executions/trigger');
+
+    $bodyHash = hash('sha256', $body);
+    $canonicalString = "POST\n/executions/trigger\n" . $headers['X-Timestamp'] . "\n" . $bodyHash;
+    $expectedSignature = hash_hmac('sha256', $canonicalString, $dynamicSecret);
+
+    expect($headers['X-Signature'])->toBe($expectedSignature);
+});
+
 test('checkHealth returns success when agent responds with 200', function () {
     Http::fake([
         'http://test-agent:8000/health' => Http::response([

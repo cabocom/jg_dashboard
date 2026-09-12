@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
       executionPollingInterval: null,
       recentExecutions: [],
       executionsList: [],
+      isTriggeringExecution: false,
     },
 
     init() {
@@ -1066,6 +1067,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     async submitTriggerExecution() {
+      // Guardarraíl anti-doble clic: Si ya se está procesando una ejecución, abortar
+      if (this.state.isTriggeringExecution) {
+        return;
+      }
+
       const agentId = document.getElementById('trigger-agent-id')?.value;
       const prompt = document.getElementById('trigger-prompt')?.value;
 
@@ -1074,9 +1080,19 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
+      const btnSubmit = document.getElementById('btn-trigger-execution') || document.querySelector('#form-trigger-execution button[type="submit"]');
+      const originalBtnHtml = btnSubmit ? btnSubmit.innerHTML : '▶ Disparar Ejecución en Agente';
+
+      // Bloquear botón e indicar estado activo visual inmediatamente
+      this.state.isTriggeringExecution = true;
+      if (btnSubmit) {
+        btnSubmit.disabled = true;
+        btnSubmit.innerHTML = '<span class="spinner-icon"></span> Ejecutando en agente...';
+      }
+
       const resultBox = document.getElementById('execution-result-box');
       if (resultBox) {
-        resultBox.textContent = 'Enviando directiva AgentInput hacia el Control Plane...';
+        resultBox.textContent = 'Enviando directiva AgentInput hacia el Control Plane y esperando resolución cognitiva...';
       }
 
       try {
@@ -1110,6 +1126,13 @@ document.addEventListener('DOMContentLoaded', () => {
         this.showToast(`Error: ${err.message}`, 'error');
         if (resultBox) {
           resultBox.textContent = `Error: ${err.message}`;
+        }
+      } finally {
+        // Desbloquear botón y restaurar estado original
+        this.state.isTriggeringExecution = false;
+        if (btnSubmit) {
+          btnSubmit.disabled = false;
+          btnSubmit.innerHTML = originalBtnHtml;
         }
       }
     },

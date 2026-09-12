@@ -69,8 +69,11 @@ class AgentHttpClient
         }
 
         // Resolver el secreto específico del agente para la firma criptográfica HMAC
-        $secret = null;
-        if (is_array($agent->metadata_json)) {
+        // 1. Prioridad: Secreto individual permanente desencriptado (registro dinámico / BD)
+        $secret = $agent->getDecryptedSecret();
+
+        // 2. Prioridad: Metadatos explícitos
+        if (!$secret && is_array($agent->metadata_json)) {
             $secret = $agent->metadata_json['secret'] ?? $agent->metadata_json['internal_secret'] ?? null;
         }
 

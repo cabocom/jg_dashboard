@@ -55,6 +55,7 @@ class DatabaseSeeder extends Seeder
                 'version' => '0.1.0',
                 'status' => 'ACTIVE',
                 'permanent_secret_hash' => hash('sha256', $conversationalSecret),
+                'permanent_secret_encrypted' => $conversationalSecret,
                 'metadata_json' => [
                     'api_url' => 'http://jg_agente_conversacional:8000',
                     'plugin' => 'conversational',
@@ -77,6 +78,7 @@ class DatabaseSeeder extends Seeder
                 'version' => '0.1.0',
                 'status' => 'ACTIVE',
                 'permanent_secret_hash' => hash('sha256', $devopsSecret),
+                'permanent_secret_encrypted' => $devopsSecret,
                 'metadata_json' => [
                     'api_url' => 'http://jg_agente_devops:8000',
                     'plugin' => 'devops',

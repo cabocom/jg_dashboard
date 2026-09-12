@@ -7,6 +7,7 @@
 **Estado:** Fases 01 a 07 y Fase 09 completadas al 100%. Post-Auditoría 2 en curso.  
 - Soporte Multi-Agente: Orquestación y enrutamiento simultáneo de `jg_agente_conversacional` (puerto 8001) y `jg_agente_devops` (puerto 8002) mediante `AgentHttpClient` con firma canónica HMAC-SHA256 (`METHOD\nPATH\nTIMESTAMP\nSHA256(BODY)`).  
 - Post-Auditoría 2 (GLOBAL-01 / GitLab jg_dashboard#42): Erradicación total de secretos fallback hardcodeados en `AgentHttpClient.php`, `config/agent.php` y `docker-compose.yml`; interpolación obligatoria `${JG_CONVERSATIONAL_SECRET:?err}` y `${JG_DEVOPS_SECRET:?err}`; derivación dinámica de `permanent_secret_hash` en `DatabaseSeeder.php` desde configuración activa con validación previa estricta.  
+- Post-Auditoría 2 (GLOBAL-02 / GitLab jg_dashboard#43): Corrección de la ruptura criptográfica del registro dinámico de agentes. Incorporación de columna cifrada en reposo `permanent_secret_encrypted` (AES-256-CBC respaldada por `APP_KEY`) en `dashboard_agents`, persistida durante `AgentRegistrationService::consumeBootstrapTokenAndActivate(...)` y consumida prioritariamente por `AgentHttpClient::forAgent(...)` para el cálculo determinista de firmas HMAC `X-Signature`.  
 - Post-Auditoría Codex (GLOBAL-001 / ISSUE-DASH-002): Eliminación de la cabecera en texto plano `X-Control-Plane-Secret` y alineación estricta con el contrato de firma canónica y anti-replay del agente.  
 - Post-Auditoría Codex (GLOBAL-003 / ISSUE-DASH-003): Transaccionalidad, bloqueo pesimista `lockForUpdate` y control de concurrencia en HITL con estado `PROCESSING` y reconciliación automática ante fallos de red.  
 - Consola Web Unificada: `/console` operativa con panel reactivo de agentes, métricas de salud en tiempo real, gestión de aprobaciones HITL con visualización de planes de remediación y visor de ejecuciones en vivo.  
@@ -145,7 +146,7 @@ El cliente `App\Services\Agents\AgentHttpClient` canaliza la comunicación firma
 El Dashboard cuenta con su **propia base de datos PostgreSQL**, completamente desacoplada de los agentes:
 - `dashboard_users`: Usuarios administradores, operadores y credenciales con hash Argon2/Bcrypt.
 - `dashboard_roles` y `dashboard_permissions`: Definición de perfiles RBAC (`ADMIN`, `OPERATOR`, `VIEWER`).
-- `dashboard_agents`: Registro de agentes, nombres, estado (`PENDING`, `ACTIVE`, `OFFLINE`), hash de credencial permanente y metadatos.
+- `dashboard_agents`: Registro de agentes, nombres, estado (`PENDING`, `ACTIVE`, `OFFLINE`), hash de verificación (`permanent_secret_hash`), credencial permanente cifrada en reposo (`permanent_secret_encrypted`) y metadatos.
 - `dashboard_bootstrap_tokens`: Registro de tokens de aprovisionamiento con timestamp de creación, expiración (24h) y estado de uso.
 - `dashboard_approval_requests`: Registro histórico de planes pendientes de aprobación humana, usuario aprobador/rechazador, timestamp y justificación.
 - `dashboard_audit_events`: Registro de auditoría de todas las acciones administrativas realizadas en el Dashboard.
