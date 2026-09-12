@@ -314,3 +314,43 @@ test('root alias /api/executions/trigger functions identically', function () {
             'output' => 'Alias ok',
         ]);
 });
+
+test('propagates incoming X-Correlation-ID and registers in AuditEvent and response header', function () {
+    $customCid = 'test-corr-' . Str::uuid();
+
+    Http::fake([
+        'http://test-agent:8000/executions/trigger' => function (Request $request) use ($customCid) {
+            expect($request->header('X-Correlation-ID'))->toBe([$customCid]);
+            $body = $request->data();
+            expect($body['correlation_id'])->toBe($customCid);
+            expect($body['metadata']['correlation_id'])->toBe($customCid);
+
+            return Http::response([
+                'execution_id' => 'exec_cid_01',
+                'thread_id' => 'th_cid_01',
+                'correlation_id' => $customCid,
+                'status' => 'completed',
+                'final_output' => 'CID ok',
+            ], 200);
+        },
+    ]);
+
+    $response = $this->withHeader('Authorization', 'Bearer ' . $this->operatorToken)
+        ->withHeader('X-Correlation-ID', $customCid)
+        ->postJson('/api/v1/executions/trigger', [
+            'prompt' => 'Probar trazabilidad de correlation_id',
+            'agent_id' => $this->activeAgent->agent_id,
+        ]);
+
+    $response->assertStatus(200)
+        ->assertHeader('X-Correlation-ID', $customCid)
+        ->assertJson([
+            'execution_id' => 'exec_cid_01',
+            'correlation_id' => $customCid,
+        ]);
+
+    $audit = AuditEvent::where('event_type', 'execution.triggered')->latest()->first();
+    expect($audit)->not->toBeNull();
+    expect($audit->payload_json['correlation_id'])->toBe($customCid);
+});
+

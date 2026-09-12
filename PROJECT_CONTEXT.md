@@ -1,6 +1,6 @@
 # CONTEXTO DE PROYECTO: jg_dashboard
 
-**Versión del documento:** 3.26.0  
+**Versión del documento:** 3.27.0  
 **Fecha de consolidación:** 12 de septiembre de 2026  
 **Componente:** Control Plane (Plano de Control, Gestión, Gobernanza y HITL)  
 **Stack Tecnológico:** Laravel 11, Filament PHP v3, Livewire 3, Tailwind CSS, PostgreSQL, Pest PHP  
@@ -9,6 +9,7 @@
 - Post-Auditoría 2 (GLOBAL-01 / GitLab jg_dashboard#42): Erradicación total de secretos fallback hardcodeados en `AgentHttpClient.php`, `config/agent.php` y `docker-compose.yml`; interpolación obligatoria `${JG_CONVERSATIONAL_SECRET:?err}` y `${JG_DEVOPS_SECRET:?err}`; derivación dinámica de `permanent_secret_hash` en `DatabaseSeeder.php` desde configuración activa con validación previa estricta.  
 - Post-Auditoría 2 (GLOBAL-02 / GitLab jg_dashboard#43): Corrección de la ruptura criptográfica del registro dinámico de agentes. Incorporación de columna cifrada en reposo `permanent_secret_encrypted` (AES-256-CBC respaldada por `APP_KEY`) en `dashboard_agents`, persistida durante `AgentRegistrationService::consumeBootstrapTokenAndActivate(...)` y consumida prioritariamente por `AgentHttpClient::forAgent(...)` para el cálculo determinista de firmas HMAC `X-Signature`.  
 - Post-Auditoría 2 (GLOBAL-03 / GitLab jg_dashboard#44): Elevación del timeout HTTP por defecto a 120 segundos (`AGENT_HTTP_TIMEOUT=120`) en `config/agent.php` y `AgentHttpClient.php` para acomodar el ciclo cognitivo completo de 9-10 nodos sin cortes prematuros 504 Gateway Timeout. Incorporación de soporte para ejecución asíncrona (`async=true`) en `/console` con polling reactivo cada 3 segundos, y persistencia garantizada de tareas fallidas (`FAILED`) en `AgentTask` ante errores o timeouts de pasarela.  
+- Post-Auditoría 2 (GLOBAL-05 / GitLab jg_dashboard#46): Propagación de cabecera `X-Correlation-ID` e integración de trazabilidad distribuida e2e; `AgentHttpClient` preserva y expone el identificador de correlación vía `getCorrelationId()`, `ExecutionController` captura el ID entrante o genera UUIDv4 canónico inyectándolo en `AgentInput`, en los metadatos y en `AuditEvent::record(...)` dentro de `payload_json['correlation_id']`, retornándolo uniformemente en encabezados HTTP y respuestas JSON.  
 - Post-Auditoría Codex (GLOBAL-001 / ISSUE-DASH-002): Eliminación de la cabecera en texto plano `X-Control-Plane-Secret` y alineación estricta con el contrato de firma canónica y anti-replay del agente.  
 - Post-Auditoría Codex (GLOBAL-003 / ISSUE-DASH-003): Transaccionalidad, bloqueo pesimista `lockForUpdate` y control de concurrencia en HITL con estado `PROCESSING` y reconciliación automática ante fallos de red.  
 - Consola Web Unificada: `/console` operativa con panel reactivo de agentes, métricas de salud en tiempo real, gestión de aprobaciones HITL con visualización de planes de remediación y visor de ejecuciones en vivo.  

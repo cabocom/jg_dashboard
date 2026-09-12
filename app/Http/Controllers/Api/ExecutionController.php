@@ -67,8 +67,11 @@ class ExecutionController extends Controller
         // 2. Normalizar payload de entrada hacia el contrato formal AgentInput
         $executionId = (string) Str::uuid();
         $threadId = !empty($validated['thread_id']) ? $validated['thread_id'] : (string) Str::uuid();
+        $correlationId = $request->header('X-Correlation-ID') ?: (string) Str::uuid();
         $prompt = $validated['prompt'] ?? $validated['user_prompt'];
         $isAsync = $request->boolean('async');
+
+        $client->withCorrelationId($correlationId);
 
         $parameters = (array) ($validated['parameters'] ?? []);
         if ($isAsync) {
@@ -78,6 +81,7 @@ class ExecutionController extends Controller
         $agentInput = [
             'execution_id' => $executionId,
             'thread_id' => $threadId,
+            'correlation_id' => $correlationId,
             'prompt' => $prompt,
             'user_prompt' => $prompt,
             'parameters' => (object) $parameters,
@@ -91,6 +95,7 @@ class ExecutionController extends Controller
                     : ($user->role === 'admin' ? ['*', 'docker:restart', 'docker:inspect', 'docker:list', 'admin'] : []),
             ],
             'metadata' => (object) array_merge((array) ($validated['metadata'] ?? []), [
+                'correlation_id' => $correlationId,
                 'triggered_by' => $user->email,
                 'user_role' => $user->role,
                 'client_ip' => $request->ip(),
@@ -108,6 +113,7 @@ class ExecutionController extends Controller
             payload: [
                 'execution_id' => $executionId,
                 'thread_id' => $threadId,
+                'correlation_id' => $correlationId,
                 'agent_id' => $targetAgentId,
                 'async' => $isAsync,
                 'success' => $response['success'],
@@ -162,9 +168,10 @@ class ExecutionController extends Controller
                 'message' => $response['error'] ?? 'Error al comunicar con jg_agente',
                 'execution_id' => $executionId,
                 'thread_id' => $threadId,
+                'correlation_id' => $correlationId,
                 'agent_id' => $targetAgentId,
                 'upstream_status' => $response['status_code'],
-            ], $httpCode);
+            ], $httpCode)->header('X-Correlation-ID', $correlationId);
         }
 
         $responseData = $response['data'] ?? [];
@@ -245,10 +252,12 @@ class ExecutionController extends Controller
         }
 
         $statusCode = ($isAsync || ($responseData['status'] ?? '') === 'in_progress') ? 202 : 200;
+        $effectiveCorrelationId = $responseData['correlation_id'] ?? $correlationId;
 
         return response()->json([
             'execution_id' => $responseData['execution_id'] ?? $executionId,
             'thread_id' => $responseData['thread_id'] ?? $threadId,
+            'correlation_id' => $effectiveCorrelationId,
             'agent_id' => $targetAgentId,
             'status' => $responseData['status'] ?? ($isAsync ? 'in_progress' : 'completed'),
             'requires_approval' => $requiresApproval,
@@ -258,7 +267,7 @@ class ExecutionController extends Controller
             'cognitive_steps' => $cognitiveSteps,
             'data' => $responseData,
             'latency_ms' => $response['latency_ms'],
-        ], $statusCode);
+        ], $statusCode)->header('X-Correlation-ID', $effectiveCorrelationId);
     }
 
     /**
@@ -318,6 +327,7 @@ class ExecutionController extends Controller
             'agent_name' => $agent->name,
             'thread_id' => $threadId,
             'execution_id' => $data['execution_id'] ?? null,
+            'correlation_id' => $data['correlation_id'] ?? null,
             'status' => $data['status'] ?? 'unknown',
             'prompt' => $data['prompt'] ?? null,
             'output' => $data['response'] ?? $data['final_output'] ?? $data['output'] ?? null,
@@ -345,6 +355,11 @@ class ExecutionController extends Controller
             'latency_ms' => $response['latency_ms'],
         ];
 
-        return response()->json($unified, 200);
+        $jsonResponse = response()->json($unified, 200);
+        if (!empty($data['correlation_id'])) {
+            $jsonResponse->header('X-Correlation-ID', $data['correlation_id']);
+        }
+
+        return $jsonResponse;
     }
 }

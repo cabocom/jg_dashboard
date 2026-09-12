@@ -137,6 +137,11 @@ class AgentHttpClient
         return $this;
     }
 
+    public function getCorrelationId(): ?string
+    {
+        return $this->correlationId;
+    }
+
     public function getBaseUrl(): string
     {
         return $this->baseUrl;
@@ -179,13 +184,17 @@ class AgentHttpClient
 
         $resolvedAgentId = $this->agentId ?: Config::get('agent.default_agent_id', env('DEFAULT_AGENT_ID', env('AGENT_ID', 'a0000000-0000-0000-0000-000000000002')));
 
+        if (empty($this->correlationId)) {
+            $this->correlationId = (string) Str::uuid();
+        }
+
         $headers = [
             'Accept' => 'application/json',
             'User-Agent' => 'jg_dashboard-ControlPlane/1.0',
             'X-Control-Plane' => 'jg_dashboard',
             'X-Timestamp' => $timestamp,
             'X-Signature' => $signature,
-            'X-Correlation-ID' => $this->correlationId ?? (string) Str::uuid(),
+            'X-Correlation-ID' => $this->correlationId,
             'X-Agent-ID' => $resolvedAgentId,
         ];
 
