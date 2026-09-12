@@ -8,7 +8,7 @@
   <meta name="csrf-token" content="{{ csrf_token() }}">
   
   <!-- CSS Stylesheet -->
-  <link rel="stylesheet" href="/css/console.css">
+  <link rel="stylesheet" href="/css/console.css?v={{ file_exists(public_path('css/console.css')) ? filemtime(public_path('css/console.css')) : time() }}">
 </head>
 <body>
   <div class="bg-mesh"></div>
@@ -305,8 +305,14 @@
                 </form>
 
                 <div style="margin-top: 24px;">
-                  <div class="form-label" style="margin-bottom: 8px;">Consola de Respuesta del Control Plane:</div>
-                  <pre id="execution-result-box" style="background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px; font-family: var(--font-mono); font-size: 13px; color: var(--accent-cyan); overflow-x: auto; min-height: 80px;">Esperando instrucción...</pre>
+                  <details id="execution-raw-details" class="trace-details-card">
+                    <summary style="font-weight: 600; color: var(--text-secondary); cursor: pointer; padding: 10px 14px;">
+                      🔍 Ver Respuesta JSON Técnica (Control Plane Payload)
+                    </summary>
+                    <div style="padding: 12px;">
+                      <pre id="execution-result-box" style="background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px; font-family: var(--font-mono); font-size: 12px; color: var(--accent-cyan); overflow-x: auto; min-height: 60px; margin: 0;">Esperando instrucción...</pre>
+                    </div>
+                  </details>
                 </div>
               </div>
             </div>
@@ -318,7 +324,7 @@
                   <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
-                  Visor de Traza de Pasos y Telemetría en Tiempo Real
+                  Explorador de Saltos Cognitivos y Traza del Grafo
                 </h3>
               </div>
               <div class="panel-body">
@@ -374,7 +380,7 @@
                   <!-- Step Execution Trace Timeline -->
                   <div class="trace-steps-container">
                     <div class="form-label" style="margin-bottom: 6px;">
-                      Flujo de Ejecución y Traza de Pasos:
+                      Saltos Cognitivos y Transiciones de Nodos (LangGraph State Traversal):
                     </div>
                     <div id="execution-steps-timeline" class="trace-steps-timeline">
                       <div style="font-size: 12px; color: var(--text-muted); padding: 12px 0;">
@@ -526,6 +532,6 @@
   <div id="toast-container" class="toast-container"></div>
 
   <!-- Client JavaScript -->
-  <script src="/js/console.js"></script>
+  <script src="/js/console.js?v={{ file_exists(public_path('js/console.js')) ? filemtime(public_path('js/console.js')) : time() }}"></script>
 </body>
 </html>

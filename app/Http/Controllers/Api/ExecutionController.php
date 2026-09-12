@@ -155,6 +155,10 @@ class ExecutionController extends Controller
         }
 
         $statusCode = ($isAsync || ($responseData['status'] ?? '') === 'in_progress') ? 202 : 200;
+        $cognitiveSteps = $responseData['cognitive_steps']
+            ?? $responseData['data']['cognitive_steps']
+            ?? $responseData['data']['steps']
+            ?? [];
 
         return response()->json([
             'execution_id' => $responseData['execution_id'] ?? $executionId,
@@ -164,6 +168,8 @@ class ExecutionController extends Controller
             'requires_approval' => $requiresApproval,
             'pending_approval_id' => $responseData['pending_approval_id'] ?? null,
             'output' => $responseData['final_output'] ?? $responseData['output'] ?? null,
+            'steps' => $cognitiveSteps,
+            'cognitive_steps' => $cognitiveSteps,
             'data' => $responseData,
             'latency_ms' => $response['latency_ms'],
         ], $statusCode);
@@ -236,6 +242,7 @@ class ExecutionController extends Controller
             'pending_approval_id' => $data['pending_approval_id'] ?? null,
             'plan' => $data['plan'] ?? null,
             'steps' => $data['steps'] ?? [],
+            'cognitive_steps' => $data['cognitive_steps'] ?? $data['steps'] ?? [],
             'hitl_governance' => $localApproval ? [
                 'approval_id' => $localApproval->id,
                 'status' => $localApproval->status,

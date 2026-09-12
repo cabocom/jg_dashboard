@@ -912,6 +912,10 @@ document.addEventListener('DOMContentLoaded', () => {
           resultBox.textContent = JSON.stringify(data, null, 2);
         }
 
+        // Render detail immediately so cognitive hops show up right away
+        data.prompt = data.prompt || prompt.trim();
+        this.renderExecutionDetail(data);
+
         const threadId = data.thread_id || data.execution_id;
         if (threadId) {
           this.addRecentExecution(agentId, threadId);
@@ -1059,7 +1063,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Render Steps Timeline
       const timeline = document.getElementById('execution-steps-timeline');
       if (timeline) {
-        const rawSteps = data.steps || data.data?.steps || [];
+        const rawSteps = data.cognitive_steps || data.steps || data.data?.cognitive_steps || data.data?.steps || data.data?.data?.cognitive_steps || [];
         let steps = [];
 
         if (Array.isArray(rawSteps) && rawSteps.length > 0) {
@@ -1070,6 +1074,8 @@ document.addEventListener('DOMContentLoaded', () => {
           steps = data.plan.actions;
         }
 
+        this.state.currentSteps = steps;
+
         if (steps.length === 0) {
           timeline.innerHTML = `
             <div style="font-size: 13px; color: var(--text-muted); padding: 12px 0;">
@@ -1077,37 +1083,211 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
           `;
         } else {
-          timeline.innerHTML = steps
+          const controlsHtml = `
+            <div class="trace-controls-bar">
+              <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">
+                ⚡ ${steps.length} SALTOS COGNITIVOS (PULSA PARA DETALLES):
+              </span>
+              <div style="display: flex; gap: 8px;">
+                <button type="button" class="trace-controls-btn" onclick="window.ConsoleApp.expandAllSteps()">Expandir todos</button>
+                <span style="color: var(--text-muted); font-size: 11px;">|</span>
+                <button type="button" class="trace-controls-btn" onclick="window.ConsoleApp.collapseAllSteps()">Colapsar todos</button>
+              </div>
+            </div>
+          `;
+
+          const stepsHtml = steps
             .map((s, idx) => {
-              const nodeName = s.node || s.engine || s.name || s.action || `Paso ${idx + 1}`;
-              const toolName = s.tool || s.tool_name || null;
-              const duration = s.duration_ms ? `${s.duration_ms}ms` : '';
-              const isError = s.status === 'error' || s.status === 'failed';
+              const node = (s.node || '').toLowerCase();
+              const isError = s.status === 'error' || s.status === 'failed' || s.status === 'denied';
               const isInProgress = s.status === 'in_progress';
 
-              const badgeClass = isError ? 'error' : isInProgress ? 'in-progress' : '';
-              const badgeIcon = isError ? '✕' : isInProgress ? '⏳' : '✓';
+              // Determine icon & badge class
+              let badgeClass = '';
+              let badgeIcon = '✓';
 
+              if (isError) {
+                badgeClass = 'error';
+                badgeIcon = '✕';
+              } else if (isInProgress) {
+                badgeClass = 'in-progress';
+                badgeIcon = '⏳';
+              } else if (node === 'reason') {
+                badgeClass = 'node-reason';
+                badgeIcon = '🧠';
+              } else if (node === 'security_eval') {
+                badgeClass = 'node-security_eval';
+                badgeIcon = '🛡️';
+              } else if (node === 'execute') {
+                badgeClass = 'node-execute';
+                badgeIcon = '⚡';
+              } else if (node === 'conclude') {
+                badgeClass = 'node-conclude';
+                badgeIcon = '📝';
+              } else if (node === 'plan') {
+                badgeClass = 'node-plan';
+                badgeIcon = '📋';
+              } else {
+                badgeIcon = (idx + 1).toString();
+              }
+
+              const title = s.title || s.name || (s.node ? `Nodo: ${s.node}` : `Paso ${idx + 1}`);
+              const desc = s.description || '';
+              const duration = s.duration_ms !== undefined && s.duration_ms !== null ? `${s.duration_ms}ms` : '';
+              const toolName = s.tool || s.tool_name || (s.details && s.details.tool ? s.details.tool : (s.details && s.details.tool_name ? s.details.tool_name : (s.details && s.details.selected_tool ? s.details.selected_tool : null)));
+
+              // Build pill list
+              let pillsHtml = '';
+              if (s.node) {
+                pillsHtml += `<span class="trace-pill trace-pill-node">Nodo: ${this.escapeHtml(s.node)}</span>`;
+              }
+              if (toolName) {
+                pillsHtml += `<span class="trace-pill tool-tag">🔧 ${this.escapeHtml(toolName)}</span>`;
+              }
+              if (s.details && s.details.risk_level) {
+                const rLevel = String(s.details.risk_level).toLowerCase();
+                const rClass = rLevel === 'low' ? 'trace-pill-risk-low' : 'trace-pill-risk-high';
+                pillsHtml += `<span class="trace-pill ${rClass}">Riesgo: ${this.escapeHtml(String(s.details.risk_level).toUpperCase())}</span>`;
+              }
+              if (s.details && s.details.decision) {
+                pillsHtml += `<span class="trace-pill trace-pill-allow">Decisión: ${this.escapeHtml(String(s.details.decision).toUpperCase())}</span>`;
+              }
+              if (duration) {
+                pillsHtml += `<span class="trace-pill" style="color: var(--text-muted); font-family: var(--font-mono);">⏱️ ${duration}</span>`;
+              }
+
+              // Build command snippet
               const cmdHtml = s.command ? `<div class="step-command-box"><code>$ ${this.escapeHtml(s.command)}</code></div>` : '';
-              const outputVal = s.output || s.result;
-              const outputHtml = outputVal ? `<div style="font-size: 11px; color: var(--text-secondary); background: rgba(0,0,0,0.25); padding: 6px 10px; border-radius: 4px; font-family: var(--font-mono); margin-top: 4px;">${this.escapeHtml(typeof outputVal === 'string' ? outputVal : JSON.stringify(outputVal))}</div>` : '';
+
+              // Build description block
+              const descHtml = desc ? `<div class="trace-step-desc" style="margin-top: 6px;">${this.escapeHtml(desc)}</div>` : '';
+
+              // Breakdown of details
+              let detailsSections = '';
+              if (s.details && typeof s.details === 'object') {
+                const det = s.details;
+
+                // Tool Args section
+                if (det.tool_args && Object.keys(det.tool_args).length > 0) {
+                  detailsSections += `
+                    <div class="step-details-section">
+                      <div class="step-details-section-title">Parámetros de Invocación (tool_args)</div>
+                      <div style="background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.06); padding: 8px 12px; border-radius: 4px; font-family: var(--font-mono); font-size: 12px; color: var(--accent-cyan);">
+                        ${this.escapeHtml(JSON.stringify(det.tool_args, null, 2))}
+                      </div>
+                    </div>
+                  `;
+                }
+
+                // Tool Output section
+                const outputVal = det.output !== undefined && det.output !== null ? det.output : (s.output !== undefined && s.output !== null ? s.output : null);
+                if (outputVal !== null) {
+                  const outFormatted = typeof outputVal === 'string' ? outputVal : JSON.stringify(outputVal, null, 2);
+                  detailsSections += `
+                    <div class="step-details-section">
+                      <div class="step-details-section-title">Resultado de la Herramienta (Output)</div>
+                      <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); padding: 8px 12px; border-radius: 4px; font-size: 12px; color: #34d399; font-family: var(--font-mono); white-space: pre-wrap;">${this.escapeHtml(outFormatted)}</div>
+                    </div>
+                  `;
+                }
+
+                // Reasoning / Goal section
+                if (det.reasoning || det.goal) {
+                  detailsSections += `
+                    <div class="step-details-section">
+                      <div class="step-details-section-title">Objetivo e Intención Cognitiva</div>
+                      <div style="font-size: 12px; color: var(--text-secondary); background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); padding: 8px 12px; border-radius: 4px;">
+                        ${this.escapeHtml(det.reasoning || det.goal)}
+                      </div>
+                    </div>
+                  `;
+                }
+
+                // Security Policy breakdown
+                if (det.risk_level || det.decision || det.bypass_approval !== undefined) {
+                  detailsSections += `
+                    <div class="step-details-section">
+                      <div class="step-details-section-title">Evaluación de Gobernanza (SecurityGuard)</div>
+                      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <span class="trace-pill ${det.risk_level === 'low' ? 'trace-pill-risk-low' : 'trace-pill-risk-high'}">Riesgo: ${this.escapeHtml(String(det.risk_level || 'N/A').toUpperCase())}</span>
+                        <span class="trace-pill trace-pill-allow">Decisión: ${this.escapeHtml(String(det.decision || 'ALLOW').toUpperCase())}</span>
+                        ${det.bypass_approval !== undefined ? `<span class="trace-pill trace-pill-node">Bypass: ${det.bypass_approval ? 'SÍ' : 'NO'}</span>` : ''}
+                        ${det.reversible !== undefined ? `<span class="trace-pill trace-pill-node">Reversible: ${det.reversible ? 'SÍ' : 'NO'}</span>` : ''}
+                      </div>
+                    </div>
+                  `;
+                }
+              }
 
               return `
-                <div class="trace-step-node">
+                <div id="trace-step-node-${idx}" class="trace-step-node is-clickable" onclick="window.ConsoleApp.toggleStep(${idx})" tabindex="0" role="button" aria-expanded="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.ConsoleApp.toggleStep(${idx});}">
                   <div class="trace-node-badge ${badgeClass}">${badgeIcon}</div>
-                  <div class="trace-node-header">
-                    <span class="trace-node-title">${this.escapeHtml(nodeName)}</span>
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                      ${toolName ? `<span class="tool-tag">${this.escapeHtml(toolName)}</span>` : ''}
-                      ${duration ? `<span style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono);">${duration}</span>` : ''}
+                  <div class="trace-node-header" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="trace-node-title" style="font-weight: 600; font-size: 14px;">${this.escapeHtml(title)}</span>
+                        ${s.node ? `<span class="trace-pill trace-pill-node">${this.escapeHtml(s.node)}</span>` : ''}
+                      </div>
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        ${duration ? `<span class="trace-pill" style="color: var(--text-muted); font-family: var(--font-mono);">⏱️ ${duration}</span>` : ''}
+                        <span class="trace-chevron" title="Click para expandir/colapsar detalles">▼</span>
+                      </div>
+                    </div>
+                    ${pillsHtml ? `<div class="trace-step-pills">${pillsHtml}</div>` : ''}
+                  </div>
+                  ${descHtml}
+                  ${cmdHtml}
+
+                  <!-- Expandable Node Details Panel -->
+                  <div id="step-details-${idx}" class="trace-step-details-panel" onclick="event.stopPropagation()">
+                    <div class="step-details-grid">
+                      <div class="step-detail-card">
+                        <span class="step-detail-card-label">Nodo LangGraph</span>
+                        <span class="step-detail-card-val" style="color: var(--accent-cyan);">${this.escapeHtml(s.node || '-')}</span>
+                      </div>
+                      <div class="step-detail-card">
+                        <span class="step-detail-card-label">Acción</span>
+                        <span class="step-detail-card-val">${this.escapeHtml(s.action || '-')}</span>
+                      </div>
+                      <div class="step-detail-card">
+                        <span class="step-detail-card-label">Estado</span>
+                        <span class="step-detail-card-val" style="color: ${isError ? 'var(--accent-rose)' : 'var(--accent-emerald)'};">${this.escapeHtml(String(s.status || 'completed').toUpperCase())}</span>
+                      </div>
+                      <div class="step-detail-card">
+                        <span class="step-detail-card-label">Duración</span>
+                        <span class="step-detail-card-val">${duration || '< 1ms'}</span>
+                      </div>
+                      ${s.timestamp ? `
+                      <div class="step-detail-card">
+                        <span class="step-detail-card-label">Timestamp</span>
+                        <span class="step-detail-card-val" style="font-size: 11px;">${this.escapeHtml(s.timestamp)}</span>
+                      </div>
+                      ` : ''}
+                      ${s.step_id ? `
+                      <div class="step-detail-card" style="grid-column: span 2;">
+                        <span class="step-detail-card-label">Step ID</span>
+                        <span class="step-detail-card-val" style="font-size: 10px; color: var(--text-muted);">${this.escapeHtml(s.step_id)}</span>
+                      </div>
+                      ` : ''}
+                    </div>
+
+                    ${detailsSections}
+
+                    <!-- Full Node JSON Payload -->
+                    <div class="step-details-section">
+                      <div class="step-details-section-title">
+                        <span>Payload Completo del Nodo (JSON)</span>
+                        <button type="button" class="btn-step-copy" onclick="window.ConsoleApp.copyStepJson(${idx})">📋 Copiar JSON</button>
+                      </div>
+                      <pre class="step-json-box">${this.escapeHtml(JSON.stringify(s, null, 2))}</pre>
                     </div>
                   </div>
-                  ${cmdHtml}
-                  ${outputHtml}
                 </div>
               `;
             })
             .join('');
+
+          timeline.innerHTML = controlsHtml + stepsHtml;
         }
       }
 
@@ -1174,6 +1354,36 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.removeChild(textArea);
         this.showToast(successMsg, 'success');
       }
+    },
+
+    toggleStep(idx) {
+      const el = document.getElementById(`trace-step-node-${idx}`);
+      if (!el) return;
+      const isExpanded = el.classList.toggle('is-expanded');
+      el.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+    },
+
+    expandAllSteps() {
+      const nodes = document.querySelectorAll('.trace-step-node.is-clickable');
+      nodes.forEach((n) => {
+        n.classList.add('is-expanded');
+        n.setAttribute('aria-expanded', 'true');
+      });
+    },
+
+    collapseAllSteps() {
+      const nodes = document.querySelectorAll('.trace-step-node.is-clickable');
+      nodes.forEach((n) => {
+        n.classList.remove('is-expanded');
+        n.setAttribute('aria-expanded', 'false');
+      });
+    },
+
+    copyStepJson(idx) {
+      if (!this.state.currentSteps || !this.state.currentSteps[idx]) return;
+      const step = this.state.currentSteps[idx];
+      const jsonStr = JSON.stringify(step, null, 2);
+      this.copyToClipboard(jsonStr, `JSON del nodo ${step.node || idx + 1} copiado`);
     },
 
     startPolling() {
