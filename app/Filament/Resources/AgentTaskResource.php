@@ -25,11 +25,16 @@ class AgentTaskResource extends Resource
 
     protected static ?string $navigationGroup = 'Gobernanza de Agentes';
 
-    protected static ?string $modelLabel = 'Tarea de Agente';
+    protected static ?string $modelLabel = 'Ejecución';
 
-    protected static ?string $pluralModelLabel = 'Historial de Tareas';
+    protected static ?string $pluralModelLabel = 'Historial de Ejecuciones';
 
     protected static ?int $navigationSort = 2;
+
+    public static function getNavigationUrl(): string
+    {
+        return url('/console?tab=executions');
+    }
 
     public static function getNavigationBadge(): ?string
     {
@@ -47,6 +52,16 @@ class AgentTaskResource extends Resource
         return $table
             ->poll('3s') // Auto-refresh reactivo para monitorización SRE
             ->columns([
+                Tables\Columns\TextColumn::make('prompt')
+                    ->label('Prompt / Instrucción')
+                    ->limit(60)
+                    ->tooltip(fn (AgentTask $record): ?string => $record->prompt)
+                    ->searchable(query: function (Builder $query, string $search): Builder {
+                        return $query->where('payload_json->prompt', 'like', "%{$search}%")
+                            ->orWhere('payload_json->user_prompt', 'like', "%{$search}%");
+                    })
+                    ->wrap(),
+
                 Tables\Columns\TextColumn::make('task_id')
                     ->label('Task ID')
                     ->fontFamily('mono')
@@ -115,67 +130,7 @@ class AgentTaskResource extends Resource
                         'FAILED' => 'Fallido (FAILED)',
                     ]),
             ])
-            ->headerActions([
-                Tables\Actions\Action::make('trigger')
-                    ->label('Lanzar Tarea SRE')
-                    ->icon('heroicon-o-play')
-                    ->color('primary')
-                    ->form([
-                        Forms\Components\Textarea::make('prompt')
-                            ->label('Prompt / Instrucción SRE')
-                            ->placeholder('Ej: Comprobar estado de memoria en pods de producción y sanear si excede el 90%')
-                            ->required()
-                            ->rows(3),
-                        Forms\Components\TextInput::make('username')
-                            ->label('Operador')
-                            ->default(fn () => auth()->user()?->name ?? 'sre_admin')
-                            ->required(),
-                    ])
-                    ->action(function (array $data, AgentHttpClient $apiClient): void {
-                        try {
-                            $targetAgent = Agent::active()->first();
-                            $client = $targetAgent ? AgentHttpClient::forAgent($targetAgent) : $apiClient;
-
-                            $threadId = (string) \Illuminate\Support\Str::uuid();
-                            $res = $client->triggerExecution([
-                                'prompt' => $data['prompt'],
-                                'user_prompt' => $data['prompt'],
-                                'thread_id' => $threadId,
-                                'user_context' => [
-                                    'username' => $data['username'],
-                                    'role' => auth()->user()?->role ?? 'admin',
-                                ],
-                            ]);
-
-                            if (!$res['success']) {
-                                throw new \Exception($res['error'] ?? 'Fallo al disparar tarea en el agente');
-                            }
-
-                            $taskId = $res['data']['task_id'] ?? $threadId;
-                            $returnedThread = $res['data']['thread_id'] ?? $threadId;
-
-                            AgentTask::create([
-                                'task_id' => $taskId,
-                                'thread_id' => $returnedThread,
-                                'status' => 'QUEUED',
-                                'payload_json' => ['user_prompt' => $data['prompt'], 'username' => $data['username']],
-                                'created_at' => now(),
-                            ]);
-
-                            Notification::make()
-                                ->title('Tarea SRE encolada con éxito')
-                                ->body("Task ID: {$taskId} | Thread: {$returnedThread}")
-                                ->success()
-                                ->send();
-                        } catch (\Exception $e) {
-                            Notification::make()
-                                ->title('Error al lanzar tarea')
-                                ->body($e->getMessage())
-                                ->danger()
-                                ->send();
-                        }
-                    }),
-            ])
+            ->headerActions([])
             ->actions([
                 Tables\Actions\ViewAction::make()
                     ->label('Detalles & Trazas')
@@ -199,7 +154,10 @@ class AgentTaskResource extends Resource
                     ->action(function (AgentTask $record, array $data, AgentHttpClient $apiClient): void {
                         try {
                             $user = auth()->user()?->name ?? 'sre_operator';
-                            $targetAgent = Agent::active()->first();
+                            $targetAgent = \App\Models\ApprovalRequest::where('thread_id', $record->thread_id)->first()?->agent
+                                ?? Agent::where('agent_id', $record->payload_json['agent_id'] ?? null)->first()
+                                ?? Agent::where('name', 'like', '%devops%')->first()
+                                ?? Agent::active()->first();
                             $client = $targetAgent ? AgentHttpClient::forAgent($targetAgent) : $apiClient;
 
                             $res = $client->approveExecution($record->thread_id, [
@@ -247,7 +205,10 @@ class AgentTaskResource extends Resource
                     ->action(function (AgentTask $record, array $data, AgentHttpClient $apiClient): void {
                         try {
                             $user = auth()->user()?->name ?? 'sre_operator';
-                            $targetAgent = Agent::active()->first();
+                            $targetAgent = \App\Models\ApprovalRequest::where('thread_id', $record->thread_id)->first()?->agent
+                                ?? Agent::where('agent_id', $record->payload_json['agent_id'] ?? null)->first()
+                                ?? Agent::where('name', 'like', '%devops%')->first()
+                                ?? Agent::active()->first();
                             $client = $targetAgent ? AgentHttpClient::forAgent($targetAgent) : $apiClient;
 
                             $res = $client->rejectExecution($record->thread_id, [

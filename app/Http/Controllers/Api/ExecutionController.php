@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Agent;
+use App\Models\AgentTask;
 use App\Models\ApprovalRequest;
 use App\Models\AuditEvent;
 use App\Services\Agents\AgentHttpClient;
@@ -137,8 +138,25 @@ class ExecutionController extends Controller
         }
 
         $responseData = $response['data'] ?? [];
-        $requiresApproval = ($responseData['requires_approval'] ?? false) === true ||
-            ($responseData['status'] ?? '') === 'waiting_approval';
+        $cognitiveSteps = $responseData['cognitive_steps']
+            ?? $responseData['data']['cognitive_steps']
+            ?? $responseData['data']['steps']
+            ?? [];
+
+        $planData = $responseData['data']['plan'] ?? $responseData['plan'] ?? [];
+        if (is_array($planData)) {
+            $planData['prompt'] = $prompt;
+            $planData['cognitive_steps'] = $cognitiveSteps;
+        }
+
+        $requiresApproval = (bool) (
+            ($responseData['requires_approval'] ?? false)
+            || ($responseData['data']['requires_approval'] ?? false)
+            || ($responseData['status'] ?? '') === 'waiting_approval'
+            || ($responseData['data']['status'] ?? '') === 'waiting_approval'
+            || !empty($responseData['pending_approval_id'])
+            || !empty($responseData['data']['pending_approval_id'])
+        );
 
         // 6. Si la ejecución queda detenida en HITL, persistir solicitud mediante HitlApprovalService
         if ($requiresApproval) {
@@ -149,18 +167,54 @@ class ExecutionController extends Controller
                 'thread_id' => $effectiveThreadId,
                 'agent_id' => $targetAgentId,
                 'task_id' => $effectiveTaskId,
-                'risk_level' => $responseData['risk_level'] ?? 'HIGH',
-                'proposed_plan' => $responseData['plan'] ?? $responseData['proposed_plan'] ?? [],
-                'compensation_commands' => $responseData['compensation_commands'] ?? [],
+                'prompt' => $prompt,
+                'risk_level' => $responseData['data']['risk_assessment']['risk_level'] ?? $responseData['risk_level'] ?? 'HIGH',
+                'proposed_plan' => $planData,
+                'cognitive_steps' => $cognitiveSteps,
+                'compensation_commands' => $responseData['data']['compensation_commands'] ?? $responseData['compensation_commands'] ?? [],
                 'tools' => $responseData['tools'] ?? null,
             ], $user, $request->ip(), $request->userAgent());
         }
 
+        // 7. Sincronizar / persistir la ejecución en agent_tasks para visibilidad unificada
+        $effectiveThreadId = $responseData['thread_id'] ?? $threadId;
+        $effectiveTaskId = $responseData['execution_id'] ?? $executionId;
+        $taskStatus = match ($responseData['status'] ?? null) {
+            'completed', 'success' => 'COMPLETED',
+            'waiting_approval' => 'WAITING_APPROVAL',
+            'in_progress' => 'PROCESSING',
+            'failed', 'error' => 'FAILED',
+            default => $isAsync ? 'QUEUED' : ($requiresApproval ? 'WAITING_APPROVAL' : 'COMPLETED'),
+        };
+
+        try {
+            AgentTask::updateOrCreate(
+                ['task_id' => $effectiveTaskId],
+                [
+                    'thread_id' => $effectiveThreadId,
+                    'status' => $taskStatus,
+                    'payload_json' => [
+                        'agent_id' => $targetAgentId,
+                        'prompt' => $prompt,
+                        'user_prompt' => $prompt,
+                        'username' => $user?->name ?? 'operator',
+                        'user_context' => [
+                            'user_id' => $user?->id,
+                            'name' => $user?->name,
+                            'email' => $user?->email,
+                        ],
+                    ],
+                    'result_json' => $responseData,
+                    'created_at' => now(),
+                    'started_at' => now(),
+                    'completed_at' => in_array($taskStatus, ['COMPLETED', 'FAILED']) ? now() : null,
+                ]
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("[ExecutionController] No se pudo registrar AgentTask para task '{$effectiveTaskId}': " . $e->getMessage());
+        }
+
         $statusCode = ($isAsync || ($responseData['status'] ?? '') === 'in_progress') ? 202 : 200;
-        $cognitiveSteps = $responseData['cognitive_steps']
-            ?? $responseData['data']['cognitive_steps']
-            ?? $responseData['data']['steps']
-            ?? [];
 
         return response()->json([
             'execution_id' => $responseData['execution_id'] ?? $executionId,
@@ -227,7 +281,7 @@ class ExecutionController extends Controller
         }
 
         $data = $response['data'] ?? [];
-        $localApproval = ApprovalRequest::where('thread_id', $threadId)->latest()->first();
+        $localApproval = ApprovalRequest::with('resolver')->where('thread_id', $threadId)->latest()->first();
 
         $unified = [
             'agent_id' => $agentId,
@@ -251,6 +305,11 @@ class ExecutionController extends Controller
                 'risk_level' => $localApproval->risk_level,
                 'justification' => $localApproval->justification,
                 'resolved_at' => $localApproval->resolved_at?->toIso8601String(),
+                'resolver' => $localApproval->resolver ? [
+                    'id' => $localApproval->resolver->id,
+                    'name' => $localApproval->resolver->name,
+                    'email' => $localApproval->resolver->email,
+                ] : null,
             ] : null,
             'data' => $data,
             'latency_ms' => $response['latency_ms'],

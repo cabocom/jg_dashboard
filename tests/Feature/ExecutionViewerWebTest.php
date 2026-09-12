@@ -122,3 +122,60 @@ test('GET /console/executions/{agent_id}/{thread_id} returns 404 for unknown age
 
     $response->assertStatus(404);
 });
+
+test('GET /console renders the dedicated agent capabilities modal and execution history table', function () {
+    $response = $this->actingAs($this->operatorUser)->get('/console');
+
+    $response->assertStatus(200)
+        ->assertSee('id="modal-agent-capabilities"', false)
+        ->assertSee('id="agent-caps-json-content"', false)
+        ->assertSee('id="table-executions-history"', false)
+        ->assertSee('Historial de Ejecuciones Recientes');
+});
+
+test('GET /console/executions returns executions list with truncated prompt and formatted date', function () {
+    \App\Models\AgentTask::create([
+        'task_id' => 'task-test-exec-100',
+        'thread_id' => 'th-uuid-100',
+        'agent_id' => $this->agent->agent_id,
+        'status' => 'COMPLETED',
+        'created_at' => now(),
+        'payload_json' => [
+            'agent_id' => $this->agent->agent_id,
+            'prompt' => 'Este es un prompt de prueba muy largo que debería ser truncado adecuadamente para facilitar la identificación visual en la tabla de la consola de control',
+        ],
+        'result_json' => ['output' => 'OK'],
+    ]);
+
+    $response = $this->actingAs($this->operatorUser)->getJson('/console/executions');
+
+    $response->assertStatus(200)
+        ->assertJsonStructure([
+            'executions' => [
+                '*' => [
+                    'task_id',
+                    'thread_id',
+                    'agent_id',
+                    'agent_name',
+                    'status',
+                    'prompt',
+                    'prompt_truncated',
+                    'created_at_formatted',
+                ],
+            ],
+        ]);
+
+    $data = $response->json('executions.0');
+    expect($data['thread_id'])->toBe('th-uuid-100')
+        ->and($data['agent_id'])->toBe($this->agent->agent_id)
+        ->and($data['agent_name'])->toBe($this->agent->name)
+        ->and($data['status'])->toBe('COMPLETED')
+        ->and(mb_strlen($data['prompt_truncated']))->toBeLessThanOrEqual(83)
+        ->and($data['created_at_formatted'])->not->toBe('-');
+});
+
+test('AgentTaskResource navigation url points directly to /console?tab=executions', function () {
+    expect(\App\Filament\Resources\AgentTaskResource::getNavigationUrl())->toContain('/console?tab=executions');
+});
+
+

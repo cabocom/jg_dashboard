@@ -17,6 +17,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/console/agents', [WebConsoleController::class, 'listAgents'])->name('console.agents.index');
     Route::get('/console/agents/{agent_id}/capabilities', [WebConsoleController::class, 'agentCapabilities'])->name('console.agents.capabilities');
     Route::get('/console/approvals/pending', [WebConsoleController::class, 'pendingApprovals'])->name('console.approvals.pending');
+    Route::get('/console/executions', [WebConsoleController::class, 'listExecutions'])->name('console.executions.index');
     Route::get('/console/executions/{agent_id}/{thread_id}', [WebConsoleController::class, 'showExecution'])->name('console.executions.show');
 
     // Agent provisioning: admin only

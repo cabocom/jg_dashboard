@@ -17,6 +17,8 @@ return [
 
     'devops_secret' => env('JG_DEVOPS_AGENT_SECRET', env('DEVOPS60K_SECRET', env('DEVOPS60K_API_KEY', 'sec_devops_agent_preprovisioned_key_12345'))),
 
+    'default_agent_id' => env('DEFAULT_AGENT_ID', env('AGENT_ID', 'a0000000-0000-0000-0000-000000000002')),
+
     'timeout' => (int) env('AGENT_HTTP_TIMEOUT', 15),
 
     'retry_times' => (int) env('AGENT_HTTP_RETRY_TIMES', 2),

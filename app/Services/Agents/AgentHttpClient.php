@@ -41,12 +41,19 @@ class AgentHttpClient
             $baseUrl ?? Config::get('agent.base_url', Config::get('devops60k.api_url', 'http://jg_agente:8000')),
             '/'
         );
+        $this->agentId = $agentId ?? Config::get('agent.default_agent_id', env('DEFAULT_AGENT_ID', env('AGENT_ID', 'a0000000-0000-0000-0000-000000000002')));
+
+        // Resolver el secreto interno respetando configuración del control plane
         $this->internalSecret = $internalSecret ?? Config::get('agent.internal_secret') ?? Config::get('devops60k.api_key');
+
+        if (empty($this->internalSecret) && $this->agentId === 'a0000000-0000-0000-0000-000000000002') {
+            $this->internalSecret = Config::get('agent.devops_secret');
+        }
+
         $this->timeout = $timeout ?? (int) Config::get('agent.timeout', 15);
         $this->retryTimes = $retryTimes ?? (int) Config::get('agent.retry_times', 2);
         $this->retrySleepMs = $retrySleepMs ?? (int) Config::get('agent.retry_sleep_ms', 200);
         $this->verifySsl = $verifySsl ?? (bool) Config::get('agent.verify_ssl', true);
-        $this->agentId = $agentId;
     }
 
     /**
@@ -105,6 +112,19 @@ class AgentHttpClient
     public function withAgentId(string $agentId): self
     {
         $this->agentId = $agentId;
+
+        // Auto-adapt secret if not explicitly overridden
+        if ($agentId === 'a0000000-0000-0000-0000-000000000002') {
+            $this->internalSecret = Config::get('agent.devops_secret')
+                ?: env('JG_DEVOPS_AGENT_SECRET', env('DEVOPS60K_SECRET', env('DEVOPS60K_API_KEY', 'sec_devops_agent_preprovisioned_key_12345')));
+        } elseif ($agentId === 'a0000000-0000-0000-0000-000000000001') {
+            $this->internalSecret = Config::get('agent.internal_secret')
+                ?: env('JG_AGENTE_SECRET', 'sec_conversational_agent_preprovisioned_key_12345');
+        } else {
+            $envKey = 'AGENT_SECRET_' . strtoupper(str_replace(['-', ' '], '_', $agentId));
+            $this->internalSecret = env($envKey) ?: Config::get('agent.internal_secret');
+        }
+
         return $this;
     }
 
@@ -143,6 +163,8 @@ class AgentHttpClient
         $canonicalString = $normalizedMethod . "\n" . $normalizedPath . "\n" . $timestamp . "\n" . $bodyHash;
         $signature = hash_hmac('sha256', $canonicalString, $this->internalSecret);
 
+        $resolvedAgentId = $this->agentId ?: Config::get('agent.default_agent_id', env('DEFAULT_AGENT_ID', env('AGENT_ID', 'a0000000-0000-0000-0000-000000000002')));
+
         $headers = [
             'Accept' => 'application/json',
             'User-Agent' => 'jg_dashboard-ControlPlane/1.0',
@@ -150,11 +172,8 @@ class AgentHttpClient
             'X-Timestamp' => $timestamp,
             'X-Signature' => $signature,
             'X-Correlation-ID' => $this->correlationId ?? (string) Str::uuid(),
+            'X-Agent-ID' => $resolvedAgentId,
         ];
-
-        if ($this->agentId) {
-            $headers['X-Agent-ID'] = $this->agentId;
-        }
 
         return $headers;
     }
@@ -204,6 +223,10 @@ class AgentHttpClient
             /** @var Response $response */
             if ($encodedBody !== '') {
                 $client = $client->withBody($encodedBody, 'application/json');
+            } elseif (!$isGet) {
+                // Ensure empty POST/PUT/DELETE requests explicitly attach empty body
+                // so Laravel HTTP Client does not default to serializing '[]'
+                $client = $client->withBody('', 'application/json');
             }
 
             $response = match (strtoupper($method)) {
@@ -335,6 +358,12 @@ class AgentHttpClient
      */
     public function triggerExecution(array $payload, ?string $baseUrl = null, array $headers = []): array
     {
+        if (empty($payload['execution_id'])) {
+            $payload['execution_id'] = (string) Str::uuid();
+        }
+        if (empty($payload['thread_id'])) {
+            $payload['thread_id'] = (string) Str::uuid();
+        }
         return $this->sendRequest('POST', '/executions/trigger', $payload, $headers, $baseUrl);
     }
 
@@ -351,6 +380,8 @@ class AgentHttpClient
      */
     public function approveExecution(string $threadId, array $payload = [], ?string $baseUrl = null): array
     {
+        $payload['thread_id'] = $threadId;
+        $payload['approved'] = true;
         return $this->sendRequest('POST', "/executions/{$threadId}/approve", $payload, [], $baseUrl);
     }
 
@@ -359,6 +390,9 @@ class AgentHttpClient
      */
     public function rejectExecution(string $threadId, array $payload = [], ?string $baseUrl = null): array
     {
+        $payload['thread_id'] = $threadId;
+        $payload['approved'] = false;
+        $payload['rejected'] = true;
         return $this->sendRequest('POST', "/executions/{$threadId}/reject", $payload, [], $baseUrl);
     }
 

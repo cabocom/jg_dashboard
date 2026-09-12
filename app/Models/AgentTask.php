@@ -16,6 +16,7 @@ class AgentTask extends Model
     protected $fillable = [
         'task_id',
         'thread_id',
+        'agent_id',
         'status',
         'payload_json',
         'created_at',
@@ -95,5 +96,51 @@ class AgentTask extends Model
         }
 
         return sprintf('%.2fs', $this->started_at->floatDiffInSeconds($end));
+    }
+
+    /**
+     * Helper to retrieve prompt / instruction from payload.
+     */
+    public function getPromptAttribute(): ?string
+    {
+        $payload = $this->payload_json ?? [];
+        return $payload['prompt']
+            ?? $payload['user_prompt']
+            ?? $this->result_json['prompt']
+            ?? null;
+    }
+
+    /**
+     * Helper to retrieve agent_id from payload.
+     */
+    public function getAgentIdAttribute(): ?string
+    {
+        $payload = $this->payload_json ?? [];
+        return $payload['agent_id'] ?? null;
+    }
+
+    /**
+     * Helper to store agent_id transparently into payload_json.
+     */
+    public function setAgentIdAttribute(?string $value): void
+    {
+        $payload = $this->payload_json ?? [];
+        $payload['agent_id'] = $value;
+        $this->payload_json = $payload;
+    }
+
+    /**
+     * Mutator for payload_json to preserve agent_id if already set.
+     */
+    public function setPayloadJsonAttribute($value): void
+    {
+        $payload = is_string($value) ? json_decode($value, true) : (array) $value;
+        if (!empty($this->attributes['payload_json'])) {
+            $existing = json_decode($this->attributes['payload_json'], true) ?: [];
+            if (!empty($existing['agent_id']) && empty($payload['agent_id'])) {
+                $payload['agent_id'] = $existing['agent_id'];
+            }
+        }
+        $this->attributes['payload_json'] = json_encode($payload);
     }
 }

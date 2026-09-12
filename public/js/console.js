@@ -18,14 +18,24 @@ document.addEventListener('DOMContentLoaded', () => {
       hitlRiskFilter: 'ALL',
       hitlSearchQuery: '',
       hitlAgentFilter: 'ALL',
+      expandedPrompts: {},
+      currentSteps: [],
+      inspectCurrentSteps: [],
       currentExecution: null,
       executionPollingInterval: null,
       recentExecutions: [],
+      executionsList: [],
     },
 
     init() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const requestedTab = urlParams.get('tab') || window.location.hash.replace('#', '');
+      if (['agents', 'approvals', 'executions'].includes(requestedTab)) {
+        this.state.activeTab = requestedTab;
+      }
+
       this.bindEvents();
-      this.loadTab(this.state.activeTab);
+      this.switchTab(this.state.activeTab);
       this.fetchInitialData();
       this.startPolling();
     },
@@ -119,6 +129,41 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       }
 
+      // Direct Approve / Reject inside Inspector Modal
+      const btnInspectApprove = document.getElementById('btn-inspect-approve');
+      if (btnInspectApprove) {
+        btnInspectApprove.addEventListener('click', () => {
+          const currentId = this.state.currentApprovalId;
+          const app = this.state.pendingApprovals.find((a) => String(a.id) === String(currentId));
+          if (app) {
+            document.getElementById('modal-inspect-plan')?.classList.remove('open');
+            this.openApproveModal(app.id, app.thread_id);
+          }
+        });
+      }
+
+      const btnInspectReject = document.getElementById('btn-inspect-reject');
+      if (btnInspectReject) {
+        btnInspectReject.addEventListener('click', () => {
+          const currentId = this.state.currentApprovalId;
+          const app = this.state.pendingApprovals.find((a) => String(a.id) === String(currentId));
+          if (app) {
+            document.getElementById('modal-inspect-plan')?.classList.remove('open');
+            this.openRejectModal(app.id, app.thread_id);
+          }
+        });
+      }
+
+      const inspectThreadEl = document.getElementById('inspect-modal-thread-id');
+      if (inspectThreadEl) {
+        inspectThreadEl.addEventListener('click', () => {
+          const text = inspectThreadEl.textContent?.trim();
+          if (text && text !== '-') {
+            this.copyToClipboard(text, 'Thread ID copiado al portapapeles');
+          }
+        });
+      }
+
       // HITL Risk Filter Pills
       document.querySelectorAll('.hitl-pill-btn[data-risk]').forEach((btn) => {
         btn.addEventListener('click', () => {
@@ -196,6 +241,26 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         });
       }
+
+      // Refresh Executions History List Button
+      const btnRefreshExecList = document.getElementById('btn-refresh-executions-list');
+      if (btnRefreshExecList) {
+        btnRefreshExecList.addEventListener('click', () => {
+          this.fetchExecutions();
+          this.showToast('Historial de ejecuciones sincronizado', 'info');
+        });
+      }
+
+      // Copy Agent Capabilities Button
+      const btnCopyCaps = document.getElementById('btn-copy-agent-caps');
+      if (btnCopyCaps) {
+        btnCopyCaps.addEventListener('click', () => {
+          const text = document.getElementById('agent-caps-json-content')?.textContent;
+          if (text) {
+            this.copyToClipboard(text, 'Capacidades técnicas copiadas al portapapeles');
+          }
+        });
+      }
     },
 
     setAgentViewMode(mode) {
@@ -253,11 +318,13 @@ document.addEventListener('DOMContentLoaded', () => {
         this.fetchAgents();
       } else if (tabName === 'approvals') {
         this.fetchApprovals();
+      } else if (tabName === 'executions') {
+        this.fetchExecutions();
       }
     },
 
     async fetchInitialData() {
-      await Promise.all([this.fetchAgents(), this.fetchApprovals()]);
+      await Promise.all([this.fetchAgents(), this.fetchApprovals(), this.fetchExecutions()]);
     },
 
     async fetchAgents() {
@@ -594,6 +661,20 @@ document.addEventListener('DOMContentLoaded', () => {
           command: a.command || null,
           tool: a.tool || null,
         }));
+      } else if (Array.isArray(app.cognitive_steps) && app.cognitive_steps.length > 0) {
+        steps = app.cognitive_steps.map((s, idx) => ({
+          index: idx + 1,
+          action: s.title || s.action || s.name || (s.node ? `Nodo: ${s.node}` : `Paso ${idx + 1}`),
+          command: s.command || null,
+          tool: s.tool || s.tool_name || (s.details?.tool || s.details?.tool_name || null),
+        }));
+      } else if (Array.isArray(plan.cognitive_steps) && plan.cognitive_steps.length > 0) {
+        steps = plan.cognitive_steps.map((s, idx) => ({
+          index: idx + 1,
+          action: s.title || s.action || s.name || (s.node ? `Nodo: ${s.node}` : `Paso ${idx + 1}`),
+          command: s.command || null,
+          tool: s.tool || s.tool_name || (s.details?.tool || s.details?.tool_name || null),
+        }));
       } else {
         const action = plan.action || plan.description || plan.summary || 'Ejecución de plan cognitivo';
         const command = plan.command || plan.cmd || null;
@@ -601,6 +682,24 @@ document.addEventListener('DOMContentLoaded', () => {
         steps = [{ index: 1, action, command, tool }];
       }
       return steps;
+    },
+
+    togglePrompt(approvalId) {
+      this.state.expandedPrompts[approvalId] = !this.state.expandedPrompts[approvalId];
+      const app = this.state.pendingApprovals.find((a) => a.id === approvalId);
+      if (!app) return;
+      const promptEl = document.getElementById(`hitl-prompt-${approvalId}`);
+      const btnEl = document.getElementById(`hitl-prompt-btn-${approvalId}`);
+      if (!promptEl || !btnEl) return;
+      const isExpanded = Boolean(this.state.expandedPrompts[approvalId]);
+      const prompt = app.prompt || app.proposed_plan?.prompt || '';
+      if (isExpanded) {
+        promptEl.textContent = prompt;
+        btnEl.textContent = 'Ver menos ▲';
+      } else {
+        promptEl.textContent = prompt.substring(0, 120) + '...';
+        btnEl.textContent = 'Ver más ▼';
+      }
     },
 
     renderApprovalsCards(approvals) {
@@ -624,6 +723,28 @@ document.addEventListener('DOMContentLoaded', () => {
           const toolsHtml = (app.tools_involved || [])
             .map((t) => `<span class="tool-tag">${this.escapeHtml(t)}</span>`)
             .join(' ');
+
+          const prompt = app.prompt || app.proposed_plan?.prompt || '';
+          const hasPrompt = Boolean(prompt && prompt.trim().length > 0);
+          const isLongPrompt = hasPrompt && prompt.length > 120;
+          const isExpandedPrompt = Boolean(this.state.expandedPrompts[app.id]);
+          const promptDisplayText = isLongPrompt && !isExpandedPrompt ? prompt.substring(0, 120) + '...' : prompt;
+
+          const promptBannerHtml = hasPrompt ? `
+            <div class="hitl-prompt-banner">
+              <div class="hitl-prompt-label">💬 Instrucción / Prompt:</div>
+              <div class="hitl-prompt-text" id="hitl-prompt-${app.id}">${this.escapeHtml(promptDisplayText)}</div>
+              ${isLongPrompt ? `
+                <button type="button" class="btn-toggle-prompt" id="hitl-prompt-btn-${app.id}" onclick="window.ConsoleApp.togglePrompt(${app.id})">
+                  ${isExpandedPrompt ? 'Ver menos ▲' : 'Ver más ▼'}
+                </button>
+              ` : ''}
+            </div>
+          ` : '';
+
+          const cardTitle = hasPrompt
+            ? (prompt.length > 60 ? prompt.substring(0, 57) + '...' : prompt)
+            : (app.action_summary || 'Plan de Alto Riesgo');
 
           const steps = this.extractPlanSteps(app);
           const stepsHtml = steps
@@ -661,7 +782,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="hitl-card ${isCritical ? 'risk-critical' : ''}" id="hitl-card-${app.id}">
               <div class="hitl-card-header">
                 <div>
-                  <div class="hitl-title">${this.escapeHtml(app.action_summary || 'Plan de Alto Riesgo')}</div>
+                  <div class="hitl-title" title="${this.escapeHtml(prompt || app.action_summary || '')}">${this.escapeHtml(cardTitle)}</div>
                   <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
                     Agente: <strong style="color: var(--text-primary);">${this.escapeHtml(app.agent_name || app.agent_id)}</strong>
                     <span style="margin: 0 6px;">•</span>
@@ -672,6 +793,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <span class="badge ${isCritical ? 'badge-critical' : 'badge-high'}">${app.risk_level}</span>
               </div>
+
+              <!-- Prompt Banner -->
+              ${promptBannerHtml}
 
               <!-- Steps Breakdown Timeline -->
               <div class="hitl-steps-container">
@@ -705,7 +829,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <button type="button" class="btn btn-danger" style="flex: 1;" onclick="window.ConsoleApp.openRejectModal(${app.id}, '${this.escapeHtml(app.thread_id)}')">
                   ✕ Rechazar
                 </button>
-                <button type="button" class="btn btn-secondary" style="padding: 10px 14px;" title="Inspeccionar JSON del Plan" onclick="window.ConsoleApp.openInspectPlanModal(${app.id})">
+                <button type="button" class="btn btn-secondary" style="padding: 10px 14px;" title="Inspeccionar Ejecución" onclick="window.ConsoleApp.openInspectPlanModal(${app.id})">
                   🔍 Inspeccionar
                 </button>
               </div>
@@ -788,14 +912,90 @@ document.addEventListener('DOMContentLoaded', () => {
       if (modal) modal.classList.add('open');
     },
 
-    openInspectPlanModal(id) {
+    switchInspectTab(tab) {
+      const stepsTabBtn = document.getElementById('tab-inspect-steps');
+      const jsonTabBtn = document.getElementById('tab-inspect-json');
+      const stepsContainer = document.getElementById('inspect-steps-container');
+      const jsonContainer = document.getElementById('inspect-json-container');
+
+      if (tab === 'steps') {
+        stepsTabBtn?.classList.add('active');
+        jsonTabBtn?.classList.remove('active');
+        if (stepsContainer) stepsContainer.style.display = 'block';
+        if (jsonContainer) jsonContainer.style.display = 'none';
+      } else {
+        jsonTabBtn?.classList.add('active');
+        stepsTabBtn?.classList.remove('active');
+        if (stepsContainer) stepsContainer.style.display = 'none';
+        if (jsonContainer) jsonContainer.style.display = 'block';
+      }
+    },
+
+    async openInspectPlanModal(id) {
       const app = this.state.pendingApprovals.find((a) => a.id === id);
       if (!app) return;
 
-      this.setTextContent('inspect-modal-thread-id', app.thread_id);
+      this.state.currentApprovalId = id;
+      this.setTextContent('inspect-modal-thread-id', app.thread_id || '-');
+      this.setTextContent('inspect-modal-agent-name', app.agent_name || app.agent_id || '-');
+
+      const riskBadge = document.getElementById('inspect-modal-risk-badge');
+      if (riskBadge) {
+        riskBadge.textContent = app.risk_level || 'HIGH';
+        riskBadge.className = `badge ${app.risk_level === 'CRITICAL' ? 'badge-critical' : 'badge-high'}`;
+      }
+
+      const promptBox = document.getElementById('inspect-modal-prompt-box');
+      if (promptBox) {
+        promptBox.textContent = app.prompt || app.proposed_plan?.prompt || 'Sin prompt registrado para esta ejecución.';
+      }
+
+      // Raw Technical JSON
       const contentEl = document.getElementById('inspect-plan-content');
       if (contentEl) {
         contentEl.textContent = JSON.stringify(app.proposed_plan || app, null, 2);
+      }
+
+      // Switch to steps tab by default
+      this.switchInspectTab('steps');
+
+      // Determine steps
+      let steps = app.cognitive_steps || app.proposed_plan?.cognitive_steps || app.proposed_plan?.steps || [];
+      if (!Array.isArray(steps) || steps.length === 0) {
+        const fallback = this.extractPlanSteps(app);
+        if (fallback && fallback.length > 0) {
+          steps = fallback;
+        }
+      }
+
+      const timelineEl = document.getElementById('inspect-steps-timeline');
+      if (timelineEl) {
+        this.state.inspectCurrentSteps = steps;
+        this.renderStepsTimeline(steps, timelineEl, 'inspect');
+
+        // If no intermediate steps, try querying agent directly in background
+        if (steps.length <= 1 && app.agent_id && app.thread_id) {
+          try {
+            const res = await fetch(`/console/executions/${app.agent_id}/${app.thread_id}`, {
+              headers: this.getAuthHeaders(),
+            });
+            if (res.ok) {
+              const liveData = await res.json();
+              const fetchedSteps = liveData.cognitive_steps || liveData.steps || liveData.data?.cognitive_steps || [];
+              if (Array.isArray(fetchedSteps) && fetchedSteps.length > 0) {
+                this.state.inspectCurrentSteps = fetchedSteps;
+                app.cognitive_steps = fetchedSteps;
+                this.renderStepsTimeline(fetchedSteps, timelineEl, 'inspect');
+              }
+              if (liveData.prompt && !app.prompt) {
+                app.prompt = liveData.prompt;
+                if (promptBox) promptBox.textContent = liveData.prompt;
+              }
+            }
+          } catch (e) {
+            console.warn('[HITL] Async telemetry fetch skipped:', e);
+          }
+        }
       }
 
       const modal = document.getElementById('modal-inspect-plan');
@@ -813,24 +1013,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const justification = document.getElementById('approve-justification')?.value || '';
       try {
-        let res = await fetch(`/console/approvals/${id}/approve`, {
+        const res = await fetch(`/console/approvals/${id}/approve`, {
           method: 'POST',
           headers: { ...this.getAuthHeaders(), 'Content-Type': 'application/json' },
           body: JSON.stringify({ justification }),
         });
 
-        if (!res.ok) {
-          res = await fetch(`/api/v1/approvals/${id}/approve`, {
-            method: 'POST',
-            headers: { ...this.getAuthHeaders(), 'Content-Type': 'application/json' },
-            body: JSON.stringify({ justification }),
-          });
-        }
-
         const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Error al aprobar');
+        if (!res.ok) throw new Error(data.message || data.error || 'Error al aprobar');
 
-        this.showToast('✓ Solicitud HITL aprobada y ejecución reanudada en el agente', 'success');
+        const successMsg = data.reconciled || data.data?.reconciled
+          ? '✓ Solicitud HITL reconciliada y aprobada en el Control Plane'
+          : '✓ Solicitud HITL aprobada y ejecución reanudada en el agente';
+        this.showToast(successMsg, 'success');
         this.closeAllModals();
         this.fetchApprovals();
       } catch (err) {
@@ -849,24 +1044,19 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       try {
-        let res = await fetch(`/console/approvals/${id}/reject`, {
+        const res = await fetch(`/console/approvals/${id}/reject`, {
           method: 'POST',
           headers: { ...this.getAuthHeaders(), 'Content-Type': 'application/json' },
           body: JSON.stringify({ justification }),
         });
 
-        if (!res.ok) {
-          res = await fetch(`/api/v1/approvals/${id}/reject`, {
-            method: 'POST',
-            headers: { ...this.getAuthHeaders(), 'Content-Type': 'application/json' },
-            body: JSON.stringify({ justification }),
-          });
-        }
-
         const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Error al rechazar');
+        if (!res.ok) throw new Error(data.message || data.error || 'Error al rechazar');
 
-        this.showToast('✕ Solicitud HITL rechazada y ejecución cancelada en el agente', 'success');
+        const successMsg = data.reconciled || data.data?.reconciled
+          ? '✕ Solicitud HITL reconciliada y cerrada en el Control Plane'
+          : '✕ Solicitud HITL rechazada y ejecución cancelada en el agente';
+        this.showToast(successMsg, 'success');
         this.closeAllModals();
         this.fetchApprovals();
       } catch (err) {
@@ -890,22 +1080,14 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       try {
-        let res = await fetch('/console/executions/trigger', {
+        const res = await fetch('/console/executions/trigger', {
           method: 'POST',
           headers: { ...this.getAuthHeaders(), 'Content-Type': 'application/json' },
           body: JSON.stringify({ agent_id: agentId, prompt: prompt.trim() }),
         });
 
-        if (!res.ok) {
-          res = await fetch('/api/v1/executions/trigger', {
-            method: 'POST',
-            headers: { ...this.getAuthHeaders(), 'Content-Type': 'application/json' },
-            body: JSON.stringify({ agent_id: agentId, prompt: prompt.trim() }),
-          });
-        }
-
         const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Error al disparar ejecución');
+        if (!res.ok) throw new Error(data.message || data.error || 'Error al disparar ejecución');
 
         this.showToast('Ejecución enviada exitosamente al agente', 'success');
         if (resultBox) {
@@ -923,6 +1105,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         this.fetchApprovals();
+        this.fetchExecutions();
       } catch (err) {
         this.showToast(`Error: ${err.message}`, 'error');
         if (resultBox) {
@@ -1060,6 +1243,46 @@ document.addEventListener('DOMContentLoaded', () => {
         promptBox.textContent = data.prompt || data.data?.prompt || 'Sin prompt registrado para esta ejecución.';
       }
 
+      // Render Rejection Alert Banner if execution was rejected
+      const rejectionBanner = document.getElementById('execution-rejection-banner');
+      if (rejectionBanner) {
+        const hitl = data.hitl_governance;
+        const isHitlRejected = hitl && String(hitl.status).toUpperCase() === 'REJECTED';
+        const isCancelled = String(data.status).toLowerCase() === 'cancelled';
+        const justification = hitl?.justification || data.output || data.response || (isCancelled ? 'Ejecución cancelada por rechazo de operador.' : null);
+
+        if ((isHitlRejected || isCancelled) && justification) {
+          const resolverInfo = hitl?.resolver?.name
+            ? `${this.escapeHtml(hitl.resolver.name)} (${this.escapeHtml(hitl.resolver.email || '')})`
+            : (hitl?.resolver?.email ? this.escapeHtml(hitl.resolver.email) : 'Operador HITL');
+          const resolvedDate = hitl?.resolved_at ? new Date(hitl.resolved_at).toLocaleString() : '';
+
+          rejectionBanner.innerHTML = `
+            <div class="trace-rejection-banner">
+              <div class="trace-rejection-header">
+                <div class="trace-rejection-title">
+                  <span>🛑 Decisión HITL: Operación Denegada / Cancelada</span>
+                </div>
+                <span class="badge badge-critical">RECHAZADO</span>
+              </div>
+              <div class="trace-rejection-text">
+                <strong>Motivo del Rechazo:</strong>
+                <div style="margin-top: 4px;">${this.escapeHtml(justification)}</div>
+              </div>
+              <div class="trace-rejection-meta">
+                <span>👤 Resuelto por: <strong>${resolverInfo}</strong></span>
+                ${resolvedDate ? `<span>🕒 Fecha: <strong>${resolvedDate}</strong></span>` : ''}
+                ${hitl?.approval_id ? `<span>🆔 Solicitud: <strong>#${hitl.approval_id}</strong></span>` : ''}
+              </div>
+            </div>
+          `;
+          rejectionBanner.style.display = 'block';
+        } else {
+          rejectionBanner.innerHTML = '';
+          rejectionBanner.style.display = 'none';
+        }
+      }
+
       // Render Steps Timeline
       const timeline = document.getElementById('execution-steps-timeline');
       if (timeline) {
@@ -1075,260 +1298,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         this.state.currentSteps = steps;
-
-        if (steps.length === 0) {
-          timeline.innerHTML = `
-            <div style="font-size: 13px; color: var(--text-muted); padding: 12px 0;">
-              ✓ Grafo cognitivo completado en un solo ciclo (sin pasos intermedios registrados).
-            </div>
-          `;
-        } else {
-          const controlsHtml = `
-            <div class="trace-controls-bar">
-              <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">
-                ⚡ ${steps.length} SALTOS COGNITIVOS (PULSA PARA DETALLES):
-              </span>
-              <div style="display: flex; gap: 8px;">
-                <button type="button" class="trace-controls-btn" onclick="window.ConsoleApp.expandAllSteps()">Expandir todos</button>
-                <span style="color: var(--text-muted); font-size: 11px;">|</span>
-                <button type="button" class="trace-controls-btn" onclick="window.ConsoleApp.collapseAllSteps()">Colapsar todos</button>
-              </div>
-            </div>
-          `;
-
-          const stepsHtml = steps
-            .map((s, idx) => {
-              const node = (s.node || '').toLowerCase();
-              const isError = s.status === 'error' || s.status === 'failed' || s.status === 'denied';
-              const isInProgress = s.status === 'in_progress';
-
-              // Determine icon & badge class
-              let badgeClass = '';
-              let badgeIcon = '✓';
-
-              if (isError) {
-                badgeClass = 'error';
-                badgeIcon = '✕';
-              } else if (s.status === 'waiting_approval') {
-                badgeClass = 'waiting-approval';
-                badgeIcon = '⏸️';
-              } else if (isInProgress) {
-                badgeClass = 'in-progress';
-                badgeIcon = '⏳';
-              } else if (node === 'observe') {
-                badgeClass = 'node-observe';
-                badgeIcon = '👁️';
-              } else if (node === 'reason') {
-                badgeClass = 'node-reason';
-                badgeIcon = '🧠';
-              } else if (node === 'plan') {
-                badgeClass = 'node-plan';
-                badgeIcon = '📋';
-              } else if (node === 'risk_assess' || node === 'security_eval') {
-                badgeClass = 'node-security_eval';
-                badgeIcon = '🛡️';
-              } else if (node === 'human_approval') {
-                badgeClass = 'node-approval';
-                badgeIcon = '🛑';
-              } else if (node === 'execute') {
-                badgeClass = 'node-execute';
-                badgeIcon = '⚡';
-              } else if (node === 'verify') {
-                badgeClass = 'node-verify';
-                badgeIcon = '🔬';
-              } else if (node === 'rollback') {
-                badgeClass = 'node-rollback';
-                badgeIcon = '⏪';
-              } else if (node === 'conclude') {
-                badgeClass = 'node-conclude';
-                badgeIcon = '📝';
-              } else {
-                badgeIcon = (idx + 1).toString();
-              }
-
-              const title = s.title || s.name || (s.node ? `Nodo: ${s.node}` : `Paso ${idx + 1}`);
-              const desc = s.description || '';
-              const duration = s.duration_ms !== undefined && s.duration_ms !== null ? `${s.duration_ms}ms` : '';
-              const toolName = s.tool || s.tool_name || (s.details && s.details.tool ? s.details.tool : (s.details && s.details.tool_name ? s.details.tool_name : (s.details && s.details.selected_tool ? s.details.selected_tool : null)));
-
-              // Build pill list
-              let pillsHtml = '';
-              if (s.node) {
-                pillsHtml += `<span class="trace-pill trace-pill-node">Nodo: ${this.escapeHtml(s.node)}</span>`;
-              }
-              if (toolName) {
-                pillsHtml += `<span class="trace-pill tool-tag">🔧 ${this.escapeHtml(toolName)}</span>`;
-              }
-              if (s.details && s.details.risk_level) {
-                const rLevel = String(s.details.risk_level).toLowerCase();
-                const rClass = rLevel === 'low' ? 'trace-pill-risk-low' : 'trace-pill-risk-high';
-                pillsHtml += `<span class="trace-pill ${rClass}">Riesgo: ${this.escapeHtml(String(s.details.risk_level).toUpperCase())}</span>`;
-              }
-              if (s.details && s.details.decision) {
-                pillsHtml += `<span class="trace-pill trace-pill-allow">Decisión: ${this.escapeHtml(String(s.details.decision).toUpperCase())}</span>`;
-              }
-              if (duration) {
-                pillsHtml += `<span class="trace-pill" style="color: var(--text-muted); font-family: var(--font-mono);">⏱️ ${duration}</span>`;
-              }
-
-              // Build command snippet
-              const cmdHtml = s.command ? `<div class="step-command-box"><code>$ ${this.escapeHtml(s.command)}</code></div>` : '';
-
-              // Build description block
-              const descHtml = desc ? `<div class="trace-step-desc" style="margin-top: 6px;">${this.escapeHtml(desc)}</div>` : '';
-
-              // Breakdown of details
-              let detailsSections = '';
-              if (s.details && typeof s.details === 'object') {
-                const det = s.details;
-
-                // Tool Args section
-                if (det.tool_args && Object.keys(det.tool_args).length > 0) {
-                  detailsSections += `
-                    <div class="step-details-section">
-                      <div class="step-details-section-title">Parámetros de Invocación (tool_args)</div>
-                      <div style="background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.06); padding: 8px 12px; border-radius: 4px; font-family: var(--font-mono); font-size: 12px; color: var(--accent-cyan);">
-                        ${this.escapeHtml(JSON.stringify(det.tool_args, null, 2))}
-                      </div>
-                    </div>
-                  `;
-                }
-
-                // Tool Output section
-                const outputVal = det.output !== undefined && det.output !== null ? det.output : (s.output !== undefined && s.output !== null ? s.output : null);
-                if (outputVal !== null) {
-                  const outFormatted = typeof outputVal === 'string' ? outputVal : JSON.stringify(outputVal, null, 2);
-                  detailsSections += `
-                    <div class="step-details-section">
-                      <div class="step-details-section-title">Resultado de la Herramienta (Output)</div>
-                      <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); padding: 8px 12px; border-radius: 4px; font-size: 12px; color: #34d399; font-family: var(--font-mono); white-space: pre-wrap;">${this.escapeHtml(outFormatted)}</div>
-                    </div>
-                  `;
-                }
-
-                // Reasoning / Goal section
-                if (det.reasoning || det.goal) {
-                  detailsSections += `
-                    <div class="step-details-section">
-                      <div class="step-details-section-title">Objetivo e Intención Cognitiva</div>
-                      <div style="font-size: 12px; color: var(--text-secondary); background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); padding: 8px 12px; border-radius: 4px;">
-                        ${this.escapeHtml(det.reasoning || det.goal)}
-                      </div>
-                    </div>
-                  `;
-                }
-
-                // Plan Steps section
-                if (det.steps && Array.isArray(det.steps) && det.steps.length > 0) {
-                  detailsSections += `
-                    <div class="step-details-section">
-                      <div class="step-details-section-title">Desglose de Pasos Planificados (${det.steps.length})</div>
-                      <div style="background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.06); padding: 8px 12px; border-radius: 4px; font-family: var(--font-mono); font-size: 12px; color: var(--accent-cyan); white-space: pre-wrap;">
-${this.escapeHtml(det.steps.map((st, i) => `${i + 1}. [${st.tool_name || st.name || 'tool'}] - ${st.description || 'Paso ' + (i + 1)} (Riesgo: ${String(st.risk_level || 'LOW').toUpperCase()})`).join('\n'))}
-                      </div>
-                    </div>
-                  `;
-                }
-
-                // Observer Snapshot Summary
-                if (det.snapshot_summary && Object.keys(det.snapshot_summary).length > 0) {
-                  detailsSections += `
-                    <div class="step-details-section">
-                      <div class="step-details-section-title">Telemetría y Recursos Detectados</div>
-                      <div style="background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.06); padding: 8px 12px; border-radius: 4px; font-family: var(--font-mono); font-size: 12px; color: var(--accent-cyan); white-space: pre-wrap;">${this.escapeHtml(JSON.stringify(det.snapshot_summary, null, 2))}</div>
-                    </div>
-                  `;
-                }
-
-                // Security Policy breakdown
-                if (det.risk_level || det.decision || det.bypass_approval !== undefined) {
-                  const decisionStr = String(det.decision || 'ALLOW').toUpperCase();
-                  const isAllow = decisionStr === 'ALLOW';
-                  const decClass = isAllow ? 'trace-pill-allow' : 'trace-pill-risk-high';
-                  detailsSections += `
-                    <div class="step-details-section">
-                      <div class="step-details-section-title">Evaluación de Gobernanza (SecurityGuard)</div>
-                      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                        <span class="trace-pill ${det.risk_level === 'low' ? 'trace-pill-risk-low' : 'trace-pill-risk-high'}">Riesgo: ${this.escapeHtml(String(det.risk_level || 'N/A').toUpperCase())}</span>
-                        <span class="trace-pill ${decClass}">Decisión: ${this.escapeHtml(decisionStr)}</span>
-                        ${det.bypass_approval !== undefined ? `<span class="trace-pill trace-pill-node">Bypass: ${det.bypass_approval ? 'SÍ' : 'NO'}</span>` : ''}
-                        ${det.reversible !== undefined ? `<span class="trace-pill trace-pill-node">Reversible: ${det.reversible ? 'SÍ' : 'NO'}</span>` : ''}
-                      </div>
-                    </div>
-                  `;
-                }
-              }
-
-              return `
-                <div id="trace-step-node-${idx}" class="trace-step-node is-clickable" onclick="window.ConsoleApp.toggleStep(${idx})" tabindex="0" role="button" aria-expanded="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.ConsoleApp.toggleStep(${idx});}">
-                  <div class="trace-node-badge ${badgeClass}">${badgeIcon}</div>
-                  <div class="trace-node-header" style="flex-direction: column; align-items: flex-start; gap: 4px;">
-                    <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-                      <div style="display: flex; align-items: center; gap: 8px;">
-                        <span class="trace-node-title" style="font-weight: 600; font-size: 14px;">${this.escapeHtml(title)}</span>
-                        ${s.node ? `<span class="trace-pill trace-pill-node">${this.escapeHtml(s.node)}</span>` : ''}
-                      </div>
-                      <div style="display: flex; align-items: center; gap: 8px;">
-                        ${duration ? `<span class="trace-pill" style="color: var(--text-muted); font-family: var(--font-mono);">⏱️ ${duration}</span>` : ''}
-                        <span class="trace-chevron" title="Click para expandir/colapsar detalles">▼</span>
-                      </div>
-                    </div>
-                    ${pillsHtml ? `<div class="trace-step-pills">${pillsHtml}</div>` : ''}
-                  </div>
-                  ${descHtml}
-                  ${cmdHtml}
-
-                  <!-- Expandable Node Details Panel -->
-                  <div id="step-details-${idx}" class="trace-step-details-panel" onclick="event.stopPropagation()">
-                    <div class="step-details-grid">
-                      <div class="step-detail-card">
-                        <span class="step-detail-card-label">Nodo LangGraph</span>
-                        <span class="step-detail-card-val" style="color: var(--accent-cyan);">${this.escapeHtml(s.node || '-')}</span>
-                      </div>
-                      <div class="step-detail-card">
-                        <span class="step-detail-card-label">Acción</span>
-                        <span class="step-detail-card-val">${this.escapeHtml(s.action || '-')}</span>
-                      </div>
-                      <div class="step-detail-card">
-                        <span class="step-detail-card-label">Estado</span>
-                        <span class="step-detail-card-val" style="color: ${isError ? 'var(--accent-rose)' : 'var(--accent-emerald)'};">${this.escapeHtml(String(s.status || 'completed').toUpperCase())}</span>
-                      </div>
-                      <div class="step-detail-card">
-                        <span class="step-detail-card-label">Duración</span>
-                        <span class="step-detail-card-val">${duration || '< 1ms'}</span>
-                      </div>
-                      ${s.timestamp ? `
-                      <div class="step-detail-card">
-                        <span class="step-detail-card-label">Timestamp</span>
-                        <span class="step-detail-card-val" style="font-size: 11px;">${this.escapeHtml(s.timestamp)}</span>
-                      </div>
-                      ` : ''}
-                      ${s.step_id ? `
-                      <div class="step-detail-card" style="grid-column: span 2;">
-                        <span class="step-detail-card-label">Step ID</span>
-                        <span class="step-detail-card-val" style="font-size: 10px; color: var(--text-muted);">${this.escapeHtml(s.step_id)}</span>
-                      </div>
-                      ` : ''}
-                    </div>
-
-                    ${detailsSections}
-
-                    <!-- Full Node JSON Payload -->
-                    <div class="step-details-section">
-                      <div class="step-details-section-title">
-                        <span>Payload Completo del Nodo (JSON)</span>
-                        <button type="button" class="btn-step-copy" onclick="window.ConsoleApp.copyStepJson(${idx})">📋 Copiar JSON</button>
-                      </div>
-                      <pre class="step-json-box">${this.escapeHtml(JSON.stringify(s, null, 2))}</pre>
-                    </div>
-                  </div>
-                </div>
-              `;
-            })
-            .join('');
-
-          timeline.innerHTML = controlsHtml + stepsHtml;
-        }
+        this.renderStepsTimeline(steps, timeline, 'trace');
       }
 
       // Render Output Box
@@ -1343,8 +1313,281 @@ ${this.escapeHtml(det.steps.map((st, i) => `${i + 1}. [${st.tool_name || st.name
       }
     },
 
+    renderStepsTimeline(steps, containerEl, prefix = 'trace') {
+      if (!containerEl) return;
+      if (!Array.isArray(steps) || steps.length === 0) {
+        containerEl.innerHTML = `
+          <div style="font-size: 13px; color: var(--text-muted); padding: 16px; text-align: center;">
+            ✓ Grafo cognitivo completado en un solo ciclo o sin saltos intermedios registrados.
+          </div>
+        `;
+        return;
+      }
+
+      const controlsHtml = `
+        <div class="trace-controls-bar">
+          <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">
+            ⚡ ${steps.length} SALTOS COGNITIVOS (PULSA PARA DETALLES):
+          </span>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" class="trace-controls-btn" onclick="window.ConsoleApp.expandAllSteps('${prefix}')">Expandir todos</button>
+            <span style="color: var(--text-muted); font-size: 11px;">|</span>
+            <button type="button" class="trace-controls-btn" onclick="window.ConsoleApp.collapseAllSteps('${prefix}')">Colapsar todos</button>
+          </div>
+        </div>
+      `;
+
+      const stepsHtml = steps
+        .map((s, idx) => {
+          const node = (s.node || '').toLowerCase();
+          const isError = s.status === 'error' || s.status === 'failed' || s.status === 'denied';
+          const isInProgress = s.status === 'in_progress';
+
+          let badgeClass = '';
+          let badgeIcon = '✓';
+
+          if (isError) {
+            badgeClass = 'error';
+            badgeIcon = '✕';
+          } else if (s.status === 'waiting_approval') {
+            badgeClass = 'waiting-approval';
+            badgeIcon = '⏸️';
+          } else if (isInProgress) {
+            badgeClass = 'in-progress';
+            badgeIcon = '⏳';
+          } else if (node === 'observe') {
+            badgeClass = 'node-observe';
+            badgeIcon = '👁️';
+          } else if (node === 'reason') {
+            badgeClass = 'node-reason';
+            badgeIcon = '🧠';
+          } else if (node === 'plan') {
+            badgeClass = 'node-plan';
+            badgeIcon = '📋';
+          } else if (node === 'risk_assess' || node === 'security_eval') {
+            badgeClass = 'node-security_eval';
+            badgeIcon = '🛡️';
+          } else if (node === 'human_approval') {
+            badgeClass = 'node-approval';
+            badgeIcon = '🛑';
+          } else if (node === 'execute') {
+            badgeClass = 'node-execute';
+            badgeIcon = '⚡';
+          } else if (node === 'verify') {
+            badgeClass = 'node-verify';
+            badgeIcon = '🔬';
+          } else if (node === 'rollback') {
+            badgeClass = 'node-rollback';
+            badgeIcon = '⏪';
+          } else if (node === 'conclude') {
+            badgeClass = 'node-conclude';
+            badgeIcon = '📝';
+          } else {
+            badgeIcon = (idx + 1).toString();
+          }
+
+          const title = s.title || s.name || (s.node ? `Nodo: ${s.node}` : `Paso ${idx + 1}`);
+          const desc = s.description || '';
+          const duration = s.duration_ms !== undefined && s.duration_ms !== null ? `${s.duration_ms}ms` : '';
+          const toolName = s.tool || s.tool_name || (s.details && s.details.tool ? s.details.tool : (s.details && s.details.tool_name ? s.details.tool_name : (s.details && s.details.selected_tool ? s.details.selected_tool : null)));
+
+          let pillsHtml = '';
+          if (s.node) {
+            pillsHtml += `<span class="trace-pill trace-pill-node">Nodo: ${this.escapeHtml(s.node)}</span>`;
+          }
+          if (toolName) {
+            pillsHtml += `<span class="trace-pill tool-tag">🔧 ${this.escapeHtml(toolName)}</span>`;
+          }
+          if (s.details && s.details.risk_level) {
+            const rLevel = String(s.details.risk_level).toLowerCase();
+            const rClass = rLevel === 'low' ? 'trace-pill-risk-low' : 'trace-pill-risk-high';
+            pillsHtml += `<span class="trace-pill ${rClass}">Riesgo: ${this.escapeHtml(String(s.details.risk_level).toUpperCase())}</span>`;
+          }
+          if (s.details && s.details.decision) {
+            pillsHtml += `<span class="trace-pill trace-pill-allow">Decisión: ${this.escapeHtml(String(s.details.decision).toUpperCase())}</span>`;
+          }
+          if (duration) {
+            pillsHtml += `<span class="trace-pill" style="color: var(--text-muted); font-family: var(--font-mono);">⏱️ ${duration}</span>`;
+          }
+
+          const cmdHtml = s.command ? `<div class="step-command-box"><code>$ ${this.escapeHtml(s.command)}</code></div>` : '';
+          const descHtml = desc ? `<div class="trace-step-desc" style="margin-top: 6px;">${this.escapeHtml(desc)}</div>` : '';
+
+          let detailsSections = '';
+          if (s.details && typeof s.details === 'object') {
+            const det = s.details;
+
+            if (det.tool_args && Object.keys(det.tool_args).length > 0) {
+              detailsSections += `
+                <div class="step-details-section">
+                  <div class="step-details-section-title">Parámetros de Invocación (tool_args)</div>
+                  <div style="background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.06); padding: 8px 12px; border-radius: 4px; font-family: var(--font-mono); font-size: 12px; color: var(--accent-cyan);">
+                    ${this.escapeHtml(JSON.stringify(det.tool_args, null, 2))}
+                  </div>
+                </div>
+              `;
+            }
+
+            const outputVal = det.output !== undefined && det.output !== null ? det.output : (s.output !== undefined && s.output !== null ? s.output : null);
+            if (outputVal !== null) {
+              const outFormatted = typeof outputVal === 'string' ? outputVal : JSON.stringify(outputVal, null, 2);
+              detailsSections += `
+                <div class="step-details-section">
+                  <div class="step-details-section-title">Resultado de la Herramienta (Output)</div>
+                  <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); padding: 8px 12px; border-radius: 4px; font-size: 12px; color: #34d399; font-family: var(--font-mono); white-space: pre-wrap;">${this.escapeHtml(outFormatted)}</div>
+                </div>
+              `;
+            }
+
+            if (det.reasoning || det.goal) {
+              detailsSections += `
+                <div class="step-details-section">
+                  <div class="step-details-section-title">Objetivo e Intención Cognitiva</div>
+                  <div style="font-size: 12px; color: var(--text-secondary); background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); padding: 8px 12px; border-radius: 4px;">
+                    ${this.escapeHtml(det.reasoning || det.goal)}
+                  </div>
+                </div>
+              `;
+            }
+
+            if (det.steps && Array.isArray(det.steps) && det.steps.length > 0) {
+              detailsSections += `
+                <div class="step-details-section">
+                  <div class="step-details-section-title">Desglose de Pasos Planificados (${det.steps.length})</div>
+                  <div style="background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.06); padding: 8px 12px; border-radius: 4px; font-family: var(--font-mono); font-size: 12px; color: var(--accent-cyan); white-space: pre-wrap;">
+${this.escapeHtml(det.steps.map((st, i) => `${i + 1}. [${st.tool_name || st.name || 'tool'}] - ${st.description || 'Paso ' + (i + 1)} (Riesgo: ${String(st.risk_level || 'LOW').toUpperCase()})`).join('\n'))}
+                  </div>
+                </div>
+              `;
+            }
+
+            if (det.snapshot_summary && Object.keys(det.snapshot_summary).length > 0) {
+              detailsSections += `
+                <div class="step-details-section">
+                  <div class="step-details-section-title">Telemetría y Recursos Detectados</div>
+                  <div style="background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.06); padding: 8px 12px; border-radius: 4px; font-family: var(--font-mono); font-size: 12px; color: var(--accent-cyan); white-space: pre-wrap;">${this.escapeHtml(JSON.stringify(det.snapshot_summary, null, 2))}</div>
+                </div>
+              `;
+            }
+
+            if (det.risk_level || det.decision || det.bypass_approval !== undefined) {
+              const decisionStr = String(det.decision || 'ALLOW').toUpperCase();
+              const isAllow = decisionStr === 'ALLOW';
+              const decClass = isAllow ? 'trace-pill-allow' : 'trace-pill-risk-high';
+              detailsSections += `
+                <div class="step-details-section">
+                  <div class="step-details-section-title">Evaluación de Gobernanza (SecurityGuard)</div>
+                  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <span class="trace-pill ${det.risk_level === 'low' ? 'trace-pill-risk-low' : 'trace-pill-risk-high'}">Riesgo: ${this.escapeHtml(String(det.risk_level || 'N/A').toUpperCase())}</span>
+                    <span class="trace-pill ${decClass}">Decisión: ${this.escapeHtml(decisionStr)}</span>
+                    ${det.bypass_approval !== undefined ? `<span class="trace-pill trace-pill-node">Bypass: ${det.bypass_approval ? 'SÍ' : 'NO'}</span>` : ''}
+                    ${det.reversible !== undefined ? `<span class="trace-pill trace-pill-node">Reversible: ${det.reversible ? 'SÍ' : 'NO'}</span>` : ''}
+                  </div>
+                </div>
+              `;
+            }
+
+            if (det.notes || det.justification || det.approver) {
+              const noteText = det.notes || det.justification || '';
+              const isReject = isError || String(det.status || '').toLowerCase() === 'rejected';
+              detailsSections += `
+                <div class="step-details-section">
+                  <div class="step-details-section-title">Resolución de Intervención Humana (HITL)</div>
+                  <div style="background: ${isReject ? 'rgba(244, 63, 94, 0.1)' : 'rgba(16, 185, 129, 0.1)'}; border: 1px solid ${isReject ? 'rgba(244, 63, 94, 0.3)' : 'rgba(16, 185, 129, 0.3)'}; padding: 10px 14px; border-radius: 4px;">
+                    ${det.approver ? `<div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Operador / Resuelve: <strong style="color: var(--text-primary);">${this.escapeHtml(det.approver)}</strong></div>` : ''}
+                    ${noteText ? `<div style="font-size: 13px; color: ${isReject ? '#fb7185' : '#34d399'}; font-weight: 500;"><strong>Motivo / Justificación:</strong> ${this.escapeHtml(noteText)}</div>` : ''}
+                  </div>
+                </div>
+              `;
+            }
+          }
+
+          return `
+            <div id="${prefix}-step-node-${idx}" class="trace-step-node ${prefix}-step-node is-clickable" onclick="window.ConsoleApp.toggleStep(${idx}, '${prefix}')" tabindex="0" role="button" aria-expanded="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.ConsoleApp.toggleStep(${idx}, '${prefix}');}">
+              <div class="trace-node-badge ${badgeClass}">${badgeIcon}</div>
+              <div class="trace-node-header" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="trace-node-title" style="font-weight: 600; font-size: 14px;">${this.escapeHtml(title)}</span>
+                    ${s.node ? `<span class="trace-pill trace-pill-node">${this.escapeHtml(s.node)}</span>` : ''}
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    ${duration ? `<span class="trace-pill" style="color: var(--text-muted); font-family: var(--font-mono);">⏱️ ${duration}</span>` : ''}
+                    <span class="trace-chevron" title="Click para expandir/colapsar detalles">▼</span>
+                  </div>
+                </div>
+                ${pillsHtml ? `<div class="trace-step-pills">${pillsHtml}</div>` : ''}
+              </div>
+              ${descHtml}
+              ${cmdHtml}
+
+              <!-- Expandable Node Details Panel -->
+              <div id="${prefix}-step-details-${idx}" class="trace-step-details-panel" onclick="event.stopPropagation()">
+                <div class="step-details-grid">
+                  <div class="step-detail-card">
+                    <span class="step-detail-card-label">Nodo LangGraph</span>
+                    <span class="step-detail-card-val" style="color: var(--accent-cyan);">${this.escapeHtml(s.node || '-')}</span>
+                  </div>
+                  <div class="step-detail-card">
+                    <span class="step-detail-card-label">Acción</span>
+                    <span class="step-detail-card-val">${this.escapeHtml(s.action || '-')}</span>
+                  </div>
+                  <div class="step-detail-card">
+                    <span class="step-detail-card-label">Estado</span>
+                    <span class="step-detail-card-val" style="color: ${isError ? 'var(--accent-rose)' : 'var(--accent-emerald)'};">${this.escapeHtml(String(s.status || 'completed').toUpperCase())}</span>
+                  </div>
+                  <div class="step-detail-card">
+                    <span class="step-detail-card-label">Duración</span>
+                    <span class="step-detail-card-val">${duration || '< 1ms'}</span>
+                  </div>
+                  ${s.timestamp ? `
+                  <div class="step-detail-card">
+                    <span class="step-detail-card-label">Timestamp</span>
+                    <span class="step-detail-card-val" style="font-size: 11px;">${this.escapeHtml(s.timestamp)}</span>
+                  </div>
+                  ` : ''}
+                  ${s.step_id ? `
+                  <div class="step-detail-card" style="grid-column: span 2;">
+                    <span class="step-detail-card-label">Step ID</span>
+                    <span class="step-detail-card-val" style="font-size: 10px; color: var(--text-muted);">${this.escapeHtml(s.step_id)}</span>
+                  </div>
+                  ` : ''}
+                </div>
+
+                ${detailsSections}
+
+                <!-- Full Node JSON Payload -->
+                <div class="step-details-section">
+                  <div class="step-details-section-title">
+                    <span>Payload Completo del Nodo (JSON)</span>
+                    <button type="button" class="btn-step-copy" onclick="window.ConsoleApp.copyStepJson(${idx}, '${prefix}')">📋 Copiar JSON</button>
+                  </div>
+                  <pre class="step-json-box">${this.escapeHtml(JSON.stringify(s, null, 2))}</pre>
+                </div>
+              </div>
+            </div>
+          `;
+        })
+        .join('');
+
+      containerEl.innerHTML = controlsHtml + stepsHtml;
+    },
+
 
     async inspectCapabilities(agentId) {
+      const modal = document.getElementById('modal-agent-capabilities');
+      const badgeId = document.getElementById('agent-caps-id-badge');
+      const nameEl = document.getElementById('agent-caps-name');
+      const contentBox = document.getElementById('agent-caps-json-content');
+
+      if (badgeId) badgeId.textContent = agentId;
+      if (nameEl) nameEl.textContent = agentId;
+      if (contentBox) contentBox.textContent = 'Consultando capacidades técnicas del agente...';
+
+      if (modal) {
+        modal.classList.add('open');
+      }
+
       try {
         let res = await fetch(`/console/agents/${agentId}/capabilities`, {
           headers: this.getAuthHeaders(),
@@ -1362,20 +1605,119 @@ ${this.escapeHtml(det.steps.map((st, i) => `${i + 1}. [${st.tool_name || st.name
         const caps = data.capabilities || data;
         const formatted = JSON.stringify(caps, null, 2);
 
-        const modal = document.getElementById('modal-inspect-plan');
-        const modalContent = document.getElementById('inspect-plan-content');
-        const threadIdEl = document.getElementById('inspect-modal-thread-id');
-        const titleEl = modal ? modal.querySelector('h3') : null;
-        if (modal && modalContent) {
-          if (titleEl) titleEl.textContent = '🛠️ Inspección de Capacidades del Agente';
-          if (threadIdEl) threadIdEl.textContent = agentId;
-          modalContent.textContent = formatted;
-          modal.classList.add('open');
-        } else {
-          alert(`Capacidades del agente [${agentId}]:\n` + formatted);
+        if (contentBox) {
+          contentBox.textContent = formatted;
         }
       } catch (err) {
+        if (contentBox) {
+          contentBox.textContent = `Error al consultar capacidades: ${err.message}`;
+        }
         this.showToast(`Error al consultar capacidades: ${err.message}`, 'error');
+      }
+    },
+
+    async fetchExecutions() {
+      try {
+        const res = await fetch('/console/executions?limit=30', {
+          headers: this.getAuthHeaders(),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const list = data.executions || [];
+        this.state.executionsList = list;
+        this.renderExecutionsTable(list);
+      } catch (err) {
+        console.warn('Error al cargar historial de ejecuciones:', err);
+        const tbody = document.getElementById('executions-history-body');
+        if (tbody) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="5" style="text-align: center; color: var(--accent-red); padding: 18px;">
+                Error al sincronizar historial: ${this.escapeHtml(err.message)}
+              </td>
+            </tr>
+          `;
+        }
+      }
+    },
+
+    renderExecutionsTable(executions) {
+      const tbody = document.getElementById('executions-history-body');
+      if (!tbody) return;
+
+      if (!executions || executions.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 28px;">
+              No hay ejecuciones registradas en el sistema.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = executions
+        .map((exec) => {
+          const status = (exec.status || 'UNKNOWN').toUpperCase();
+          let statusBadgeClass = 'badge-pending';
+          if (status === 'COMPLETED' || status === 'SUCCESS') statusBadgeClass = 'badge-success';
+          else if (status === 'WAITING_APPROVAL') statusBadgeClass = 'badge-high';
+          else if (status === 'FAILED' || status === 'REJECTED') statusBadgeClass = 'badge-danger';
+          else if (status === 'PROCESSING' || status === 'RUNNING') statusBadgeClass = 'badge-info';
+
+          const promptFull = exec.prompt || '';
+          const promptTruncated = exec.prompt_truncated || '(Sin prompt)';
+          const dateStr = exec.created_at_formatted || '-';
+          const agentId = exec.agent_id || '-';
+          const agentName = exec.agent_name || agentId;
+          const threadId = exec.thread_id || exec.task_id || '';
+
+          return `
+            <tr style="border-bottom: 1px solid var(--border-color);">
+              <td style="padding: 12px 16px; vertical-align: middle;">
+                <div style="font-weight: 500; color: var(--text-primary); font-size: 13px;" title="${this.escapeHtml(promptFull)}">
+                  💬 ${this.escapeHtml(promptTruncated)}
+                </div>
+                ${threadId ? `<div style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); margin-top: 2px;">ID: ${this.escapeHtml(threadId)}</div>` : ''}
+              </td>
+              <td style="padding: 12px 16px; vertical-align: middle; font-size: 12px; color: var(--text-secondary); white-space: nowrap;">
+                📅 ${this.escapeHtml(dateStr)}
+              </td>
+              <td style="padding: 12px 16px; vertical-align: middle;">
+                <span class="badge" style="background: rgba(255,255,255,0.06); border: 1px solid var(--border-color); color: var(--text-primary); font-size: 11px;" title="ID: ${this.escapeHtml(agentId)}">
+                  🤖 ${this.escapeHtml(agentName)}
+                </span>
+              </td>
+              <td style="padding: 12px 16px; vertical-align: middle;">
+                <span class="badge ${statusBadgeClass}">${this.escapeHtml(status)}</span>
+              </td>
+              <td style="padding: 12px 16px; vertical-align: middle; text-align: right;">
+                <button type="button" class="btn btn-secondary" style="font-size: 11px; padding: 5px 10px;" onclick="window.ConsoleApp.selectAndLoadExecution('${this.escapeHtml(agentId)}', '${this.escapeHtml(threadId)}')">
+                  🔍 Ver Traza
+                </button>
+              </td>
+            </tr>
+          `;
+        })
+        .join('');
+    },
+
+    selectAndLoadExecution(agentId, threadId) {
+      if (!threadId) {
+        this.showToast('Esta ejecución no dispone de Thread ID registrado', 'error');
+        return;
+      }
+      const agentSelect = document.getElementById('execution-query-agent');
+      if (agentSelect && agentId) agentSelect.value = agentId;
+
+      const threadInput = document.getElementById('execution-query-thread');
+      if (threadInput && threadId) threadInput.value = threadId;
+
+      this.loadExecutionTrace(agentId, threadId);
+
+      const panel = document.getElementById('execution-detail-panel');
+      if (panel) {
+        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     },
 
@@ -1396,32 +1738,33 @@ ${this.escapeHtml(det.steps.map((st, i) => `${i + 1}. [${st.tool_name || st.name
       }
     },
 
-    toggleStep(idx) {
-      const el = document.getElementById(`trace-step-node-${idx}`);
+    toggleStep(idx, prefix = 'trace') {
+      const el = document.getElementById(`${prefix}-step-node-${idx}`);
       if (!el) return;
       const isExpanded = el.classList.toggle('is-expanded');
       el.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
     },
 
-    expandAllSteps() {
-      const nodes = document.querySelectorAll('.trace-step-node.is-clickable');
+    expandAllSteps(prefix = 'trace') {
+      const nodes = document.querySelectorAll(`.${prefix}-step-node.is-clickable`);
       nodes.forEach((n) => {
         n.classList.add('is-expanded');
         n.setAttribute('aria-expanded', 'true');
       });
     },
 
-    collapseAllSteps() {
-      const nodes = document.querySelectorAll('.trace-step-node.is-clickable');
+    collapseAllSteps(prefix = 'trace') {
+      const nodes = document.querySelectorAll(`.${prefix}-step-node.is-clickable`);
       nodes.forEach((n) => {
         n.classList.remove('is-expanded');
         n.setAttribute('aria-expanded', 'false');
       });
     },
 
-    copyStepJson(idx) {
-      if (!this.state.currentSteps || !this.state.currentSteps[idx]) return;
-      const step = this.state.currentSteps[idx];
+    copyStepJson(idx, prefix = 'trace') {
+      const steps = prefix === 'inspect' ? this.state.inspectCurrentSteps : this.state.currentSteps;
+      if (!steps || !steps[idx]) return;
+      const step = steps[idx];
       const jsonStr = JSON.stringify(step, null, 2);
       this.copyToClipboard(jsonStr, `JSON del nodo ${step.node || idx + 1} copiado`);
     },

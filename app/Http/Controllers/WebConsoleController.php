@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Agent;
+use App\Models\AgentTask;
 use App\Models\ApprovalRequest;
 use App\Services\Agents\AgentRegistrationService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class WebConsoleController extends Controller
 {
@@ -293,6 +295,48 @@ class WebConsoleController extends Controller
     public function showExecution(Request $request, string $agentId, string $threadId, \App\Http\Controllers\Api\ExecutionController $controller): JsonResponse
     {
         return $controller->show($request, $agentId, $threadId);
+    }
+
+    /**
+     * List recent executions for the web console with truncated prompt, date, and status.
+     */
+    public function listExecutions(Request $request): JsonResponse
+    {
+        $limit = min((int) $request->query('limit', 20), 50);
+
+        $tasks = AgentTask::orderBy('created_at', 'desc')
+            ->limit($limit)
+            ->get();
+
+        $agentMap = Agent::all(['agent_id', 'name'])->keyBy('agent_id');
+
+        $items = $tasks->map(function (AgentTask $task) use ($agentMap) {
+            $prompt = $task->prompt;
+            $promptTruncated = $prompt ? Str::limit($prompt, 80) : '(Sin prompt)';
+            $agentId = $task->agent_id;
+            $agent = $agentId ? $agentMap->get($agentId) : null;
+            $agentName = $agent?->name ?? $agentId ?? 'Agente Desconocido';
+
+            return [
+                'task_id' => $task->task_id,
+                'thread_id' => $task->thread_id,
+                'agent_id' => $agentId,
+                'agent_name' => $agentName,
+                'status' => $task->status,
+                'prompt' => $prompt,
+                'prompt_truncated' => $promptTruncated,
+                'created_at' => $task->created_at?->toIso8601String(),
+                'created_at_formatted' => $task->created_at?->format('d/m/Y H:i:s') ?? '-',
+                'started_at' => $task->started_at?->toIso8601String(),
+                'completed_at' => $task->completed_at?->toIso8601String(),
+                'duration' => $task->duration,
+            ];
+        });
+
+        return response()->json([
+            'executions' => $items,
+            'total' => $items->count(),
+        ], 200);
     }
 }
 

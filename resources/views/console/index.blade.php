@@ -324,7 +324,7 @@
                   <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
-                  Explorador de Saltos Cognitivos y Traza del Grafo
+                  Visor de Traza de Pasos y Saltos Cognitivos
                 </h3>
               </div>
               <div class="panel-body">
@@ -377,6 +377,9 @@
                     </div>
                   </div>
 
+                  <!-- Rejection Justification Alert Banner (HITL Governance) -->
+                  <div id="execution-rejection-banner" style="display: none;"></div>
+
                   <!-- Step Execution Trace Timeline -->
                   <div class="trace-steps-container">
                     <div class="form-label" style="margin-bottom: 6px;">
@@ -400,6 +403,45 @@
                     <pre id="execution-output-box" class="execution-code-box">Esperando datos de ejecución...</pre>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Full-Width Bottom Panel: Execution History Log -->
+          <div class="panel" style="margin-top: 24px;">
+            <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+              <h3 class="panel-title">
+                <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Historial de Ejecuciones Recientes
+              </h3>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <button type="button" id="btn-refresh-executions-list" class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px;">
+                  🔄 Refrescar Historial
+                </button>
+              </div>
+            </div>
+            <div class="panel-body" style="padding: 0;">
+              <div class="table-container" style="max-height: 440px; overflow-y: auto;">
+                <table class="table" id="table-executions-history" style="width: 100%; margin: 0;">
+                  <thead>
+                    <tr>
+                      <th style="width: 36%;">Prompt / Instrucción</th>
+                      <th style="width: 16%;">Fecha y Hora</th>
+                      <th style="width: 16%;">Agente</th>
+                      <th style="width: 14%;">Estado</th>
+                      <th style="width: 18%; text-align: right;">Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody id="executions-history-body">
+                    <tr>
+                      <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 24px;">
+                        Cargando historial de ejecuciones...
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -508,21 +550,110 @@
     </div>
   </div>
 
-  <!-- Modal Inspect Plan (Technical JSON Inspection) -->
+  <!-- Modal Inspect Plan (Cognitive Graph & Execution Steps) -->
   <div id="modal-inspect-plan" class="modal-backdrop">
-    <div class="modal-dialog" style="max-width: 680px;">
+    <div class="modal-dialog" style="max-width: 920px; max-height: 90vh; display: flex; flex-direction: column;">
       <div class="modal-header">
-        <h3>🔍 Inspección Técnica del Plan Cognitivo</h3>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <h3>🔍 Inspección de Ejecución HITL</h3>
+          <span id="inspect-modal-risk-badge" class="badge badge-high">HIGH</span>
+        </div>
         <button class="modal-close">&times;</button>
       </div>
-      <div class="modal-body">
-        <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">
-          Hilo de Ejecución: <strong id="inspect-modal-thread-id" style="color: var(--text-primary); font-family: var(--font-mono);"></strong>
+      <div class="modal-body" style="overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 16px;">
+        <!-- Thread and Agent meta -->
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color); font-size: 13px;">
+          <div>
+            <span style="color: var(--text-muted);">Agente:</span>
+            <strong id="inspect-modal-agent-name" style="color: var(--text-primary); margin-left: 4px;">-</strong>
+          </div>
+          <div>
+            <span style="color: var(--text-muted);">Hilo:</span>
+            <strong id="inspect-modal-thread-id" style="color: var(--text-primary); font-family: var(--font-mono); margin-left: 4px; cursor: pointer;" title="Pulsar para copiar"></strong>
+          </div>
         </div>
-        <pre id="inspect-plan-content" class="json-inspector-box"></pre>
+
+        <!-- Prompt Section -->
+        <div class="hitl-inspect-prompt-box">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+            <span style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.05em;">💬 Prompt / Instrucción de Entrada</span>
+          </div>
+          <div id="inspect-modal-prompt-box" style="font-size: 13px; color: var(--text-primary); line-height: 1.5; white-space: pre-wrap;">-</div>
+        </div>
+
+        <!-- Mode Toggle Tabs -->
+        <div class="tabs-nav" style="border-bottom: 1px solid var(--border-color); margin-bottom: 4px;">
+          <button type="button" id="tab-inspect-steps" class="tab-btn active" onclick="window.ConsoleApp.switchInspectTab('steps')">
+            ⚡ Grafo & Saltos Cognitivos
+          </button>
+          <button type="button" id="tab-inspect-json" class="tab-btn" onclick="window.ConsoleApp.switchInspectTab('json')">
+            { } JSON Técnico
+          </button>
+        </div>
+
+        <!-- Steps Timeline View -->
+        <div id="inspect-steps-container">
+          <div id="inspect-steps-timeline" class="trace-steps-timeline inspect-timeline-padded">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- Raw JSON View -->
+        <div id="inspect-json-container" style="display: none;">
+          <pre id="inspect-plan-content" class="json-inspector-box" style="max-height: 440px;"></pre>
+        </div>
       </div>
-      <div class="modal-footer">
-        <button type="button" id="btn-copy-plan-json" class="btn btn-primary">📋 Copiar JSON</button>
+      <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+        <div style="display: flex; gap: 8px;">
+          <button type="button" id="btn-copy-plan-json" class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px;">📋 Copiar JSON</button>
+          <button type="button" class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px;" data-modal-dismiss>Cerrar</button>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button type="button" id="btn-inspect-reject" class="btn btn-danger" style="padding: 8px 16px;">
+            ✕ Rechazar
+          </button>
+          <button type="button" id="btn-inspect-approve" class="btn btn-primary" style="padding: 8px 16px;">
+            ✓ Aprobar Ejecución
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Agent Capabilities (Dedicated Clean Inspector) -->
+  <div id="modal-agent-capabilities" class="modal-backdrop">
+    <div class="modal-dialog" style="max-width: 880px; max-height: 88vh; display: flex; flex-direction: column;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <h3>🛠️ Capacidades y Herramientas del Agente</h3>
+          <span id="agent-caps-id-badge" class="badge badge-info" style="font-family: var(--font-mono);">-</span>
+        </div>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body" style="overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 16px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; font-size: 13px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+          <div>
+            <span style="color: var(--text-muted);">Agente:</span>
+            <strong id="agent-caps-name" style="color: var(--text-primary); margin-left: 4px;">-</strong>
+          </div>
+          <div id="agent-caps-status-wrapper">
+            <span id="agent-caps-status-badge" class="badge badge-success">ONLINE</span>
+          </div>
+        </div>
+
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-size: 12px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.05em;">
+              Especificación Técnica de Capacidades (JSON Schema)
+            </span>
+            <button type="button" id="btn-copy-agent-caps" class="btn btn-secondary" style="font-size: 11px; padding: 4px 10px;">
+              📋 Copiar JSON
+            </button>
+          </div>
+          <pre id="agent-caps-json-content" class="json-inspector-box" style="max-height: 480px; margin: 0;">Cargando capacidades...</pre>
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px;">
         <button type="button" class="btn btn-secondary" data-modal-dismiss>Cerrar</button>
       </div>
     </div>

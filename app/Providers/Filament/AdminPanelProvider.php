@@ -5,6 +5,7 @@ namespace App\Providers\Filament;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Navigation\NavigationItem;
 use Filament\Pages;
 use Filament\Panel;
 use Filament\PanelProvider;
@@ -33,6 +34,13 @@ class AdminPanelProvider extends PanelProvider
                 'Gobernanza de Agentes',
                 'Seguridad y Accesos',
                 'Observabilidad y Resiliencia',
+            ])
+            ->navigationItems([
+                NavigationItem::make('Consola Operativa')
+                    ->url('/console')
+                    ->icon('heroicon-o-command-line')
+                    ->group('Gobernanza de Agentes')
+                    ->sort(0),
             ])
             ->darkMode(true)
             ->colors([
