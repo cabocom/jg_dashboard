@@ -1,0 +1,129 @@
+"Title","Description","Labels","Milestone","Weight"
+"[GLOBAL-01] Desincronización y Fallbacks Hardcodeados de Secretos","- **Severidad:** 🔴 CRÍTICO
+- **Componentes Afectados:** `jg_dashboard` (`AgentHttpClient.php`, `DatabaseSeeder.php`, `.env.example`), `docker-compose.yml`, `jg_agente`
+- **Ubicación:** 
+  - [jg_dashboard/app/Services/Agents/AgentHttpClient.php:83-86, 119](jg_dashboard/app/Services/Agents/AgentHttpClient.php#L83-L86)
+  - [jg_dashboard/database/seeders/DatabaseSeeder.php:45, 67](jg_dashboard/database/seeders/DatabaseSeeder.php#L45)
+  - [docker-compose.yml:110, 155](docker-compose.yml#L110)
+- **Descripción:** Se utilizan cadenas estáticas como secretos fallback en el código (`'sec_devops_agent_preprovisioned_key_12345'`) y en `docker-compose.yml`. Si el usuario actualiza `JG_AGENTE_SECRET` en el archivo `.env`, el Dashboard firma con el nuevo secreto, pero los contenedores de los agentes conservan el valor quemado en el Compose. Adicionalmente, el seeder inserta el hash estático en la base de datos ignorando el `.env`.
+- **Impacto:** Fuga de secretos por estar expuestos en el repositorio git (CWE-798) y rotura inmediata de la autenticación inter-servicio al rotar claves.
+- **Solución Propuesta:**
+  1. Eliminar todos los valores de fallback hardcodeados; fallar explícitamente al arrancar si falta la variable.
+  2. Modificar `docker-compose.yml` para usar interpolación estricta de variables de entorno: `${JG_CONVERSATIONAL_SECRET:?err}` y `${JG_DEVOPS_SECRET:?err}`.
+  3. Modificar `DatabaseSeeder.php` para derivar los hashes de `config('services.agent.secret')`.","audit2, scope::global, component::dashboard, severity::critical","Auditoría 2","5"
+"[GLOBAL-02] Ruptura Criptográfica del Registro Dinámico de Agentes (HMAC Asimétrico)","- **Severidad:** 🔴 CRÍTICO
+- **Componentes Afectados:** `jg_dashboard` (`AgentRegistrationService.php`, `AgentHttpClient.php`), `jg_agente` (`app/lifecycle/boot.py`)
+- **Ubicación:**
+  - [jg_dashboard/app/Services/AgentRegistrationService.php:240](jg_dashboard/app/Services/AgentRegistrationService.php#L240)
+  - [jg_dashboard/app/Services/Agents/AgentHttpClient.php:78-95](jg_dashboard/app/Services/Agents/AgentHttpClient.php#L78-L95)
+  - [jg_agente/app/lifecycle/boot.py](jg_agente/app/lifecycle/boot.py)
+- **Descripción:** Cuando un agente se registra consumiendo un bootstrap token, el Dashboard almacena `hash('sha256', $permanentSecret)` y descarta `$permanentSecret`. Al no guardarlo de forma reversible (cifrado con `Crypt::encryptString`), cuando `AgentHttpClient` debe firmar peticiones hacia ese agente (`X-Signature = HMAC-SHA256(...)`), no dispone del secreto y usa el fallback del `.env`. El agente compara la firma con su clave local y la rechaza con `401 Unauthorized`.
+- **Impacto:** Es imposible aprovisionar dinámicamente nuevos agentes o auto-escalar pods/contenedores de agentes.
+- **Solución Propuesta:**
+  1. Crear migración en Laravel para añadir `permanent_secret_encrypted` a la tabla `dashboard_agents`.
+  2. En `AgentRegistrationService.php`, guardar el secreto cifrado simétricamente con la `APP_KEY`.
+  3. En `AgentHttpClient.php`, desencriptar el secreto para calcular la cabecera `X-Signature`.
+  4. (Alternativa P3): Migrar a criptografía asimétrica Ed25519.","audit2, scope::global, component::dashboard, severity::critical","Auditoría 2","5"
+"[GLOBAL-03] Incompatibilidad de Timeouts HTTP (15s) frente al Ciclo Cognitivo","- **Severidad:** 🔴 CRÍTICO
+- **Componentes Afectados:** `jg_dashboard` (`AgentHttpClient.php`), `jg_agente` (`app/nodes/*`)
+- **Ubicación:** [jg_dashboard/app/Services/Agents/AgentHttpClient.php:53](jg_dashboard/app/Services/Agents/AgentHttpClient.php#L53)
+- **Descripción:** El cliente HTTP del Dashboard tiene configurado un timeout de 15 segundos por defecto. El agente implementa un ciclo de 9-10 nodos cognitivos donde cada invocación a LLMs (Gemini, Claude, Ollama) tarda entre 3 y 15 segundos. Cualquier flujo complejo tarda más de 15s, haciendo que el Dashboard corte la conexión con `504 Gateway Timeout`.
+- **Impacto:** Ejecuciones fantasmas huérfanas en el agente, tareas marcadas falsamente como `FAILED` en el Dashboard e inconsistencias de estado.
+- **Solución Propuesta:**
+  1. Elevar el timeout por defecto de peticiones síncronas a 120 segundos en `config/agent.php`.
+  2. Forzar que tareas multi-paso complejas se ejecuten siempre con `sync=false` (asíncrono) gestionadas por pooling o webhooks.","audit2, scope::global, component::dashboard, severity::critical","Auditoría 2","5"
+"[GLOBAL-04] Ausencia Total de Pruebas de Integración End-to-End Reales","- **Severidad:** 🟠 ALTO
+- **Componentes Afectados:** Suites de test de ambos repositorios
+- **Ubicación:** `jg_dashboard/tests/`, `jg_agente/tests/`
+- **Descripción:** A pesar de tener 611 tests unitarios combinados, todos los tests que prueban autenticación o comunicación inter-servicio utilizan mocks exhaustivos de Guzzle, HttpClient o TestClient. Ningún test valida el flujo completo: *Dashboard genera Token -> Agente se registra -> Dashboard persiste secreto -> Dashboard envía orden firmada -> Agente valida firma y ejecuta*.
+- **Impacto:** Fallos bloqueantes graves (como GLOBAL-01 y GLOBAL-02) pasaron 100% desapercibidos en las pruebas continuas.
+- **Solución Propuesta:** Implementar una suite de integración end-to-end (usando Docker Compose en CI/CD) que levante ambos servicios y valide el intercambio real de firmas y datos.","audit2, scope::global, component::dashboard, severity::high","Auditoría 2","3"
+"[GLOBAL-05] Falta de Propagación de Correlation-ID y Trazabilidad Distribuida","- **Severidad:** 🟡 MEDIO
+- **Componentes Afectados:** `jg_dashboard` (generación de header), `jg_agente` (middlewares y logger)
+- **Ubicación:** [jg_agente/app/main.py](jg_agente/app/main.py), [jg_agente/app/security/audit.py](jg_agente/app/security/audit.py)
+- **Descripción:** El Dashboard inyecta la cabecera `X-Correlation-ID` en sus peticiones HTTP, pero el Agente no la extrae ni la propaga al contexto de ejecución, a las trazas de `SecurityAuditLogger`, ni a los registros del checkpointer de LangGraph.
+- **Impacto:** Imposibilidad de realizar auditorías cruzadas entre una acción iniciada por un usuario en la interfaz web y los logs de bajo nivel en el agente.
+- **Solución Propuesta:** Implementar un middleware en FastAPI que capture `X-Correlation-ID` y lo inyecte en el contexto (`contextvars`) para incluirlo automáticamente en cada log y evento de auditoría.
+
+---
+
+## ISSUES DE SEGURIDAD (DASHBOARD)","audit2, scope::global, component::dashboard, severity::medium","Auditoría 2","2"
+"[DASH-SEC-01] JWT Secret con Fallback Hardcodeado Predecible en `JwtService.php`","- **Severidad:** 🔴 CRÍTICO
+- **CWE:** CWE-798 (Use of Hard-coded Credentials), CWE-1188 (Insecure Default Initialization of Resource)
+- **Ubicación:** [jg_dashboard/app/Services/Auth/JwtService.php:16-19](jg_dashboard/app/Services/Auth/JwtService.php#L16-L19)
+- **Evidencia:**
+  ```php
+  $resolvedSecret = $secret
+      ?? config('auth.jwt.secret')
+      ?? config('app.key')
+      ?? 'default_jg_dashboard_jwt_secret_32_bytes_long';
+  ```
+- **Descripción:** Si la variable `auth.jwt.secret` y la `APP_KEY` de Laravel no están definidas o configuradas, el servicio utiliza una clave fija conocida públicamente en el código fuente (`'default_jg_dashboard_jwt_secret_32_bytes_long'`).
+- **Impacto:** Cualquier atacante externo puede forjar tokens JWT válidos con rol `admin` (`""role"": ""admin""`), logrando acceso total al Control Plane, consola de comandos y aprobaciones HITL.
+- **Solución Propuesta:** Lanzar una excepción crítica en el constructor de `JwtService` si no se dispone de un secreto configurado no nulo, prohibiendo estrictamente valores fallback estáticos.","audit2, component::dashboard, type::security, severity::critical","Auditoría 2","5"
+"[DASH-SEC-02] Endpoint de Heartbeat sin Firma HMAC Transmite Secreto en Plaintext","- **Severidad:** 🟠 ALTO
+- **CWE:** CWE-319 (Cleartext Transmission of Sensitive Information)
+- **Ubicación:** 
+  - [jg_dashboard/routes/api.php:15](jg_dashboard/routes/api.php#L15)
+  - [jg_dashboard/app/Http/Controllers/Api/AgentHeartbeatController.php](jg_dashboard/app/Http/Controllers/Api/AgentHeartbeatController.php)
+- **Descripción:** El endpoint `POST /api/v1/agents/heartbeat` está excluido del middleware de autenticación HMAC. La autenticación se realiza enviando el `permanent_secret` en texto plano en la cabecera `X-Agent-Secret` o como Bearer token, el cual se hashea con SHA-256 en el controlador para buscar el agente.
+- **Impacto:** Exposición del secreto permanente en logs de proxies reversos, balanceadores o por ataques Man-In-The-Middle si no hay TLS forzado, permitiendo suplantar al agente en todas sus comunicaciones.
+- **Solución Propuesta:** Estandarizar la recepción de heartbeats bajo el mismo middleware de verificación de firma HMAC-SHA256 que rige para las ejecuciones.","audit2, component::dashboard, type::security, severity::high","Auditoría 2","3"
+"[DASH-SEC-03] Rutas API Duplicadas Fuera del Namespace Versionado `/v1`","- **Severidad:** 🟡 MEDIO
+- **CWE:** CWE-668 (Exposure of Resource to Wrong Sphere)
+- **Ubicación:** [jg_dashboard/routes/api.php:62-86](jg_dashboard/routes/api.php#L62-L86)
+- **Descripción:** Existe una definición duplicada de rutas en `routes/api.php` que expone los endpoints tanto bajo el prefijo canónico `/api/v1/` como directamente bajo `/api/` (ej. `/api/agents/register`, `/api/agents/heartbeat`, `/api/executions`).
+- **Impacto:** Aumento innecesario de la superficie de ataque; potenciales evasiones de políticas de WAF o reglas de limitación de tasa (rate limiting) que solo apliquen sobre `/api/v1/`.
+- **Solución Propuesta:** Eliminar la duplicación de rutas no versionadas y forzar que todas las llamadas se canalicen bajo `/api/v1/`.","audit2, component::dashboard, type::security, severity::medium","Auditoría 2","2"
+"[DASH-SEC-04] Ausencia de Verificación CSRF en Acciones HITL de Consola Web","- **Severidad:** 🟡 MEDIO
+- **CWE:** CWE-352 (Cross-Site Request Forgery)
+- **Ubicación:** [jg_dashboard/routes/web.php:29-33](jg_dashboard/routes/web.php#L29-L33)
+- **Descripción:** Las rutas `POST /console/approvals/{id}/approve` y `POST /console/approvals/{id}/reject` gestionadas por `WebConsoleController` requieren sesión autenticada pero carecen de verificación explícita de token CSRF (`@csrf` / `_token`) si las peticiones son invocadas directamente mediante AJAX o formularios externos.
+- **Impacto:** Un atacante que engañe a un operador autenticado con privilegios podría forzar la aprobación o rechazo de operaciones HITL críticas mediante una petición web dirigida.
+- **Solución Propuesta:** Asegurar que el middleware `VerifyCsrfToken` valide estrictamente las cabeceras `X-CSRF-TOKEN` en todos los métodos POST de la consola web.","audit2, component::dashboard, type::security, severity::medium","Auditoría 2","2"
+"[DASH-SEC-05] Resolución de Secretos en `AgentHttpClient` por Subcadena del Nombre de Agente","- **Severidad:** 🟢 BAJO
+- **Ubicación:** [jg_dashboard/app/Services/Agents/AgentHttpClient.php:77-91](jg_dashboard/app/Services/Agents/AgentHttpClient.php#L77-L91)
+- **Evidencia:**
+  ```php
+  if ($agent->agent_id === 'a0000000-0000-0000-0000-000000000002'
+      || $plugin === 'devops'
+      || str_contains($agentName, 'devops')) {
+      // Usar secreto DevOps
+  }
+  ```
+- **Descripción:** Si el UUID no coincide exactamente, el cliente infiere qué clave usar evaluando si el nombre del agente contiene la subcadena `""devops""` o `""conversacional""`.
+- **Impacto:** Si un agente se nombra `""test-devops-sandbox""`, hereda las credenciales de producción de DevOps, posibilitando colisiones de identidad y confusión de claves.
+- **Solución Propuesta:** Vincular el secreto estrictamente al registro del agente en base de datos mediante su `agent_id` o relación unívoca, sin heurísticas de nombres.
+
+---
+
+## ISSUES DE CALIDAD DE CÓDIGO, PROTOCOLO Y OPERACIONES (DASHBOARD)","audit2, component::dashboard, type::security, severity::low","Auditoría 2","1"
+"[DASH-CODE-01] Implementación Manual de Criptografía JWT sin Rotación ni Blacklist","- **Severidad:** 🟡 MEDIO
+- **Ubicación:** [jg_dashboard/app/Services/Auth/JwtService.php](jg_dashboard/app/Services/Auth/JwtService.php)
+- **Descripción:** El servicio reimplementa desde cero la codificación Base64URL, la firma HMAC-SHA256 y la validación de claims JWT en PHP puro, en lugar de utilizar bibliotecas estándar de la industria (`lcobucci/jwt` o `firebase/php-jwt`).
+- **Impacto:** La implementación carece de soporte para rotación de claves, no implementa identificador único de token (`jti`) para revocación inmediata y aumenta el riesgo de vulnerabilidades criptográficas en el futuro.
+- **Solución Propuesta:** Sustituir la implementación artesanal por `lcobucci/jwt` o Laravel Sanctum, e incorporar una lista de revocación de tokens en Redis o base de datos.","audit2, component::dashboard, type::quality, severity::medium","Auditoría 2","2"
+"[DASH-CODE-02] Dependencia Exclusiva de Polling sin Endpoints de Webhook para Tareas Asíncronas","- **Severidad:** 🟡 MEDIO
+- **Ubicación:** 
+  - [jg_dashboard/app/Http/Controllers/Api/ExecutionController.php](jg_dashboard/app/Http/Controllers/Api/ExecutionController.php)
+  - [jg_dashboard/routes/api.php](jg_dashboard/routes/api.php)
+- **Descripción:** Para tareas asíncronas (`sync=false`), el Dashboard no expone un endpoint de recepción de notificaciones (`callback` o `webhook`). Todo el seguimiento depende de que la consola web o un cron realice polling continuo sobre `GET /api/v1/executions/{id}`.
+- **Impacto:** Sobrecarga innecesaria de peticiones periódicas y retardo en la detección del fin de una ejecución o de una interrupción para aprobación HITL.
+- **Solución Propuesta:** Crear el endpoint `POST /api/v1/internal/executions/{id}/status-update` autenticado con HMAC para que el agente notifique cambios de estado y finalizaciones proactivamente.","audit2, component::dashboard, type::quality, severity::medium","Auditoría 2","2"
+"[DASH-CODE-03] Código Muerto Inseguro con Autenticación Inconsistente (`DevOps60kApiClient`)","- **Severidad:** 🟢 BAJO
+- **Ubicación:** [jg_dashboard/app/Services/DevOps60kApiClient.php:40-65](jg_dashboard/app/Services/DevOps60kApiClient.php#L40-L65)
+- **Descripción:** Permanece en el repositorio un cliente obsoleto de la versión previa (`devops60k`) que envía credenciales mediante la cabecera `X-API-Key` en lugar del protocolo HMAC estándar. No es invocado por ninguna ruta activa.
+- **Impacto:** Confusión arquitectónica, deuda técnica y riesgo de reintroducción de patrones de autenticación inseguros.
+- **Solución Propuesta:** Eliminar completamente el archivo `DevOps60kApiClient.php` y sus pruebas asociadas obsoletas.","audit2, component::dashboard, type::quality, severity::low","Auditoría 2","1"
+"[DASH-OPS-01] Incompatibilidad del Script `restart_services.sh` en Sistemas Linux","- **Severidad:** 🟢 BAJO
+- **Ubicación:** [restart_services.sh:58](restart_services.sh#L58)
+- **Descripción:** El script utiliza `sed -i '' ""s/.../.../""`, que es una sintaxis exclusiva de macOS (BSD sed). Al ejecutarse en servidores Linux (GNU sed), el comando falla inmediatamente con error de sintaxis y aborta el despliegue.
+- **Impacto:** Imposibilidad de ejecutar la automatización de despliegue en entornos CI/CD basados en Linux o servidores Debian/Ubuntu.
+- **Solución Propuesta:** Detectar el sistema operativo mediante `uname` o usar una función portable compatible entre GNU y BSD:
+  ```bash
+  if [[ ""$OSTYPE"" == ""darwin""* ]]; then
+      sed -i '' ""s/APP_KEY=.*/APP_KEY=$ESCAPED_KEY/"" jg_dashboard/.env
+  else
+      sed -i ""s/APP_KEY=.*/APP_KEY=$ESCAPED_KEY/"" jg_dashboard/.env
+  fi
+  ```","audit2, component::dashboard, type::infrastructure, severity::low","Auditoría 2","1"

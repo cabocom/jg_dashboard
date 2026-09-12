@@ -1,17 +1,14 @@
 # CONTEXTO DE PROYECTO: jg_dashboard
 
-**Versión del documento:** 3.24.0  
-**Fecha de consolidación:** 11 de septiembre de 2026  
+**Versión del documento:** 3.25.0  
+**Fecha de consolidación:** 12 de septiembre de 2026  
 **Componente:** Control Plane (Plano de Control, Gestión, Gobernanza y HITL)  
 **Stack Tecnológico:** Laravel 11, Filament PHP v3, Livewire 3, Tailwind CSS, PostgreSQL, Pest PHP  
-**Estado:** Fases 01 a 07 y Fase 09 completadas al 100%. Post-Auditoría Codex (DASH-001 a DASH-006) completada al 100%.  
+**Estado:** Fases 01 a 07 y Fase 09 completadas al 100%. Post-Auditoría 2 en curso.  
 - Soporte Multi-Agente: Orquestación y enrutamiento simultáneo de `jg_agente_conversacional` (puerto 8001) y `jg_agente_devops` (puerto 8002) mediante `AgentHttpClient` con firma canónica HMAC-SHA256 (`METHOD\nPATH\nTIMESTAMP\nSHA256(BODY)`).  
+- Post-Auditoría 2 (GLOBAL-01 / GitLab jg_dashboard#42): Erradicación total de secretos fallback hardcodeados en `AgentHttpClient.php`, `config/agent.php` y `docker-compose.yml`; interpolación obligatoria `${JG_CONVERSATIONAL_SECRET:?err}` y `${JG_DEVOPS_SECRET:?err}`; derivación dinámica de `permanent_secret_hash` en `DatabaseSeeder.php` desde configuración activa con validación previa estricta.  
 - Post-Auditoría Codex (GLOBAL-001 / ISSUE-DASH-002): Eliminación de la cabecera en texto plano `X-Control-Plane-Secret` y alineación estricta con el contrato de firma canónica y anti-replay del agente.  
 - Post-Auditoría Codex (GLOBAL-003 / ISSUE-DASH-003): Transaccionalidad, bloqueo pesimista `lockForUpdate` y control de concurrencia en HITL con estado `PROCESSING` y reconciliación automática ante fallos de red.  
-- Post-Auditoría Codex (ISSUE-DASH-001): Control de acceso RBAC estricto en la Consola Web (/console) mediante middlewares `role:admin` y `role:admin,operator`, eliminando de raíz fallbacks que instanciaban usuarios dummy (`operator.console@example.com`).  
-- Post-Auditoría Codex (ISSUE-DASH-004): Monitorización de salud basada en timestamp real del heartbeat (`isHealthy(90)`), garantizando que agentes con latido expirado figuren inmediatamente como `OFFLINE` y con contadores KPI precisos.  
-- Post-Auditoría Codex (ISSUE-DASH-005): Desacoplamiento total del cliente legacy `DevOps60kApiClient` (eliminación del singleton en `AppServiceProvider`) y migración completa de Filament (`AgentHealthWidget`, `TopologyMap`, `AgentTaskResource`) hacia `AgentHttpClient` y modelos Eloquent `Agent`.  
-- Post-Auditoría Codex (ISSUE-DASH-006): Endurecimiento de variables de despliegue en Compose con interpolación obligatoria para `APP_KEY`, `DB_PASSWORD` y `ADMIN_DEFAULT_PASSWORD`, desactivación de `APP_DEBUG` por defecto, eliminación de secretos hardcodeados en `config/agent.php` y comprobación activa de seguridad en `docker/entrypoint.sh`.  
 - Consola Web Unificada: `/console` operativa con panel reactivo de agentes, métricas de salud en tiempo real, gestión de aprobaciones HITL con visualización de planes de remediación y visor de ejecuciones en vivo.  
 - Aislamiento Total de Persistencia: PostgreSQL propio `jg_dashboard_postgres` (puerto 5434), sin acceso directo a la base de datos de los agentes (`jg_agente_postgres`:5433).  
 - Para detalles de deuda técnica y tareas pendientes, consulte [TODO-PENDIENTES.md](TODO-PENDIENTES.md).

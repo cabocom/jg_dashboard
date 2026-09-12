@@ -36,13 +36,25 @@ class DatabaseSeeder extends Seeder
         );
 
         // Seed Pre-provisioned Agents para la arquitectura multi-agente
+        $conversationalSecret = \Illuminate\Support\Facades\Config::get('agent.internal_secret')
+            ?: env('JG_CONVERSATIONAL_SECRET', env('JG_AGENTE_SECRET'));
+        if (empty($conversationalSecret)) {
+            throw new \RuntimeException("Seguridad (CWE-798): Variable obligatoria JG_CONVERSATIONAL_SECRET o JG_AGENTE_SECRET no configurada para DatabaseSeeder.");
+        }
+
+        $devopsSecret = \Illuminate\Support\Facades\Config::get('agent.devops_secret')
+            ?: env('JG_DEVOPS_SECRET', env('JG_DEVOPS_AGENT_SECRET', env('DEVOPS60K_SECRET')));
+        if (empty($devopsSecret)) {
+            throw new \RuntimeException("Seguridad (CWE-798): Variable obligatoria JG_DEVOPS_SECRET o JG_DEVOPS_AGENT_SECRET no configurada para DatabaseSeeder.");
+        }
+
         \App\Models\Agent::updateOrCreate(
             ['agent_id' => 'a0000000-0000-0000-0000-000000000001'],
             [
                 'name' => 'Agente Conversacional',
                 'version' => '0.1.0',
                 'status' => 'ACTIVE',
-                'permanent_secret_hash' => hash('sha256', 'sec_conversational_agent_preprovisioned_key_12345'),
+                'permanent_secret_hash' => hash('sha256', $conversationalSecret),
                 'metadata_json' => [
                     'api_url' => 'http://jg_agente_conversacional:8000',
                     'plugin' => 'conversational',
@@ -64,7 +76,7 @@ class DatabaseSeeder extends Seeder
                 'name' => 'Agente DevOps',
                 'version' => '0.1.0',
                 'status' => 'ACTIVE',
-                'permanent_secret_hash' => hash('sha256', 'sec_devops_agent_preprovisioned_key_12345'),
+                'permanent_secret_hash' => hash('sha256', $devopsSecret),
                 'metadata_json' => [
                     'api_url' => 'http://jg_agente_devops:8000',
                     'plugin' => 'devops',

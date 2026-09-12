@@ -80,10 +80,10 @@ class AgentHttpClient
 
             if ($agent->agent_id === 'a0000000-0000-0000-0000-000000000002' || $plugin === 'devops' || str_contains($agentName, 'devops')) {
                 $secret = Config::get('agent.devops_secret')
-                    ?: env('JG_DEVOPS_AGENT_SECRET', env('DEVOPS60K_SECRET', env('DEVOPS60K_API_KEY', 'sec_devops_agent_preprovisioned_key_12345')));
+                    ?: env('JG_DEVOPS_SECRET', env('JG_DEVOPS_AGENT_SECRET', env('DEVOPS60K_SECRET', env('DEVOPS60K_API_KEY'))));
             } elseif ($agent->agent_id === 'a0000000-0000-0000-0000-000000000001' || $plugin === 'conversational' || str_contains($agentName, 'conversacional')) {
                 $secret = Config::get('agent.internal_secret')
-                    ?: env('JG_AGENTE_SECRET', 'sec_conversational_agent_preprovisioned_key_12345');
+                    ?: env('JG_CONVERSATIONAL_SECRET', env('JG_AGENTE_SECRET'));
             } else {
                 $envKey = 'AGENT_SECRET_' . strtoupper(str_replace(['-', ' '], '_', $agent->agent_id));
                 $secret = env($envKey) ?: Config::get('agent.internal_secret');
@@ -116,10 +116,10 @@ class AgentHttpClient
         // Auto-adapt secret if not explicitly overridden
         if ($agentId === 'a0000000-0000-0000-0000-000000000002') {
             $this->internalSecret = Config::get('agent.devops_secret')
-                ?: env('JG_DEVOPS_AGENT_SECRET', env('DEVOPS60K_SECRET', env('DEVOPS60K_API_KEY', 'sec_devops_agent_preprovisioned_key_12345')));
+                ?: env('JG_DEVOPS_SECRET', env('JG_DEVOPS_AGENT_SECRET', env('DEVOPS60K_SECRET', env('DEVOPS60K_API_KEY'))));
         } elseif ($agentId === 'a0000000-0000-0000-0000-000000000001') {
             $this->internalSecret = Config::get('agent.internal_secret')
-                ?: env('JG_AGENTE_SECRET', 'sec_conversational_agent_preprovisioned_key_12345');
+                ?: env('JG_CONVERSATIONAL_SECRET', env('JG_AGENTE_SECRET'));
         } else {
             $envKey = 'AGENT_SECRET_' . strtoupper(str_replace(['-', ' '], '_', $agentId));
             $this->internalSecret = env($envKey) ?: Config::get('agent.internal_secret');

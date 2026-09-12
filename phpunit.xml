@@ -34,5 +34,8 @@
         <env name="JG_AGENTE_API_URL" value="http://127.0.0.1:8000"/>
         <env name="JG_AGENTE_API_KEY" value="test_admin_key"/>
         <env name="JG_AGENTE_SECRET" value="test_control_plane_secret"/>
+        <env name="JG_CONVERSATIONAL_SECRET" value="test_control_plane_secret"/>
+        <env name="JG_DEVOPS_SECRET" value="test_devops_secret"/>
+        <env name="JG_DEVOPS_AGENT_SECRET" value="test_devops_secret"/>
     </php>
 </phpunit>
