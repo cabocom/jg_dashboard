@@ -297,6 +297,13 @@
                     <textarea id="trigger-prompt" class="form-control" placeholder="Ej: Analiza los contenedores con reinicios recientes y reinicia el servicio Nginx de forma segura."></textarea>
                   </div>
 
+                  <div class="form-group" style="display: flex; align-items: center; gap: 8px; margin-top: -8px;">
+                    <input type="checkbox" id="trigger-async" style="cursor: pointer; width: 16px; height: 16px; accent-color: var(--color-primary);">
+                    <label for="trigger-async" style="cursor: pointer; font-size: 13px; color: var(--text-secondary); margin: 0; user-select: none;">
+                      Modo Asíncrono (Recomendado para tareas multi-paso o de alta latencia con polling automático)
+                    </label>
+                  </div>
+
                   <div style="display: flex; justify-content: flex-end;">
                     <button type="submit" id="btn-trigger-execution" class="btn btn-primary">
                       ▶ Disparar Ejecución en Agente

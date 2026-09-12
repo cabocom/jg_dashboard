@@ -264,6 +264,35 @@ test('handles network failure or unreachable agent with 502/503 and structured e
         ->assertJsonStructure(['error', 'message', 'execution_id', 'thread_id']);
 });
 
+test('handles connection timeout with 504 and registers AgentTask as FAILED', function () {
+    Http::fake([
+        'http://test-agent:8000/*' => function () {
+            throw new ConnectionException('cURL error 28: Operation timed out after 120000 milliseconds');
+        },
+    ]);
+
+    $response = $this->withHeader('Authorization', 'Bearer ' . $this->operatorToken)
+        ->postJson('/api/v1/executions/trigger', [
+            'prompt' => 'Tarea pesada que sufre timeout',
+            'agent_id' => $this->activeAgent->agent_id,
+        ]);
+
+    $response->assertStatus(504)
+        ->assertJson([
+            'error' => 'Agent Gateway Error',
+            'upstream_status' => 504,
+        ]);
+
+    $executionId = $response->json('execution_id');
+    expect($executionId)->not->toBeNull();
+
+    $task = \App\Models\AgentTask::where('task_id', $executionId)->first();
+    expect($task)->not->toBeNull();
+    expect($task->status)->toBe('FAILED');
+    expect($task->result_json['upstream_status'])->toBe(504);
+});
+
+
 test('root alias /api/executions/trigger functions identically', function () {
     Http::fake([
         'http://test-agent:8000/executions/trigger' => Http::response([

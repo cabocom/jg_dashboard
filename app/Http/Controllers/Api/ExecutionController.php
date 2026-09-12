@@ -127,6 +127,36 @@ class ExecutionController extends Controller
                 default => 502,
             };
 
+            try {
+                AgentTask::updateOrCreate(
+                    ['task_id' => $executionId],
+                    [
+                        'thread_id' => $threadId,
+                        'status' => 'FAILED',
+                        'payload_json' => [
+                            'agent_id' => $targetAgentId,
+                            'prompt' => $prompt,
+                            'user_prompt' => $prompt,
+                            'username' => $user?->name ?? 'operator',
+                            'user_context' => [
+                                'user_id' => $user?->id,
+                                'name' => $user?->name,
+                                'email' => $user?->email,
+                            ],
+                        ],
+                        'result_json' => [
+                            'error' => $response['error'] ?? 'Error al comunicar con jg_agente',
+                            'upstream_status' => $response['status_code'],
+                        ],
+                        'created_at' => now(),
+                        'started_at' => now(),
+                        'completed_at' => now(),
+                    ]
+                );
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("[ExecutionController] No se pudo registrar AgentTask fallida: " . $e->getMessage());
+            }
+
             return response()->json([
                 'error' => 'Agent Gateway Error',
                 'message' => $response['error'] ?? 'Error al comunicar con jg_agente',

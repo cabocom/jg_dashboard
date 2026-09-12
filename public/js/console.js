@@ -1080,6 +1080,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
+      const isAsync = document.getElementById('trigger-async')?.checked || false;
+
       const btnSubmit = document.getElementById('btn-trigger-execution') || document.querySelector('#form-trigger-execution button[type="submit"]');
       const originalBtnHtml = btnSubmit ? btnSubmit.innerHTML : '▶ Disparar Ejecución en Agente';
 
@@ -1087,25 +1089,39 @@ document.addEventListener('DOMContentLoaded', () => {
       this.state.isTriggeringExecution = true;
       if (btnSubmit) {
         btnSubmit.disabled = true;
-        btnSubmit.innerHTML = '<span class="spinner-icon"></span> Ejecutando en agente...';
+        btnSubmit.innerHTML = isAsync
+          ? '<span class="spinner-icon"></span> Encolando en agente...'
+          : '<span class="spinner-icon"></span> Ejecutando en agente...';
       }
 
       const resultBox = document.getElementById('execution-result-box');
       if (resultBox) {
-        resultBox.textContent = 'Enviando directiva AgentInput hacia el Control Plane y esperando resolución cognitiva...';
+        resultBox.textContent = isAsync
+          ? 'Enviando directiva AgentInput en modo asíncrono (sync=false) y encolando en background...'
+          : 'Enviando directiva AgentInput hacia el Control Plane y esperando resolución cognitiva...';
       }
 
       try {
+        const payload = { agent_id: agentId, prompt: prompt.trim() };
+        if (isAsync) {
+          payload.async = true;
+        }
+
         const res = await fetch('/console/executions/trigger', {
           method: 'POST',
           headers: { ...this.getAuthHeaders(), 'Content-Type': 'application/json' },
-          body: JSON.stringify({ agent_id: agentId, prompt: prompt.trim() }),
+          body: JSON.stringify(payload),
         });
 
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || data.error || 'Error al disparar ejecución');
 
-        this.showToast('Ejecución enviada exitosamente al agente', 'success');
+        if (isAsync || data.status === 'in_progress') {
+          this.showToast('Ejecución encolada en modo asíncrono (monitoreando vía polling)', 'info');
+        } else {
+          this.showToast('Ejecución enviada exitosamente al agente', 'success');
+        }
+
         if (resultBox) {
           resultBox.textContent = JSON.stringify(data, null, 2);
         }

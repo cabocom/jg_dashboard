@@ -19,7 +19,7 @@ return [
 
     'default_agent_id' => env('DEFAULT_AGENT_ID', env('AGENT_ID', 'a0000000-0000-0000-0000-000000000002')),
 
-    'timeout' => (int) env('AGENT_HTTP_TIMEOUT', 15),
+    'timeout' => (int) env('AGENT_HTTP_TIMEOUT', 120),
 
     'retry_times' => (int) env('AGENT_HTTP_RETRY_TIMES', 2),
 

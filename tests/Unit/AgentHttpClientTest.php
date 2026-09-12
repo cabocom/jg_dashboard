@@ -263,3 +263,14 @@ test('client automatically retries on 5xx errors and succeeds if second attempt 
     expect($result['success'])->toBeTrue();
     expect($result['status_code'])->toBe(200);
 });
+
+test('client uses 120s default timeout and supports withTimeout fluent modifier', function () {
+    // Cuando no hay config explícito o se usa el default de config/agent.php
+    Config::set('agent.timeout', null);
+    $defaultClient = new AgentHttpClient();
+    expect($defaultClient->getTimeout())->toBe(120);
+
+    // Fluent modifier withTimeout
+    $customClient = $defaultClient->withTimeout(90);
+    expect($customClient->getTimeout())->toBe(90);
+});

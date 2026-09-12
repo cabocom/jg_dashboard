@@ -50,7 +50,7 @@ class AgentHttpClient
             $this->internalSecret = Config::get('agent.devops_secret');
         }
 
-        $this->timeout = $timeout ?? (int) Config::get('agent.timeout', 15);
+        $this->timeout = $timeout ?? (int) (Config::get('agent.timeout') ?: 120);
         $this->retryTimes = $retryTimes ?? (int) Config::get('agent.retry_times', 2);
         $this->retrySleepMs = $retrySleepMs ?? (int) Config::get('agent.retry_sleep_ms', 200);
         $this->verifySsl = $verifySsl ?? (bool) Config::get('agent.verify_ssl', true);
@@ -145,6 +145,17 @@ class AgentHttpClient
     public function getAgentId(): ?string
     {
         return $this->agentId;
+    }
+
+    public function withTimeout(int $timeout): self
+    {
+        $this->timeout = $timeout;
+        return $this;
+    }
+
+    public function getTimeout(): int
+    {
+        return $this->timeout;
     }
 
     /**
