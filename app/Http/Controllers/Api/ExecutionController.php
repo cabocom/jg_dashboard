@@ -322,6 +322,51 @@ class ExecutionController extends Controller
         $data = $response['data'] ?? [];
         $localApproval = ApprovalRequest::with('resolver')->where('thread_id', $threadId)->latest()->first();
 
+        // Sincronizar / actualizar el registro local en agent_tasks si existe
+        try {
+            $agentStatus = strtolower($data['status'] ?? '');
+            $taskStatus = match ($agentStatus) {
+                'completed', 'success', 'resolved' => 'COMPLETED',
+                'waiting_approval', 'awaiting_approval' => 'WAITING_APPROVAL',
+                'in_progress', 'observing', 'reasoning', 'planning', 'executing', 'verifying', 'diagnosing', 'rolling_back', 'idle' => 'PROCESSING',
+                'failed', 'error' => 'FAILED',
+                'cancelled', 'timeout' => 'CANCELLED',
+                default => null,
+            };
+
+            if ($taskStatus) {
+                $task = AgentTask::where('thread_id', $threadId)
+                    ->orWhere('task_id', $data['execution_id'] ?? $threadId)
+                    ->latest()
+                    ->first();
+
+                if ($task) {
+                    $updates = ['status' => $taskStatus];
+                    if (in_array($taskStatus, ['COMPLETED', 'FAILED', 'CANCELLED'])) {
+                        if (!$task->completed_at) {
+                            $updates['completed_at'] = !empty($data['completed_at'])
+                                ? \Carbon\Carbon::parse($data['completed_at'])
+                                : now();
+                        }
+                        if ($task->started_at && !$task->duration) {
+                            $endTime = $updates['completed_at'] ?? now();
+                            $updates['duration'] = round($endTime->diffInMilliseconds($task->started_at) / 1000, 2);
+                        }
+                    }
+                    if (!empty($data['output']) || !empty($data['response']) || !empty($data['final_output'])) {
+                        $currentResult = $task->result_json ?? [];
+                        $updates['result_json'] = array_merge(
+                            is_array($currentResult) ? $currentResult : [],
+                            $data
+                        );
+                    }
+                    $task->update($updates);
+                }
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("[ExecutionController@show] Error sincronizando AgentTask: " . $e->getMessage());
+        }
+
         $unified = [
             'agent_id' => $agentId,
             'agent_name' => $agent->name,

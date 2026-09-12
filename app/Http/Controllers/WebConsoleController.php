@@ -308,7 +308,46 @@ class WebConsoleController extends Controller
             ->limit($limit)
             ->get();
 
-        $agentMap = Agent::all(['agent_id', 'name'])->keyBy('agent_id');
+        $agentMap = Agent::all()->keyBy('agent_id');
+
+        // Sincronizar proactivamente ejecuciones que sigan en estado PROCESSING o QUEUED
+        $pendingTasks = $tasks->filter(fn (AgentTask $t) => in_array($t->status, ['PROCESSING', 'QUEUED']));
+        foreach ($pendingTasks as $pendingTask) {
+            try {
+                $agent = $pendingTask->agent_id ? $agentMap->get($pendingTask->agent_id) : null;
+                if ($agent && !$agent->isPending()) {
+                    $client = \App\Services\Agents\AgentHttpClient::forAgent($agent);
+                    $threadId = $pendingTask->thread_id ?: $pendingTask->task_id;
+                    $statusRes = $client->getExecutionStatus($threadId);
+                    if ($statusRes['success'] && !empty($statusRes['data'])) {
+                        $remoteData = $statusRes['data'];
+                        $remoteStatus = strtolower($remoteData['status'] ?? '');
+                        $syncedStatus = match ($remoteStatus) {
+                            'completed', 'success', 'resolved' => 'COMPLETED',
+                            'waiting_approval', 'awaiting_approval' => 'WAITING_APPROVAL',
+                            'failed', 'error' => 'FAILED',
+                            'cancelled', 'timeout' => 'CANCELLED',
+                            default => null,
+                        };
+                        if ($syncedStatus && $syncedStatus !== $pendingTask->status) {
+                            $pendingTask->update([
+                                'status' => $syncedStatus,
+                                'completed_at' => !empty($remoteData['completed_at'])
+                                    ? \Carbon\Carbon::parse($remoteData['completed_at'])
+                                    : now(),
+                                'result_json' => array_merge(
+                                    is_array($pendingTask->result_json) ? $pendingTask->result_json : [],
+                                    $remoteData
+                                ),
+                            ]);
+                            $pendingTask->status = $syncedStatus;
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Silencioso para garantizar resiliencia en listados
+            }
+        }
 
         $items = $tasks->map(function (AgentTask $task) use ($agentMap) {
             $prompt = $task->prompt;

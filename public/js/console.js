@@ -1133,7 +1133,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const threadId = data.thread_id || data.execution_id;
         if (threadId) {
           this.addRecentExecution(agentId, threadId);
-          this.loadExecutionTrace(agentId, threadId);
+          await this.loadExecutionTrace(agentId, threadId);
         }
 
         this.fetchApprovals();
@@ -1218,10 +1218,22 @@ document.addEventListener('DOMContentLoaded', () => {
         this.state.currentExecution = data;
         this.renderExecutionDetail(data);
 
-        if (data.status === 'in_progress') {
+        const resultBox = document.getElementById('execution-result-box');
+        if (resultBox) {
+          resultBox.textContent = JSON.stringify(data, null, 2);
+        }
+
+        const s = String(data.status || '').toLowerCase();
+        const isTerminal = ['completed', 'success', 'resolved', 'failed', 'error', 'cancelled', 'timeout'].includes(s);
+        const isWaiting = ['waiting_approval', 'awaiting_approval'].includes(s);
+
+        if (!isTerminal && !isWaiting) {
           this.state.executionPollingInterval = setInterval(() => {
             this.pollExecution(agentId, threadId);
-          }, 3000);
+          }, 2000);
+        } else {
+          this.fetchExecutions();
+          this.fetchApprovals();
         }
       } catch (err) {
         this.showToast(`Error al consultar ejecución: ${err.message}`, 'error');
@@ -1244,10 +1256,26 @@ document.addEventListener('DOMContentLoaded', () => {
         this.state.currentExecution = data;
         this.renderExecutionDetail(data);
 
-        if (data.status !== 'in_progress') {
+        const resultBox = document.getElementById('execution-result-box');
+        if (resultBox) {
+          resultBox.textContent = JSON.stringify(data, null, 2);
+        }
+
+        const s = String(data.status || '').toLowerCase();
+        const isTerminal = ['completed', 'success', 'resolved', 'failed', 'error', 'cancelled', 'timeout'].includes(s);
+        const isWaiting = ['waiting_approval', 'awaiting_approval'].includes(s);
+
+        if (isTerminal || isWaiting) {
           clearInterval(this.state.executionPollingInterval);
           this.state.executionPollingInterval = null;
-          this.showToast(`Ejecución finalizada: ${data.status}`, 'info');
+          if (isWaiting) {
+            this.showToast('La ejecución requiere aprobación humana (HITL)', 'warning');
+          } else {
+            const isErr = s.includes('fail') || s.includes('error') || s.includes('cancel');
+            this.showToast(`Ejecución finalizada: ${String(data.status).toUpperCase()}`, isErr ? 'error' : 'success');
+          }
+          this.fetchExecutions();
+          this.fetchApprovals();
         }
       } catch {
         // Silent polling error
@@ -1257,13 +1285,14 @@ document.addEventListener('DOMContentLoaded', () => {
     renderExecutionDetail(data) {
       if (!data) return;
 
+      const s = String(data.status || '').toLowerCase();
+      const isCompleted = ['completed', 'success', 'resolved'].includes(s);
+      const isWaiting = ['waiting_approval', 'awaiting_approval'].includes(s);
+      const isFailed = ['failed', 'error', 'timeout'].includes(s);
+      const isProgress = !isCompleted && !isWaiting && !isFailed && s !== '';
+
       const statusBadge = document.getElementById('exec-status-badge');
       if (statusBadge) {
-        const isProgress = data.status === 'in_progress';
-        const isCompleted = data.status === 'completed' || data.status === 'success';
-        const isWaiting = data.status === 'waiting_approval';
-        const isFailed = data.status === 'failed' || data.status === 'error';
-
         statusBadge.className = 'badge ' + (
           isCompleted ? 'badge-active' :
           isProgress ? 'badge-active' :
@@ -1344,8 +1373,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const outputBox = document.getElementById('execution-output-box');
       if (outputBox) {
         const out = data.output || data.response || data.final_output || data.data?.output || data.data?.response;
-        if (out !== undefined && out !== null) {
+        if (out !== undefined && out !== null && String(out).trim() !== '' && String(out).trim() !== 'null') {
           outputBox.textContent = typeof out === 'string' ? out : JSON.stringify(out, null, 2);
+        } else if (isProgress) {
+          outputBox.textContent = `⏳ Ejecución en curso en el agente [Fase: ${(data.status || 'PROCESANDO').toUpperCase()}]...`;
         } else {
           outputBox.textContent = JSON.stringify(data, null, 2);
         }
