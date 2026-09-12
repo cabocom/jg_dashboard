@@ -85,7 +85,9 @@ class ExecutionController extends Controller
                 'username' => $user->name ?? $user->email,
                 'email' => $user->email,
                 'role' => $user->role,
-                'permissions' => method_exists($user, 'getPermissions') ? $user->getPermissions() : [],
+                'permissions' => method_exists($user, 'getPermissions')
+                    ? $user->getPermissions()
+                    : ($user->role === 'admin' ? ['*', 'docker:restart', 'docker:inspect', 'docker:list', 'admin'] : []),
             ],
             'metadata' => (object) array_merge((array) ($validated['metadata'] ?? []), [
                 'triggered_by' => $user->email,
@@ -167,7 +169,7 @@ class ExecutionController extends Controller
             'status' => $responseData['status'] ?? ($isAsync ? 'in_progress' : 'completed'),
             'requires_approval' => $requiresApproval,
             'pending_approval_id' => $responseData['pending_approval_id'] ?? null,
-            'output' => $responseData['final_output'] ?? $responseData['output'] ?? null,
+            'output' => $responseData['final_output'] ?? $responseData['output'] ?? $responseData['response'] ?? null,
             'steps' => $cognitiveSteps,
             'cognitive_steps' => $cognitiveSteps,
             'data' => $responseData,

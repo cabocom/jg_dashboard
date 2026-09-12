@@ -1109,24 +1109,39 @@ document.addEventListener('DOMContentLoaded', () => {
               if (isError) {
                 badgeClass = 'error';
                 badgeIcon = '✕';
+              } else if (s.status === 'waiting_approval') {
+                badgeClass = 'waiting-approval';
+                badgeIcon = '⏸️';
               } else if (isInProgress) {
                 badgeClass = 'in-progress';
                 badgeIcon = '⏳';
+              } else if (node === 'observe') {
+                badgeClass = 'node-observe';
+                badgeIcon = '👁️';
               } else if (node === 'reason') {
                 badgeClass = 'node-reason';
                 badgeIcon = '🧠';
-              } else if (node === 'security_eval') {
-                badgeClass = 'node-security_eval';
-                badgeIcon = '🛡️';
-              } else if (node === 'execute') {
-                badgeClass = 'node-execute';
-                badgeIcon = '⚡';
-              } else if (node === 'conclude') {
-                badgeClass = 'node-conclude';
-                badgeIcon = '📝';
               } else if (node === 'plan') {
                 badgeClass = 'node-plan';
                 badgeIcon = '📋';
+              } else if (node === 'risk_assess' || node === 'security_eval') {
+                badgeClass = 'node-security_eval';
+                badgeIcon = '🛡️';
+              } else if (node === 'human_approval') {
+                badgeClass = 'node-approval';
+                badgeIcon = '🛑';
+              } else if (node === 'execute') {
+                badgeClass = 'node-execute';
+                badgeIcon = '⚡';
+              } else if (node === 'verify') {
+                badgeClass = 'node-verify';
+                badgeIcon = '🔬';
+              } else if (node === 'rollback') {
+                badgeClass = 'node-rollback';
+                badgeIcon = '⏪';
+              } else if (node === 'conclude') {
+                badgeClass = 'node-conclude';
+                badgeIcon = '📝';
               } else {
                 badgeIcon = (idx + 1).toString();
               }
@@ -1203,14 +1218,39 @@ document.addEventListener('DOMContentLoaded', () => {
                   `;
                 }
 
+                // Plan Steps section
+                if (det.steps && Array.isArray(det.steps) && det.steps.length > 0) {
+                  detailsSections += `
+                    <div class="step-details-section">
+                      <div class="step-details-section-title">Desglose de Pasos Planificados (${det.steps.length})</div>
+                      <div style="background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.06); padding: 8px 12px; border-radius: 4px; font-family: var(--font-mono); font-size: 12px; color: var(--accent-cyan); white-space: pre-wrap;">
+${this.escapeHtml(det.steps.map((st, i) => `${i + 1}. [${st.tool_name || st.name || 'tool'}] - ${st.description || 'Paso ' + (i + 1)} (Riesgo: ${String(st.risk_level || 'LOW').toUpperCase()})`).join('\n'))}
+                      </div>
+                    </div>
+                  `;
+                }
+
+                // Observer Snapshot Summary
+                if (det.snapshot_summary && Object.keys(det.snapshot_summary).length > 0) {
+                  detailsSections += `
+                    <div class="step-details-section">
+                      <div class="step-details-section-title">Telemetría y Recursos Detectados</div>
+                      <div style="background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.06); padding: 8px 12px; border-radius: 4px; font-family: var(--font-mono); font-size: 12px; color: var(--accent-cyan); white-space: pre-wrap;">${this.escapeHtml(JSON.stringify(det.snapshot_summary, null, 2))}</div>
+                    </div>
+                  `;
+                }
+
                 // Security Policy breakdown
                 if (det.risk_level || det.decision || det.bypass_approval !== undefined) {
+                  const decisionStr = String(det.decision || 'ALLOW').toUpperCase();
+                  const isAllow = decisionStr === 'ALLOW';
+                  const decClass = isAllow ? 'trace-pill-allow' : 'trace-pill-risk-high';
                   detailsSections += `
                     <div class="step-details-section">
                       <div class="step-details-section-title">Evaluación de Gobernanza (SecurityGuard)</div>
                       <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                         <span class="trace-pill ${det.risk_level === 'low' ? 'trace-pill-risk-low' : 'trace-pill-risk-high'}">Riesgo: ${this.escapeHtml(String(det.risk_level || 'N/A').toUpperCase())}</span>
-                        <span class="trace-pill trace-pill-allow">Decisión: ${this.escapeHtml(String(det.decision || 'ALLOW').toUpperCase())}</span>
+                        <span class="trace-pill ${decClass}">Decisión: ${this.escapeHtml(decisionStr)}</span>
                         ${det.bypass_approval !== undefined ? `<span class="trace-pill trace-pill-node">Bypass: ${det.bypass_approval ? 'SÍ' : 'NO'}</span>` : ''}
                         ${det.reversible !== undefined ? `<span class="trace-pill trace-pill-node">Reversible: ${det.reversible ? 'SÍ' : 'NO'}</span>` : ''}
                       </div>

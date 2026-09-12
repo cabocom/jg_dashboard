@@ -61,6 +61,32 @@ class AgentHttpClient
             $instance->baseUrl = rtrim($agent->metadata_json['api_url'], '/');
         }
 
+        // Resolver el secreto específico del agente para la firma criptográfica HMAC
+        $secret = null;
+        if (is_array($agent->metadata_json)) {
+            $secret = $agent->metadata_json['secret'] ?? $agent->metadata_json['internal_secret'] ?? null;
+        }
+
+        if (!$secret) {
+            $plugin = is_array($agent->metadata_json) ? ($agent->metadata_json['plugin'] ?? '') : '';
+            $agentName = strtolower($agent->name ?? '');
+
+            if ($agent->agent_id === 'a0000000-0000-0000-0000-000000000002' || $plugin === 'devops' || str_contains($agentName, 'devops')) {
+                $secret = Config::get('agent.devops_secret')
+                    ?: env('JG_DEVOPS_AGENT_SECRET', env('DEVOPS60K_SECRET', env('DEVOPS60K_API_KEY', 'sec_devops_agent_preprovisioned_key_12345')));
+            } elseif ($agent->agent_id === 'a0000000-0000-0000-0000-000000000001' || $plugin === 'conversational' || str_contains($agentName, 'conversacional')) {
+                $secret = Config::get('agent.internal_secret')
+                    ?: env('JG_AGENTE_SECRET', 'sec_conversational_agent_preprovisioned_key_12345');
+            } else {
+                $envKey = 'AGENT_SECRET_' . strtoupper(str_replace(['-', ' '], '_', $agent->agent_id));
+                $secret = env($envKey) ?: Config::get('agent.internal_secret');
+            }
+        }
+
+        if (!empty($secret)) {
+            $instance->internalSecret = $secret;
+        }
+
         return $instance;
     }
 

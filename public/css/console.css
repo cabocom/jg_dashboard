@@ -1424,10 +1424,22 @@ textarea.form-control {
 }
 
 /* Cognitive Steps & Theming */
+.trace-node-badge.node-observe {
+  border-color: #06b6d4;
+  color: #06b6d4;
+  background: rgba(6, 182, 212, 0.15);
+}
+
 .trace-node-badge.node-reason {
   border-color: #818cf8;
   color: #818cf8;
   background: rgba(99, 102, 241, 0.15);
+}
+
+.trace-node-badge.node-plan {
+  border-color: #a78bfa;
+  color: #a78bfa;
+  background: rgba(139, 92, 246, 0.15);
 }
 
 .trace-node-badge.node-security_eval {
@@ -1436,22 +1448,41 @@ textarea.form-control {
   background: rgba(245, 158, 11, 0.15);
 }
 
+.trace-node-badge.node-approval {
+  border-color: #f43f5e;
+  color: #f43f5e;
+  background: rgba(244, 63, 94, 0.15);
+}
+
+.trace-node-badge.waiting-approval {
+  border-color: #f59e0b;
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.2);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.35);
+}
+
 .trace-node-badge.node-execute {
   border-color: #38bdf8;
   color: #38bdf8;
   background: rgba(14, 165, 233, 0.15);
 }
 
+.trace-node-badge.node-verify {
+  border-color: #10b981;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.15);
+}
+
+.trace-node-badge.node-rollback {
+  border-color: #f59e0b;
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.15);
+}
+
 .trace-node-badge.node-conclude {
   border-color: #34d399;
   color: #34d399;
   background: rgba(16, 185, 129, 0.15);
-}
-
-.trace-node-badge.node-plan {
-  border-color: #a78bfa;
-  color: #a78bfa;
-  background: rgba(139, 92, 246, 0.15);
 }
 
 .trace-step-desc {
