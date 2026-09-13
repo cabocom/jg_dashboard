@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AgentTask extends Model
 {
@@ -111,6 +112,18 @@ class AgentTask extends Model
     }
 
     /**
+     * Helper to retrieve user / username from payload or user_context.
+     */
+    public function getUserNameAttribute(): ?string
+    {
+        $payload = $this->payload_json ?? [];
+        return $payload['username']
+            ?? $payload['user_context']['name']
+            ?? $payload['user_context']['email']
+            ?? null;
+    }
+
+    /**
      * Helper to retrieve agent_id from payload.
      */
     public function getAgentIdAttribute(): ?string
@@ -142,5 +155,13 @@ class AgentTask extends Model
             }
         }
         $this->attributes['payload_json'] = json_encode($payload);
+    }
+
+    /**
+     * Agente asociado a esta ejecución.
+     */
+    public function agent(): BelongsTo
+    {
+        return $this->belongsTo(Agent::class, 'agent_id', 'agent_id');
     }
 }

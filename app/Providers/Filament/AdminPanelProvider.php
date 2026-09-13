@@ -28,6 +28,7 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
+            ->profile()
             ->brandName('jG Control Plane')
             ->brandLogoHeight('2rem')
             ->navigationGroups([

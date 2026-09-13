@@ -38,8 +38,9 @@ class WebConsoleController extends Controller
     public function listAgents(Request $request): JsonResponse
     {
         $agents = Agent::orderBy('created_at', 'desc')->get();
+        $taskCounts = AgentTask::all()->groupBy('agent_id')->map->count();
 
-        $items = $agents->map(function (Agent $agent) {
+        $items = $agents->map(function (Agent $agent) use ($taskCounts) {
             $metrics = $agent->metrics_json ?? [];
             $capabilities = $agent->capabilities_json ?? [];
             $isHealthy = $agent->status === 'ACTIVE' && $agent->isHealthy(90);
@@ -50,7 +51,9 @@ class WebConsoleController extends Controller
                 'name' => $agent->name,
                 'status' => $effectiveStatus,
                 'version' => $agent->version,
+                'type' => $agent->type,
                 'is_healthy' => $isHealthy,
+                'executions_count' => $taskCounts->get($agent->agent_id, 0),
                 'last_heartbeat_at' => $agent->last_heartbeat_at?->toIso8601String(),
                 'capabilities' => $capabilities,
                 'capabilities_json' => $capabilities,
@@ -298,17 +301,62 @@ class WebConsoleController extends Controller
     }
 
     /**
-     * List recent executions for the web console with truncated prompt, date, and status.
+     * List recent executions for the web console with truncated prompt, date, agent type, and status.
      */
     public function listExecutions(Request $request): JsonResponse
     {
-        $limit = min((int) $request->query('limit', 20), 50);
-
-        $tasks = AgentTask::orderBy('created_at', 'desc')
-            ->limit($limit)
-            ->get();
+        $limit = min((int) $request->query('limit', 50), 100);
+        $agentTypeFilter = $request->query('agent_type');
+        $statusFilter = $request->query('status');
+        $agentIdFilter = $request->query('agent_id');
+        $dateFrom = $request->query('date_from');
+        $dateTo = $request->query('date_to');
+        $sortBy = $request->query('sort_by', 'created_at');
+        $sortOrder = strtolower($request->query('sort_order', 'desc')) === 'asc' ? 'asc' : 'desc';
 
         $agentMap = Agent::all()->keyBy('agent_id');
+
+        $query = AgentTask::query();
+
+        if ($dateFrom) {
+            try {
+                $normalizedFrom = preg_replace('/(\d{2}:\d{2}:\d{2})\s+(\d{2}:\d{2})$/', '$1+$2', trim($dateFrom));
+                $query->where('created_at', '>=', \Carbon\Carbon::parse($normalizedFrom));
+            } catch (\Throwable $e) {}
+        }
+
+        if ($dateTo) {
+            try {
+                $normalizedTo = preg_replace('/(\d{2}:\d{2}:\d{2})\s+(\d{2}:\d{2})$/', '$1+$2', trim($dateTo));
+                $query->where('created_at', '<=', \Carbon\Carbon::parse($normalizedTo));
+            } catch (\Throwable $e) {}
+        }
+
+        if (in_array($sortBy, ['created_at', 'status'])) {
+            $query->orderBy($sortBy, $sortOrder);
+        } else {
+            $query->orderBy('created_at', 'desc');
+        }
+
+        if ($agentIdFilter && $agentIdFilter !== 'ALL') {
+            $query->where('payload_json->agent_id', $agentIdFilter);
+        }
+
+        if ($statusFilter && $statusFilter !== 'ALL') {
+            $query->where('status', strtoupper($statusFilter));
+        }
+
+        if ($agentTypeFilter && $agentTypeFilter !== 'ALL') {
+            $matchingAgentIds = $agentMap->filter(function (Agent $agent) use ($agentTypeFilter) {
+                return strcasecmp($agent->type, $agentTypeFilter) === 0;
+            })->keys()->all();
+
+            $query->where(function ($q) use ($matchingAgentIds) {
+                $q->whereIn('payload_json->agent_id', $matchingAgentIds);
+            });
+        }
+
+        $tasks = $query->limit($limit)->get();
 
         // Sincronizar proactivamente ejecuciones que sigan en estado PROCESSING o QUEUED
         $pendingTasks = $tasks->filter(fn (AgentTask $t) => in_array($t->status, ['PROCESSING', 'QUEUED']));
@@ -355,12 +403,16 @@ class WebConsoleController extends Controller
             $agentId = $task->agent_id;
             $agent = $agentId ? $agentMap->get($agentId) : null;
             $agentName = $agent?->name ?? $agentId ?? 'Agente Desconocido';
+            $agentType = $agent?->type ?? 'General';
+            $userName = $task->user_name ?? 'Sistema';
 
             return [
                 'task_id' => $task->task_id,
                 'thread_id' => $task->thread_id,
                 'agent_id' => $agentId,
                 'agent_name' => $agentName,
+                'agent_type' => $agentType,
+                'user' => $userName,
                 'status' => $task->status,
                 'prompt' => $prompt,
                 'prompt_truncated' => $promptTruncated,
@@ -375,6 +427,82 @@ class WebConsoleController extends Controller
         return response()->json([
             'executions' => $items,
             'total' => $items->count(),
+        ], 200);
+    }
+
+    /**
+     * Get current authenticated user profile for the web console.
+     */
+    public function getProfile(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['error' => 'Unauthenticated', 'message' => 'No autenticado.'], 401);
+        }
+
+        return response()->json([
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+                'created_at' => $user->created_at?->toIso8601String(),
+            ],
+        ], 200);
+    }
+
+    /**
+     * Update current authenticated user profile and password.
+     */
+    public function updateProfile(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['error' => 'Unauthenticated', 'message' => 'No autenticado.'], 401);
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                \Illuminate\Validation\Rule::unique('users')->ignore($user->id),
+            ],
+            'current_password' => 'nullable|string',
+            'new_password' => 'nullable|string|min:8|confirmed',
+        ], [
+            'name.required' => 'El nombre es obligatorio.',
+            'email.required' => 'El correo electrónico es obligatorio.',
+            'email.email' => 'El formato del correo electrónico no es válido.',
+            'email.unique' => 'Este correo electrónico ya está registrado por otro usuario.',
+            'new_password.min' => 'La nueva contraseña debe contener al menos 8 caracteres.',
+            'new_password.confirmed' => 'La confirmación de la nueva contraseña no coincide.',
+        ]);
+
+        if (!empty($validated['new_password'])) {
+            if (empty($validated['current_password']) || !\Illuminate\Support\Facades\Hash::check($validated['current_password'], $user->password)) {
+                return response()->json([
+                    'error' => 'InvalidCurrentPassword',
+                    'message' => 'La contraseña actual no es válida o no coincide.',
+                ], 422);
+            }
+            $user->password = \Illuminate\Support\Facades\Hash::make($validated['new_password']);
+        }
+
+        $user->name = $validated['name'];
+        $user->email = $validated['email'];
+        $user->save();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Perfil y credenciales actualizados correctamente.',
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+            ],
         ], 200);
     }
 }

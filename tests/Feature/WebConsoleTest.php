@@ -100,3 +100,24 @@ test('root URL GET / continues to redirect to /admin preserving Filament panel p
 
     $response->assertRedirect('/admin');
 });
+
+test('Ir al admin button is only displayed for admin users', function () {
+    // Non-admin user (operator)
+    $responseOperator = $this->actingAs($this->user)->get('/console');
+    $responseOperator->assertStatus(200)
+        ->assertDontSee('id="btn-goto-admin"', false)
+        ->assertDontSee('Ir al admin', false);
+
+    // Admin user
+    $admin = User::create([
+        'name' => 'Admin Boss',
+        'email' => 'admin-boss@devops60k.local',
+        'password' => Hash::make('password123'),
+        'role' => 'admin',
+    ]);
+
+    $responseAdmin = $this->actingAs($admin)->get('/console');
+    $responseAdmin->assertStatus(200)
+        ->assertSee('id="btn-goto-admin"', false)
+        ->assertSee('Ir al admin', false);
+});

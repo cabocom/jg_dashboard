@@ -39,6 +39,10 @@ class Agent extends Model
         'permanent_secret_encrypted',
     ];
 
+    protected $appends = [
+        'type',
+    ];
+
     /**
      * Get the attributes that should be cast.
      *
@@ -235,5 +239,43 @@ class Agent extends Model
     public function auditEvents(): HasMany
     {
         return $this->hasMany(AuditEvent::class, 'agent_id', 'agent_id');
+    }
+
+    /**
+     * Resuelve deterministamente la tipología del agente (DevOps, Conversacional, etc.).
+     */
+    public function getTypeAttribute(): string
+    {
+        if (!empty($this->metadata_json['type'])) {
+            return (string) $this->metadata_json['type'];
+        }
+        if (!empty($this->metadata_json['agent_type'])) {
+            return (string) $this->metadata_json['agent_type'];
+        }
+        if (!empty($this->metadata_json['plugin'])) {
+            $plugin = strtolower((string) $this->metadata_json['plugin']);
+            if (str_contains($plugin, 'devops')) {
+                return 'DevOps';
+            }
+            if (str_contains($plugin, 'conversational') || str_contains($plugin, 'chat')) {
+                return 'Conversacional';
+            }
+            return ucfirst($plugin);
+        }
+        if (stripos($this->name, 'devops') !== false) {
+            return 'DevOps';
+        }
+        if (stripos($this->name, 'conversacional') !== false || stripos($this->name, 'chat') !== false) {
+            return 'Conversacional';
+        }
+        return 'General';
+    }
+
+    /**
+     * Tareas y ejecuciones asociadas a este agente.
+     */
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(AgentTask::class, 'agent_id', 'agent_id');
     }
 }
