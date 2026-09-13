@@ -9,9 +9,10 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 
 beforeEach(function () {
+    Http::fake();
     Config::set('agent.base_url', 'http://test-agent:8000');
     Config::set('agent.internal_secret', 'internal_secret_test');
-    Config::set('agent.timeout', 5);
+    Config::set('agent.timeout', 2);
     Config::set('agent.retry_times', 0);
 
     $this->operatorUser = User::create([
