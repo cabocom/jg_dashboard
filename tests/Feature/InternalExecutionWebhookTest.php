@@ -146,20 +146,13 @@ test('POST /api/v1/internal/executions/{id}/complete registers HITL approval whe
         ->and($approval->risk_level)->toBe('HIGH');
 });
 
-test('fallback route /api/internal/executions/{id}/complete functions identically', function () {
-    $response = $this->withHeaders([
+test('unversioned route /api/internal/executions/{id}/complete returns 404 not found (CWE-668)', function () {
+    $this->withHeaders([
         'X-Agent-ID' => $this->agent->agent_id,
         'Authorization' => "Bearer {$this->plainSecret}",
     ])->postJson("/api/internal/executions/{$this->executionId}/complete", [
         'execution_id' => $this->executionId,
         'thread_id' => $this->threadId,
         'status' => 'completed',
-        'response' => 'Finalizado vía ruta fallback.',
-    ]);
-
-    $response->assertStatus(200)
-        ->assertJson([
-            'status' => 'success',
-            'task_status' => 'COMPLETED',
-        ]);
+    ])->assertStatus(404);
 });

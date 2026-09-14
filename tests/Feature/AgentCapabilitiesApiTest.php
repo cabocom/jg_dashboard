@@ -166,21 +166,8 @@ test('handles network failure or unreachable agent with 502/503 and structured e
         ]);
 });
 
-test('root alias /api/agents/{agent_id}/capabilities functions identically', function () {
-    Http::fake([
-        'http://test-agent:8000/capabilities' => Http::response([
-            'tools' => ['AliasTool'],
-        ], 200),
-    ]);
-
-    $response = $this->withHeader('Authorization', 'Bearer ' . $this->operatorToken)
-        ->getJson("/api/agents/{$this->activeAgent->agent_id}/capabilities");
-
-    $response->assertStatus(200)
-        ->assertJson([
-            'agent_id' => $this->activeAgent->agent_id,
-            'capabilities' => [
-                'tools' => ['AliasTool'],
-            ],
-        ]);
+test('unversioned route /api/agents/{agent_id}/capabilities returns 404 not found (CWE-668)', function () {
+    $this->withHeader('Authorization', 'Bearer ' . $this->operatorToken)
+        ->getJson("/api/agents/{$this->activeAgent->agent_id}/capabilities")
+        ->assertStatus(404);
 });

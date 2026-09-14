@@ -293,26 +293,12 @@ test('handles connection timeout with 504 and registers AgentTask as FAILED', fu
 });
 
 
-test('root alias /api/executions/trigger functions identically', function () {
-    Http::fake([
-        'http://test-agent:8000/executions/trigger' => Http::response([
-            'execution_id' => 'exec_alias_01',
-            'thread_id' => 'th_alias_01',
-            'status' => 'completed',
-            'final_output' => 'Alias ok',
-        ], 200),
-    ]);
-
-    $response = $this->withHeader('Authorization', 'Bearer ' . $this->operatorToken)
+test('unversioned route /api/executions/trigger returns 404 not found (CWE-668)', function () {
+    $this->withHeader('Authorization', 'Bearer ' . $this->operatorToken)
         ->postJson('/api/executions/trigger', [
             'prompt' => 'Comprobar alias de rutas',
-        ]);
-
-    $response->assertStatus(200)
-        ->assertJson([
-            'execution_id' => 'exec_alias_01',
-            'output' => 'Alias ok',
-        ]);
+        ])
+        ->assertStatus(404);
 });
 
 test('propagates incoming X-Correlation-ID and registers in AuditEvent and response header', function () {

@@ -33,12 +33,12 @@ test('api login returns 200 with jwt and user details on valid credentials', fun
         ->and($response->json('user.email'))->toBe('api_admin@example.com')
         ->and($response->json('user.role'))->toBe('admin');
 
-    // Also verify alias /api/auth/login
+    // Also verify unversioned /api/auth/login returns 404 (CWE-668)
     $aliasResponse = $this->postJson('/api/auth/login', [
         'email' => 'api_admin@example.com',
         'password' => 'AdminSecretPass!',
     ]);
-    $aliasResponse->assertStatus(200);
+    $aliasResponse->assertStatus(404);
 });
 
 test('api login returns 401 on invalid credentials', function () {
@@ -124,11 +124,10 @@ test('api auth me returns user profile, role and permissions with valid token', 
         ->and($meResponse->json('permissions'))->toContain('hitl:approve', 'tasks:trigger', 'dashboard:view')
         ->and($meResponse->json('permissions'))->not->toContain('agents:manage');
 
-    // 3. Also verify root alias /api/auth/me
+    // 3. Also verify unversioned /api/auth/me returns 404 (CWE-668)
     $aliasMe = $this->withHeader('Authorization', "Bearer {$token}")
         ->getJson('/api/auth/me');
-    $aliasMe->assertStatus(200);
-    expect($aliasMe->json('email'))->toBe('sre_op@example.com');
+    $aliasMe->assertStatus(404);
 });
 
 test('api auth me returns admin full permissions', function () {

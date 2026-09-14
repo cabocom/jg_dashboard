@@ -61,30 +61,3 @@ Route::prefix('v1')->group(function () {
     });
 });
 
-Route::post('/auth/login', [AuthController::class, 'login'])->name('api.auth.login');
-Route::post('/agents/register', [AgentRegistrationController::class, 'register'])->name('api.agents.register');
-Route::post('/agents/heartbeat', [AgentHeartbeatController::class, 'heartbeat'])->middleware('agent.hmac')->name('api.agents.heartbeat');
-Route::post('/internal/executions/{execution_id}/complete', [InternalExecutionController::class, 'complete'])->name('api.internal.executions.complete');
-Route::middleware('jwt.auth')->group(function () {
-    Route::get('/auth/me', [AuthController::class, 'me'])->name('api.auth.me');
-    Route::post('/auth/logout', [AuthController::class, 'logout'])->name('api.auth.logout');
-    Route::get('/agents', [AgentController::class, 'index'])->name('api.agents.index');
-    Route::get('/agents/{agent_id}', [AgentController::class, 'show'])->name('api.agents.show');
-    Route::get('/agents/{agent_id}/capabilities', [AgentController::class, 'capabilities'])->name('api.agents.capabilities');
-    Route::get('/executions/{agent_id}/{thread_id}', [ExecutionController::class, 'show'])->name('api.executions.show');
-
-    Route::middleware('role:operator')->group(function () {
-        Route::post('/executions/trigger', [ExecutionController::class, 'trigger'])->name('api.executions.trigger');
-        Route::get('/approvals/pending', [HitlApprovalController::class, 'pending'])->name('api.approvals.pending');
-        Route::post('/approvals/{approval_id}/approve', [HitlApprovalController::class, 'approve'])->name('api.approvals.approve');
-        Route::post('/approvals/{approval_id}/reject', [HitlApprovalController::class, 'reject'])->name('api.approvals.reject');
-    });
-
-    Route::middleware('role:admin')->prefix('admin')->group(function () {
-        Route::get('/agents', [AdminAgentController::class, 'index'])->name('api.admin.agents.index');
-        Route::post('/agents', [AdminAgentController::class, 'store'])->name('api.admin.agents.store');
-        Route::post('/agents/{agent_id}/regenerate-token', [AdminAgentController::class, 'regenerateToken'])->name('api.admin.agents.regenerate_token');
-        Route::post('/agents/{agent_id}/revoke-tokens', [AdminAgentController::class, 'revokeTokens'])->name('api.admin.agents.revoke_tokens');
-    });
-});
-

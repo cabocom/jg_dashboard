@@ -195,12 +195,8 @@ test('GET /api/v1/agents/{agent_id} returns 404 when agent does not exist', func
         ]);
 });
 
-test('root alias /api/agents functions identically', function () {
-    Agent::create(['name' => 'alias-agent', 'status' => 'ACTIVE']);
-
-    $response = $this->withHeader('Authorization', "Bearer {$this->viewerToken}")
-        ->getJson('/api/agents');
-
-    $response->assertStatus(200)
-        ->assertJsonStructure(['data', 'summary', 'meta']);
+test('unversioned route /api/agents returns 404 not found (CWE-668)', function () {
+    $this->withHeader('Authorization', "Bearer {$this->viewerToken}")
+        ->getJson('/api/agents')
+        ->assertStatus(404);
 });

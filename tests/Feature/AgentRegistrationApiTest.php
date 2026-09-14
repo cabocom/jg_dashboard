@@ -161,17 +161,12 @@ test('registration attempt with revoked token returns 401 unauthorized', functio
         ]);
 });
 
-test('root alias /api/agents/register functions identically', function () {
+test('unversioned route /api/agents/register returns 404 not found (CWE-668)', function () {
     $creation = $this->registrationService->createAgent('alias-test-agent', ttlHours: 24);
     $plainToken = $creation['bootstrap_token'];
 
-    $response = $this->withHeader('Authorization', "Bearer {$plainToken}")
-        ->postJson('/api/agents/register');
-
-    $response->assertStatus(200)
-        ->assertJson([
-            'status' => 'ACTIVE',
-            'name' => 'alias-test-agent',
-        ]);
+    $this->withHeader('Authorization', "Bearer {$plainToken}")
+        ->postJson('/api/agents/register')
+        ->assertStatus(404);
 });
 

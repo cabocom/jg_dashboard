@@ -253,19 +253,8 @@ test('endpoint filters by risk_level correctly', function () {
         ->assertJsonPath('data.0.risk_level', 'CRITICAL');
 });
 
-test('root alias /api/approvals/pending functions identically', function () {
-    ApprovalRequest::create([
-        'thread_id' => 'th-alias-test',
-        'agent_id' => $this->agent1->agent_id,
-        'status' => 'PENDING',
-        'risk_level' => 'HIGH',
-        'proposed_plan_json' => ['action' => 'alias action'],
-    ]);
-
-    $response = $this->withHeader('Authorization', "Bearer {$this->operatorToken}")
-        ->getJson('/api/approvals/pending');
-
-    $response->assertStatus(200)
-        ->assertJsonPath('meta.total', 1)
-        ->assertJsonPath('data.0.thread_id', 'th-alias-test');
+test('unversioned route /api/approvals/pending returns 404 not found (CWE-668)', function () {
+    $this->withHeader('Authorization', "Bearer {$this->operatorToken}")
+        ->getJson('/api/approvals/pending')
+        ->assertStatus(404);
 });

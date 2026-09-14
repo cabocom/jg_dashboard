@@ -256,14 +256,7 @@ test('handles network failure or agent error and leaves approval in PENDING stat
         ->and($approval->fresh()->resolved_at)->toBeNull();
 });
 
-test('root alias /api/approvals/{id}/reject functions identically', function () {
-    Http::fake([
-        'http://test-agent:8000/executions/thread-alias-reject/reject' => Http::response([
-            'status' => 'cancelled',
-            'thread_id' => 'thread-alias-reject',
-        ], 200),
-    ]);
-
+test('unversioned route /api/approvals/{id}/reject returns 404 not found (CWE-668)', function () {
     $approval = ApprovalRequest::create([
         'thread_id' => 'thread-alias-reject',
         'agent_id' => $this->activeAgent->agent_id,
@@ -272,13 +265,9 @@ test('root alias /api/approvals/{id}/reject functions identically', function () 
         'proposed_plan_json' => ['action' => 'alias reject test'],
     ]);
 
-    $response = $this->withHeader('Authorization', "Bearer {$this->operatorToken}")
+    $this->withHeader('Authorization', "Bearer {$this->operatorToken}")
         ->postJson("/api/approvals/{$approval->id}/reject", [
             'justification' => 'Rechazado mediante alias raíz',
-        ]);
-
-    $response->assertStatus(200)
-        ->assertJsonPath('status', 'rejected');
-
-    expect($approval->fresh()->status)->toBe('REJECTED');
+        ])
+        ->assertStatus(404);
 });

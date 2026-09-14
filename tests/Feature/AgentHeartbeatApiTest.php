@@ -211,7 +211,7 @@ test('POST /api/v1/agents/heartbeat rejects agent in PENDING status with 401', f
         ]);
 });
 
-test('root alias /api/agents/heartbeat with valid HMAC signature functions identically', function () {
+test('unversioned route /api/agents/heartbeat returns 404 not found (CWE-668)', function () {
     $payload = ['status' => 'ACTIVE'];
     $headers = createHmacHeaders(
         method: 'POST',
@@ -221,11 +221,7 @@ test('root alias /api/agents/heartbeat with valid HMAC signature functions ident
         body: $payload
     );
 
-    $response = $this->withHeaders($headers)->postJson('/api/agents/heartbeat', $payload);
-
-    $response->assertStatus(200)
-        ->assertJson([
-            'status' => 'success',
-            'agent_id' => $this->agent->agent_id,
-        ]);
+    $this->withHeaders($headers)
+        ->postJson('/api/agents/heartbeat', $payload)
+        ->assertStatus(404);
 });
