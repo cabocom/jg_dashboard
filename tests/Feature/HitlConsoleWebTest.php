@@ -26,7 +26,7 @@ beforeEach(function () {
         'agent_id' => 'agent-hitl-web-01',
         'name' => 'Agent SRE Kubernetes',
         'status' => 'ACTIVE',
-        'metadata_json' => ['api_url' => 'http://test-agent:8000'],
+        'metadata_json' => ['api_url' => 'http://test-agent:8000', 'secret' => 'test-secret-123'],
     ]);
 
     $this->actingAs($this->operatorUser);
@@ -356,6 +356,86 @@ test('POST /console/agents rejects request with HTTP 419 when CSRF token is miss
         ]);
 
     $response->assertStatus(419);
+});
+
+test('GET /console/approvals/pending automatically reconciles orphan WAITING_APPROVAL tasks', function () {
+    \App\Models\AgentTask::create([
+        'task_id' => 'task-orphan-01',
+        'thread_id' => 'th-orphan-01',
+        'agent_id' => $this->agent->agent_id,
+        'status' => 'WAITING_APPROVAL',
+        'payload_json' => [
+            'agent_id' => $this->agent->agent_id,
+            'prompt' => 'Reiniciar contenedor crítico',
+        ],
+        'result_json' => [
+            'risk_assessment' => ['risk_level' => 'HIGH'],
+            'plan' => [
+                'goal' => 'Reiniciar contenedor crítico',
+                'steps' => [
+                    ['tool_name' => 'docker_restart', 'tool_args' => ['container' => 'web_app']],
+                ],
+            ],
+            'cognitive_steps' => [
+                ['step_id' => 'cog-1', 'node' => 'risk_assess', 'title' => 'Evaluación de Riesgo'],
+            ],
+        ],
+    ]);
+
+    expect(ApprovalRequest::where('thread_id', 'th-orphan-01')->exists())->toBeFalse();
+
+    $response = $this->get('/console/approvals/pending');
+
+    $response->assertStatus(200);
+    expect(ApprovalRequest::where('thread_id', 'th-orphan-01')->exists())->toBeTrue();
+    $approval = ApprovalRequest::where('thread_id', 'th-orphan-01')->first();
+    expect($approval->status)->toBe('PENDING');
+    expect($approval->risk_level)->toBe('HIGH');
+    expect($response->json('summary.total_pending'))->toBeGreaterThanOrEqual(1);
+});
+
+test('GET /console/executions syncs PROCESSING task into WAITING_APPROVAL and registers ApprovalRequest', function () {
+    $task = \App\Models\AgentTask::create([
+        'task_id' => 'task-sync-hitl-01',
+        'thread_id' => 'th-sync-hitl-01',
+        'agent_id' => $this->agent->agent_id,
+        'status' => 'PROCESSING',
+        'created_at' => now(),
+        'started_at' => now(),
+        'payload_json' => [
+            'agent_id' => $this->agent->agent_id,
+            'prompt' => 'Reiniciar servicio borsalino',
+        ],
+    ]);
+
+    Http::swap(new \Illuminate\Http\Client\Factory);
+    Http::fake(function (\Illuminate\Http\Client\Request $request) {
+        return Http::response([
+            'status' => 'waiting_approval',
+            'data' => [
+                'status' => 'waiting_approval',
+                'risk_assessment' => ['risk_level' => 'HIGH'],
+                'plan' => [
+                    'goal' => 'Reiniciar servicio borsalino',
+                    'steps' => [['tool_name' => 'docker_restart']],
+                ],
+                'cognitive_steps' => [
+                    ['step_id' => 'cog-risk-1', 'status' => 'waiting_approval'],
+                ],
+            ],
+        ], 200);
+    });
+
+    expect(ApprovalRequest::where('thread_id', 'th-sync-hitl-01')->exists())->toBeFalse();
+
+    $response = $this->get('/console/executions');
+
+    $response->assertStatus(200);
+    $task->refresh();
+    expect($task->status)->toBe('WAITING_APPROVAL');
+    expect(ApprovalRequest::where('thread_id', 'th-sync-hitl-01')->exists())->toBeTrue();
+    $approval = ApprovalRequest::where('thread_id', 'th-sync-hitl-01')->first();
+    expect($approval->status)->toBe('PENDING');
 });
 
 

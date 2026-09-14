@@ -143,6 +143,39 @@ class WebConsoleController extends Controller
             $riskLevel = null;
         }
 
+        // Auto-reconciliación: Asegurar que cualquier tarea en WAITING_APPROVAL tenga su registro de aprobación activo
+        try {
+            $orphanWaitingTasks = AgentTask::where('status', 'WAITING_APPROVAL')
+                ->whereNotNull('thread_id')
+                ->get();
+
+            foreach ($orphanWaitingTasks as $waitingTask) {
+                $alreadyPending = ApprovalRequest::where('thread_id', $waitingTask->thread_id)
+                    ->pending()
+                    ->exists();
+
+                if (!$alreadyPending) {
+                    $resultData = is_array($waitingTask->result_json) ? $waitingTask->result_json : [];
+                    $payloadData = is_array($waitingTask->payload_json) ? $waitingTask->payload_json : [];
+                    $agentIdCandidate = $waitingTask->agent_id ?? ($payloadData['agent_id'] ?? null);
+
+                    $service->registerPendingApproval([
+                        'thread_id' => $waitingTask->thread_id,
+                        'agent_id' => $agentIdCandidate,
+                        'task_id' => $waitingTask->task_id,
+                        'prompt' => $waitingTask->prompt,
+                        'risk_level' => $resultData['risk_assessment']['risk_level'] ?? ($resultData['risk_level'] ?? 'HIGH'),
+                        'proposed_plan' => $resultData['plan'] ?? ['prompt' => $waitingTask->prompt],
+                        'cognitive_steps' => $resultData['cognitive_steps'] ?? ($resultData['steps'] ?? []),
+                        'compensation_commands' => $resultData['compensation_commands'] ?? [],
+                        'tools' => $resultData['tools'] ?? null,
+                    ]);
+                }
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("[WebConsoleController] Error en reconciliación HITL: " . $e->getMessage());
+        }
+
         $paginator = $service->getPendingApprovals(
             agentId: !empty($agentId) ? $agentId : null,
             riskLevel: $riskLevel,
@@ -389,6 +422,26 @@ class WebConsoleController extends Controller
                                 ),
                             ]);
                             $pendingTask->status = $syncedStatus;
+
+                            if ($syncedStatus === 'WAITING_APPROVAL') {
+                                try {
+                                    $planData = $remoteData['data']['plan'] ?? ($remoteData['plan'] ?? ['prompt' => $pendingTask->prompt]);
+                                    $cogSteps = $remoteData['cognitive_steps'] ?? ($remoteData['data']['cognitive_steps'] ?? ($remoteData['steps'] ?? []));
+                                    app(\App\Services\Hitl\HitlApprovalService::class)->registerPendingApproval([
+                                        'thread_id' => $threadId,
+                                        'agent_id' => $pendingTask->agent_id,
+                                        'task_id' => $pendingTask->task_id,
+                                        'prompt' => $pendingTask->prompt,
+                                        'risk_level' => $remoteData['data']['risk_assessment']['risk_level'] ?? ($remoteData['risk_level'] ?? 'HIGH'),
+                                        'proposed_plan' => $planData,
+                                        'cognitive_steps' => $cogSteps,
+                                        'compensation_commands' => $remoteData['data']['compensation_commands'] ?? ($remoteData['compensation_commands'] ?? []),
+                                        'tools' => $remoteData['tools'] ?? null,
+                                    ]);
+                                } catch (\Throwable $hitlEx) {
+                                    \Illuminate\Support\Facades\Log::warning("[WebConsoleController] Error al registrar HITL durante sincronización en listExecutions: " . $hitlEx->getMessage());
+                                }
+                            }
                         }
                     }
                 }
