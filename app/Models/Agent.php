@@ -194,15 +194,12 @@ class Agent extends Model
             }
         }
 
-        $plugin = is_array($this->metadata_json) ? ($this->metadata_json['plugin'] ?? '') : '';
-        $agentName = strtolower($this->name ?? '');
-
-        if ($this->agent_id === 'a0000000-0000-0000-0000-000000000002' || $plugin === 'devops' || str_contains($agentName, 'devops')) {
+        if ($this->agent_id === 'a0000000-0000-0000-0000-000000000002') {
             return config('agent.devops_secret')
                 ?: env('JG_DEVOPS_SECRET', env('JG_DEVOPS_AGENT_SECRET', env('DEVOPS60K_SECRET', env('DEVOPS60K_API_KEY'))));
         }
 
-        if ($this->agent_id === 'a0000000-0000-0000-0000-000000000001' || $plugin === 'conversational' || str_contains($agentName, 'conversacional')) {
+        if ($this->agent_id === 'a0000000-0000-0000-0000-000000000001') {
             return config('agent.internal_secret')
                 ?: env('JG_CONVERSATIONAL_SECRET', env('JG_AGENTE_SECRET'));
         }

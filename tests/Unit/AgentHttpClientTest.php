@@ -78,6 +78,77 @@ test('forAgent decrypts permanent_secret_encrypted and computes valid HMAC signa
     expect($headers['X-Signature'])->toBe($expectedSignature);
 });
 
+test('forAgent does not inherit devops_secret simply because name contains devops (DASH-SEC-05)', function () {
+    Config::set('agent.internal_secret', 'general_internal_secret_999');
+    Config::set('agent.devops_secret', 'super_secret_devops_prod_key_777');
+
+    // Agente con subcadena "devops" en el nombre pero con UUID arbitrario
+    $agent = new Agent([
+        'agent_id' => 'b1111111-1111-1111-1111-111111111111',
+        'name' => 'test-devops-sandbox',
+    ]);
+
+    $client = AgentHttpClient::forAgent($agent);
+
+    $body = json_encode(['action' => 'deploy']);
+    $headers = $client->generateSignatureHeaders($body, 'POST', '/commands/test');
+
+    $bodyHash = hash('sha256', $body);
+    $canonicalString = "POST\n/commands/test\n" . $headers['X-Timestamp'] . "\n" . $bodyHash;
+    
+    $devopsSignature = hash_hmac('sha256', $canonicalString, 'super_secret_devops_prod_key_777');
+    $generalSignature = hash_hmac('sha256', $canonicalString, 'general_internal_secret_999');
+
+    // NO debe firmar con el secreto de producción DevOps por simple coincidencia de nombre
+    expect($headers['X-Signature'])->not->toBe($devopsSignature);
+    expect($headers['X-Signature'])->toBe($generalSignature);
+});
+
+test('forAgent does not inherit conversational secret simply because name contains conversacional (DASH-SEC-05)', function () {
+    Config::set('agent.internal_secret', 'conversational_secret_custom_123');
+
+    $agent = new Agent([
+        'agent_id' => 'c2222222-2222-2222-2222-222222222222',
+        'name' => 'agente-conversacional-ficticio',
+        'permanent_secret_encrypted' => 'agent_specific_encrypted_secret_456',
+    ]);
+
+    $client = AgentHttpClient::forAgent($agent);
+
+    $body = json_encode(['msg' => 'hola']);
+    $headers = $client->generateSignatureHeaders($body, 'POST', '/chat');
+
+    $bodyHash = hash('sha256', $body);
+    $canonicalString = "POST\n/chat\n" . $headers['X-Timestamp'] . "\n" . $bodyHash;
+
+    $expectedSignature = hash_hmac('sha256', $canonicalString, 'agent_specific_encrypted_secret_456');
+    $genericSignature = hash_hmac('sha256', $canonicalString, 'conversational_secret_custom_123');
+
+    expect($headers['X-Signature'])->toBe($expectedSignature);
+    expect($headers['X-Signature'])->not->toBe($genericSignature);
+});
+
+test('forAgent strictly resolves devops_secret for canonical DevOps UUID a0000000-0000-0000-0000-000000000002', function () {
+    Config::set('agent.devops_secret', 'canonical_devops_secret_888');
+
+    $agent = new Agent([
+        'agent_id' => 'a0000000-0000-0000-0000-000000000002',
+        'name' => 'Custom Unrelated Name',
+    ]);
+
+    $client = AgentHttpClient::forAgent($agent);
+
+    $body = json_encode(['task' => 'status']);
+    $headers = $client->generateSignatureHeaders($body, 'POST', '/status');
+
+    $bodyHash = hash('sha256', $body);
+    $canonicalString = "POST\n/status\n" . $headers['X-Timestamp'] . "\n" . $bodyHash;
+    $expectedSignature = hash_hmac('sha256', $canonicalString, 'canonical_devops_secret_888');
+
+    expect($headers['X-Signature'])->toBe($expectedSignature);
+});
+
+
 test('checkHealth returns success when agent responds with 200', function () {
     Http::fake([
         'http://test-agent:8000/health' => Http::response([
