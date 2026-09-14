@@ -330,6 +330,7 @@
               </div>
               <div class="panel-body">
                 <form id="form-trigger-execution" style="display: flex; flex-direction: column; gap: 20px;">
+                  @csrf
                   <div class="form-group">
                     <label class="form-label" for="trigger-agent-id">Agente Destino</label>
                     <select id="trigger-agent-id" class="form-control">
@@ -525,6 +526,7 @@
         <button class="modal-close">&times;</button>
       </div>
       <form id="form-user-profile">
+        @csrf
         <div class="modal-body" style="display: flex; flex-direction: column; gap: 14px;">
           <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
             <span style="font-size: 12px; color: var(--text-muted);">Rol de Usuario:</span>
@@ -578,6 +580,7 @@
         <button class="modal-close">&times;</button>
       </div>
       <form id="form-confirm-approve">
+        @csrf
         <div class="modal-body">
           <p style="font-size: 13px; color: var(--text-secondary);">
             ¿Confirmas la autorización para reanudar el grafo del hilo <strong id="approve-modal-thread-id" style="color: var(--text-primary); font-family: var(--font-mono);"></strong>?
@@ -603,6 +606,7 @@
         <button class="modal-close">&times;</button>
       </div>
       <form id="form-confirm-reject">
+        @csrf
         <div class="modal-body">
           <p style="font-size: 13px; color: var(--text-secondary);">
             Se cancelará inmediatamente la ejecución del hilo <strong id="reject-modal-thread-id" style="color: var(--text-primary); font-family: var(--font-mono);"></strong> en el agente.
@@ -630,6 +634,7 @@
         <button class="modal-close">&times;</button>
       </div>
       <form id="form-create-agent">
+        @csrf
         <div class="modal-body">
           <p style="font-size: 13px; color: var(--text-secondary);">
             Registra un nuevo agente en el Control Plane. Se generará un <strong>Bootstrap Token</strong> de un solo uso válido por 24 horas.

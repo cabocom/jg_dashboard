@@ -190,3 +190,172 @@ test('POST /console/approvals/{id}/reject requires minimum 5 characters justific
     $response->assertStatus(422)
         ->assertJsonValidationErrors(['justification']);
 });
+
+class StrictVerifyCsrfToken extends \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken
+{
+    protected function runningUnitTests()
+    {
+        return false;
+    }
+}
+
+test('POST /console/approvals/{id}/approve rejects request with HTTP 419 when CSRF token is missing', function () {
+    $this->app->bind(
+        \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
+        StrictVerifyCsrfToken::class
+    );
+
+    $approval = ApprovalRequest::create([
+        'thread_id' => 'th-csrf-app-1',
+        'agent_id' => $this->agent->agent_id,
+        'status' => 'PENDING',
+        'risk_level' => 'HIGH',
+        'proposed_plan_json' => ['action' => 'Plan de prueba CSRF'],
+    ]);
+
+    $response = $this->actingAs($this->operatorUser)
+        ->post("/console/approvals/{$approval->id}/approve", [
+            'justification' => 'Intento sin token CSRF',
+        ]);
+
+    $response->assertStatus(419);
+});
+
+test('POST /console/approvals/{id}/reject rejects request with HTTP 419 when CSRF token is missing', function () {
+    $this->app->bind(
+        \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
+        StrictVerifyCsrfToken::class
+    );
+
+    $approval = ApprovalRequest::create([
+        'thread_id' => 'th-csrf-rej-1',
+        'agent_id' => $this->agent->agent_id,
+        'status' => 'PENDING',
+        'risk_level' => 'HIGH',
+        'proposed_plan_json' => ['action' => 'Plan de prueba CSRF rechazo'],
+    ]);
+
+    $response = $this->actingAs($this->operatorUser)
+        ->post("/console/approvals/{$approval->id}/reject", [
+            'justification' => 'Intento de rechazo sin token CSRF',
+        ]);
+
+    $response->assertStatus(419);
+});
+
+test('POST /console/approvals/{id}/approve accepts request when valid CSRF token is provided via X-CSRF-TOKEN header', function () {
+    $this->app->bind(
+        \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
+        StrictVerifyCsrfToken::class
+    );
+
+    Http::fake([
+        'http://test-agent:8000/api/v1/commands/resume' => Http::response([
+            'success' => true,
+            'status' => 'resumed',
+        ], 200),
+    ]);
+
+    $approval = ApprovalRequest::create([
+        'thread_id' => 'th-csrf-valid-1',
+        'agent_id' => $this->agent->agent_id,
+        'status' => 'PENDING',
+        'risk_level' => 'HIGH',
+        'proposed_plan_json' => ['action' => 'Plan válido con CSRF'],
+    ]);
+
+    $token = 'test-valid-csrf-token-string-12345';
+
+    $response = $this->withMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])
+        ->withSession(['_token' => $token])
+        ->actingAs($this->operatorUser)
+        ->post("/console/approvals/{$approval->id}/approve", [
+            'justification' => 'Aprobado legítimamente con token CSRF',
+        ], [
+            'X-CSRF-TOKEN' => $token,
+            'Accept' => 'application/json',
+        ]);
+
+    $response->assertStatus(200)
+        ->assertJsonPath('status', 'approved');
+
+    $approval->refresh();
+    expect($approval->status)->toBe('APPROVED');
+});
+
+test('POST /console/approvals/{id}/reject accepts request when valid CSRF token is provided via X-CSRF-TOKEN header', function () {
+    $this->app->bind(
+        \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
+        StrictVerifyCsrfToken::class
+    );
+
+    Http::fake([
+        'http://test-agent:8000/api/v1/commands/cancel' => Http::response([
+            'success' => true,
+            'status' => 'cancelled',
+        ], 200),
+    ]);
+
+    $approval = ApprovalRequest::create([
+        'thread_id' => 'th-csrf-valid-rej-1',
+        'agent_id' => $this->agent->agent_id,
+        'status' => 'PENDING',
+        'risk_level' => 'HIGH',
+        'proposed_plan_json' => ['action' => 'Plan a rechazar legítimamente'],
+    ]);
+
+    $token = 'test-valid-csrf-token-string-67890';
+
+    $response = $this->withSession(['_token' => $token])
+        ->actingAs($this->operatorUser)
+        ->post("/console/approvals/{$approval->id}/reject", [
+            'justification' => 'Rechazado legítimamente con token CSRF válido',
+        ], [
+            'X-CSRF-TOKEN' => $token,
+            'Accept' => 'application/json',
+        ]);
+
+    $response->assertStatus(200)
+        ->assertJsonPath('status', 'rejected');
+
+    $approval->refresh();
+    expect($approval->status)->toBe('REJECTED');
+});
+
+test('POST /console/executions/trigger rejects request with HTTP 419 when CSRF token is missing', function () {
+    $this->app->bind(
+        \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
+        StrictVerifyCsrfToken::class
+    );
+
+    $response = $this->actingAs($this->operatorUser)
+        ->post("/console/executions/trigger", [
+            'agent_id' => $this->agent->agent_id,
+            'prompt' => 'Ejecutar comando no autorizado vía CSRF',
+        ]);
+
+    $response->assertStatus(419);
+});
+
+test('POST /console/agents rejects request with HTTP 419 when CSRF token is missing', function () {
+    $this->app->bind(
+        \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
+        StrictVerifyCsrfToken::class
+    );
+
+    $adminUser = User::create([
+        'name' => 'Admin CSRF',
+        'email' => 'admin.csrf@example.com',
+        'password' => Hash::make('secret123'),
+        'role' => 'admin',
+    ]);
+
+    $response = $this->actingAs($adminUser)
+        ->post("/console/agents", [
+            'name' => 'Malicious Agent Provisioned via CSRF',
+        ]);
+
+    $response->assertStatus(419);
+});
+
+
