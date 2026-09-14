@@ -109,7 +109,7 @@ jg_dashboard/
 │   │   └── Widgets/                # Widgets de métricas y estados
 │   ├── Models/                     # Modelos Eloquent ORM (AgentTask, User, etc.)
 │   ├── Providers/                  # Service Providers (AppServiceProvider, etc.)
-│   └── Services/                   # Clientes de integración con el agente (DevOps60kApiClient / AgentClient)
+│   └── Services/                   # Clientes y servicios del Control Plane (AgentHttpClient, AgentRegistrationService, etc.)
 ├── bootstrap/                      # Bootstrap de Laravel
 ├── config/                         # Configuraciones (app, database, devops60k/agent)
 ├── database/                       # Migraciones, factories y seeders
