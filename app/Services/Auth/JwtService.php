@@ -4,6 +4,7 @@ namespace App\Services\Auth;
 
 use App\Models\User;
 use InvalidArgumentException;
+use RuntimeException;
 
 class JwtService
 {
@@ -15,15 +16,32 @@ class JwtService
     {
         $resolvedSecret = $secret 
             ?? config('auth.jwt.secret') 
-            ?? config('app.key') 
-            ?? 'default_jg_dashboard_jwt_secret_32_bytes_long';
+            ?? config('app.key');
+
+        if (empty($resolvedSecret) || !is_string($resolvedSecret) || trim($resolvedSecret) === '' || $resolvedSecret === 'default_jg_dashboard_jwt_secret_32_bytes_long') {
+            throw new RuntimeException(
+                'JWT secret is not configured or uses an insecure default. Please set JWT_SECRET or APP_KEY in your environment configuration.'
+            );
+        }
 
         // Strip base64: prefix if present (common in Laravel APP_KEY)
         if (str_starts_with($resolvedSecret, 'base64:')) {
-            $decoded = base64_decode(substr($resolvedSecret, 7), true);
-            $this->secret = $decoded !== false ? $decoded : $resolvedSecret;
+            $rawBase64 = substr($resolvedSecret, 7);
+            $decoded = base64_decode($rawBase64, true);
+            if ($decoded === false || trim($decoded) === '') {
+                throw new RuntimeException(
+                    'Resolved JWT secret is empty or contains an invalid base64 encoding.'
+                );
+            }
+            $this->secret = $decoded;
         } else {
             $this->secret = $resolvedSecret;
+        }
+
+        if (empty($this->secret) || trim($this->secret) === '') {
+            throw new RuntimeException(
+                'Resolved JWT secret is empty. Please provide a valid cryptographic key.'
+            );
         }
 
         $this->defaultTtlMinutes = $defaultTtlMinutes ?? (int) config('auth.jwt.ttl', 60);

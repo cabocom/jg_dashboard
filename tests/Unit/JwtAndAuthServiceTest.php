@@ -132,3 +132,66 @@ test('auth service hashPassword and verifyPassword helpers', function () {
         ->and($authService->verifyPassword('test_pass_secure', $hash))->toBeTrue()
         ->and($authService->verifyPassword('wrong_guess', $hash))->toBeFalse();
 });
+
+test('jwt service throws runtime exception when no secret is configured', function () {
+    config([
+        'auth.jwt.secret' => null,
+        'app.key' => null,
+    ]);
+
+    expect(fn () => new JwtService())
+        ->toThrow(RuntimeException::class, 'JWT secret is not configured or uses an insecure default');
+});
+
+test('jwt service throws runtime exception when secret is empty or whitespace only', function () {
+    config([
+        'auth.jwt.secret' => '   ',
+        'app.key' => null,
+    ]);
+
+    expect(fn () => new JwtService())
+        ->toThrow(RuntimeException::class, 'JWT secret is not configured or uses an insecure default');
+
+    expect(fn () => new JwtService(''))
+        ->toThrow(RuntimeException::class, 'JWT secret is not configured or uses an insecure default');
+});
+
+test('jwt service throws runtime exception when secret is hardcoded default secret', function () {
+    config([
+        'auth.jwt.secret' => 'default_jg_dashboard_jwt_secret_32_bytes_long',
+        'app.key' => null,
+    ]);
+
+    expect(fn () => new JwtService())
+        ->toThrow(RuntimeException::class, 'JWT secret is not configured or uses an insecure default');
+
+    expect(fn () => new JwtService('default_jg_dashboard_jwt_secret_32_bytes_long'))
+        ->toThrow(RuntimeException::class, 'JWT secret is not configured or uses an insecure default');
+});
+
+test('jwt service throws runtime exception when base64 secret resolves to empty', function () {
+    expect(fn () => new JwtService('base64:'))
+        ->toThrow(RuntimeException::class, 'Resolved JWT secret is empty');
+});
+
+test('jwt service correctly falls back to app.key when jwt.secret is null', function () {
+    config([
+        'auth.jwt.secret' => null,
+        'app.key' => 'base64:dGVzdF9rZXlfZm9yX2FwcF9rZXlfZmFsbGJhY2s=',
+    ]);
+
+    $jwt = new JwtService();
+    $user = User::create([
+        'name' => 'Fallback User',
+        'email' => 'fallback@example.com',
+        'password' => 'secret123',
+        'role' => 'operator',
+    ]);
+
+    $token = $jwt->generateToken($user);
+    $payload = $jwt->verifyToken($token);
+
+    expect($payload)->not->toBeNull()
+        ->and($payload['email'])->toBe('fallback@example.com');
+});
+
