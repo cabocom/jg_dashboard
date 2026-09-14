@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Agent;
 use App\Services\Agents\AgentHeartbeatService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,24 +17,28 @@ class AgentHeartbeatController extends Controller
 
     /**
      * Receive and process periodic heartbeats from active agents.
+     * Authenticated via VerifyHmacSignature middleware ('agent.hmac').
      */
     public function heartbeat(Request $request): JsonResponse
     {
-        // 1. Extract Agent ID (Header X-Agent-ID or body agent_id)
-        $agentId = $request->header('X-Agent-ID') ?: $request->input('agent_id');
+        /** @var Agent|null $agent */
+        $agent = $request->attributes->get('authenticated_agent');
 
-        // 2. Extract Permanent Secret (Bearer token, X-Agent-Secret header, or body permanent_secret)
-        $secret = $request->bearerToken()
-            ?: ($request->header('X-Agent-Secret') ?: $request->input('permanent_secret'));
+        if (!$agent) {
+            $agentId = $request->header('X-Agent-ID') ?: $request->input('agent_id');
+            if ($agentId) {
+                $agent = Agent::find((string) $agentId);
+            }
+        }
 
-        if (empty($agentId) || empty($secret)) {
+        if (!$agent) {
             return response()->json([
                 'error' => 'Unauthorized',
-                'message' => 'Identificador de agente o credencial permanente no provistos',
+                'message' => 'Agente no autenticado o no encontrado',
             ], 401);
         }
 
-        // 3. Validate optional payload
+        // Validate optional payload
         $validated = $request->validate([
             'status' => 'nullable|string|max:32',
             'metrics' => 'nullable|array',
@@ -46,9 +51,8 @@ class AgentHeartbeatController extends Controller
         }
 
         try {
-            $result = $this->heartbeatService->processHeartbeat(
-                agentId: (string) $agentId,
-                plainSecret: (string) $secret,
+            $result = $this->heartbeatService->recordHeartbeat(
+                agent: $agent,
                 status: $validated['status'] ?? null,
                 metrics: !empty($metrics) ? $metrics : null
             );

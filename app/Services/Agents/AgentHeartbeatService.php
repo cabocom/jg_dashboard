@@ -52,9 +52,35 @@ class AgentHeartbeatService
             throw new RuntimeException('Credencial de agente inválida.', 401);
         }
 
-        // Update heartbeat and metrics
+        return $this->recordHeartbeat(
+            agent: $agent,
+            status: $status,
+            metrics: $metrics
+        );
+    }
+
+    /**
+     * Record heartbeat timestamp and telemetry metrics directly on an authenticated agent instance.
+     *
+     * @param Agent $agent
+     * @param string|null $status
+     * @param array<string, mixed>|null $metrics
+     * @return array{
+     *     agent: Agent,
+     *     agent_id: string,
+     *     name: string,
+     *     status: string,
+     *     last_heartbeat_at: string,
+     *     metrics: ?array
+     * }
+     */
+    public function recordHeartbeat(
+        Agent $agent,
+        ?string $status = null,
+        ?array $metrics = null
+    ): array {
         $agent->last_heartbeat_at = now();
-        $agent->status = 'ACTIVE';
+        $agent->status = $status ?? 'ACTIVE';
 
         if ($metrics !== null) {
             $agent->metrics_json = $metrics;
