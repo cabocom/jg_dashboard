@@ -10,7 +10,7 @@
 
 Se ha implementado la infraestructura de CI/CD para `jg_dashboard`:
 
-1. **Pipeline de Integración Continua ([.gitlab-ci.yml](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/.gitlab-ci.yml)):**
+1. **Pipeline de Integración Continua ([.gitlab-ci.yml](../../../.gitlab-ci.yml)):**
    - **Etapa de Test (`test:pest`):**
      - Basado en `alpine:3.20` con extensiones PHP 8.3 completas (`mbstring`, `pdo_sqlite`, `pdo_pgsql`, `intl`, `bcmath`, `curl`, `simplexml`, `zip`).
      - Caché de Composer sobre `vendor/` indexado por rama (`php-composer-${CI_COMMIT_REF_SLUG}`).
@@ -22,8 +22,8 @@ Se ha implementado la infraestructura de CI/CD para `jg_dashboard`:
      - Publicación automática de `:latest` y etiquetas Git (`CI_COMMIT_TAG`).
 
 2. **Alineación Documental:**
-   - [PROJECT_CONTEXT.md](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/PROJECT_CONTEXT.md): Actualizado a versión 1.3.0 marcando la Fase 01 completada al 100%.
-   - [README.md](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/README.md): Roadmap actualizado con checklist completo de la Fase 01.
+   - [PROJECT_CONTEXT.md](../../../PROJECT_CONTEXT.md): Actualizado a versión 1.3.0 marcando la Fase 01 completada al 100%.
+   - [README.md](../../../README.md): Roadmap actualizado con checklist completo de la Fase 01.
 
 ---
 

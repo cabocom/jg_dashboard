@@ -6,15 +6,15 @@
 - **Severidad:** 🟠 ALTO
 - **CWE:** CWE-319 (Cleartext Transmission of Sensitive Information)
 - **Componentes Afectados:**
-  - [`jg_dashboard/routes/api.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/routes/api.php)
-  - [`jg_dashboard/app/Http/Controllers/Api/AgentHeartbeatController.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Http/Controllers/Api/AgentHeartbeatController.php)
-  - [`jg_dashboard/app/Http/Middleware/VerifyHmacSignature.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Http/Middleware/VerifyHmacSignature.php)
-  - [`jg_dashboard/app/Services/Agents/AgentHeartbeatService.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Services/Agents/AgentHeartbeatService.php)
-  - [`jg_dashboard/app/Models/Agent.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Models/Agent.php)
-  - [`jg_dashboard/bootstrap/app.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/bootstrap/app.php)
-  - [`jg_dashboard/tests/Feature/AgentHeartbeatApiTest.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Feature/AgentHeartbeatApiTest.php)
-  - [`jg_agente/app/core/heartbeat.py`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_agente/app/core/heartbeat.py)
-  - [`jg_agente/tests/test_heartbeat_service.py`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_agente/tests/test_heartbeat_service.py)
+  - [`jg_dashboard/routes/api.php`](../../../routes/api.php)
+  - [`jg_dashboard/app/Http/Controllers/Api/AgentHeartbeatController.php`](../../../app/Http/Controllers/Api/AgentHeartbeatController.php)
+  - [`jg_dashboard/app/Http/Middleware/VerifyHmacSignature.php`](../../../app/Http/Middleware/VerifyHmacSignature.php)
+  - [`jg_dashboard/app/Services/Agents/AgentHeartbeatService.php`](../../../app/Services/Agents/AgentHeartbeatService.php)
+  - [`jg_dashboard/app/Models/Agent.php`](../../../app/Models/Agent.php)
+  - [`jg_dashboard/bootstrap/app.php`](../../../bootstrap/app.php)
+  - [`jg_dashboard/tests/Feature/AgentHeartbeatApiTest.php`](../../../tests/Feature/AgentHeartbeatApiTest.php)
+  - [`jg_agente/app/core/heartbeat.py`](https://gitlab.com/javiergalvez-ia/jg_agente/-/blob/main/app/core/heartbeat.py)
+  - [`jg_agente/tests/test_heartbeat_service.py`](https://gitlab.com/javiergalvez-ia/jg_agente/-/blob/main/tests/test_heartbeat_service.py)
 
 ---
 

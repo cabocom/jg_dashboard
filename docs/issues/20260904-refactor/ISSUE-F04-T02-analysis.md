@@ -57,6 +57,6 @@ Implementar y exponer el endpoint administrativo protegido `POST /api/v1/admin/a
 
 ## 3. Decisiones Técnicas y Arquitectónicas
 
-- **Controlador API Dedicado ([app/Http/Controllers/Api/AdminAgentController.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Http/Controllers/Api/AdminAgentController.php)):** Separa limpiamente la lógica de enrutamiento HTTP y validación de entrada de la lógica de negocio y persistencia que reside en `AgentRegistrationService`.
-- **Enrutamiento Estructurado ([routes/api.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/routes/api.php)):** Se agrupan los endpoints bajo el prefijo `v1/admin` y el middleware de rol `role:admin`, asegurando consistencia con el esquema REST de la API y proporcionando además alias directo bajo `/api/admin/agents`.
+- **Controlador API Dedicado ([app/Http/Controllers/Api/AdminAgentController.php](../../../app/Http/Controllers/Api/AdminAgentController.php)):** Separa limpiamente la lógica de enrutamiento HTTP y validación de entrada de la lógica de negocio y persistencia que reside en `AgentRegistrationService`.
+- **Enrutamiento Estructurado ([routes/api.php](../../../routes/api.php)):** Se agrupan los endpoints bajo el prefijo `v1/admin` y el middleware de rol `role:admin`, asegurando consistencia con el esquema REST de la API y proporcionando además alias directo bajo `/api/admin/agents`.
 - **Zero-Trust Token Exposure:** El token en texto plano generado por el servicio se serializa en la respuesta JSON únicamente en el momento de creación/regeneración. Nunca se persiste en texto plano en base de datos.

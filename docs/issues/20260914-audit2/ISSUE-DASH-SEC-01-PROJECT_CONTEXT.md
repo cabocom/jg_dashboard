@@ -6,9 +6,9 @@
 - **Severidad:** 🔴 CRÍTICO
 - **CWE:** CWE-798 (Use of Hard-coded Credentials), CWE-1188 (Insecure Default Initialization of Resource)
 - **Componentes Afectados:**
-  - [`jg_dashboard/app/Services/Auth/JwtService.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Services/Auth/JwtService.php)
-  - [`jg_dashboard/.env.example`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/.env.example)
-  - [`jg_dashboard/tests/Unit/JwtAndAuthServiceTest.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Unit/JwtAndAuthServiceTest.php)
+  - [`jg_dashboard/app/Services/Auth/JwtService.php`](../../../app/Services/Auth/JwtService.php)
+  - [`jg_dashboard/.env.example`](../../../.env.example)
+  - [`jg_dashboard/tests/Unit/JwtAndAuthServiceTest.php`](../../../tests/Unit/JwtAndAuthServiceTest.php)
 
 ---
 

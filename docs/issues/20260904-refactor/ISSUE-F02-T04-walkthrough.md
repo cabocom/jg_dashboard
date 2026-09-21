@@ -11,32 +11,32 @@
 Se ha implementado el modelo y las migraciones para la gestión de solicitudes Human-In-The-Loop (HITL) y la auditoría del plano de control en `jg_dashboard`:
 
 1. **Migraciones de Base de Datos:**
-   - [database/migrations/2026_09_05_000003_create_dashboard_approval_requests_table.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/database/migrations/2026_09_05_000003_create_dashboard_approval_requests_table.php):
+   - [database/migrations/2026_09_05_000003_create_dashboard_approval_requests_table.php](../../../database/migrations/2026_09_05_000003_create_dashboard_approval_requests_table.php):
      - Tabla `dashboard_approval_requests` con claves foráneas hacia `dashboard_agents` y `users`.
      - Soporte para estados (`PENDING`, `APPROVED`, `REJECTED`, etc.), niveles de riesgo (`risk_level`), plan propuesto en JSON (`proposed_plan_json`), comandos de compensación (`compensation_commands_json`), justificación del operador y timestamp de resolución.
-   - [database/migrations/2026_09_05_000004_create_dashboard_audit_events_table.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/database/migrations/2026_09_05_000004_create_dashboard_audit_events_table.php):
+   - [database/migrations/2026_09_05_000004_create_dashboard_audit_events_table.php](../../../database/migrations/2026_09_05_000004_create_dashboard_audit_events_table.php):
      - Tabla `dashboard_audit_events` inmutable con `event_type`, relaciones con `users` y `dashboard_agents`, IP, user-agent, resumen de la acción, payload JSON y timestamp de creación.
 
 2. **Modelos Eloquent:**
-   - [app/Models/ApprovalRequest.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Models/ApprovalRequest.php):
+   - [app/Models/ApprovalRequest.php](../../../app/Models/ApprovalRequest.php):
      - Casts para JSON y fechas.
      - Métodos de resolución atómica: `approve()` y `reject()` con validación de estado previo.
      - Scopes de consulta: `pending()`, `resolved()`, `approved()`, `rejected()`, `byRisk()`.
      - Relaciones `agent()` y `resolver()`.
-   - [app/Models/AuditEvent.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Models/AuditEvent.php):
+   - [app/Models/AuditEvent.php](../../../app/Models/AuditEvent.php):
      - Inmutabilidad (`const UPDATED_AT = null`).
      - Helper estático `record()` para inserciones uniformes.
      - Scopes: `ofType()`, `forAgent()`, `forUser()`.
      - Relaciones `user()` y `agent()`.
    - Modelos actualizados:
-     - [app/Models/User.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Models/User.php): relaciones `approvalRequests()` y `auditEvents()`.
-     - [app/Models/Agent.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Models/Agent.php): relaciones `approvalRequests()` y `auditEvents()`.
+     - [app/Models/User.php](../../../app/Models/User.php): relaciones `approvalRequests()` y `auditEvents()`.
+     - [app/Models/Agent.php](../../../app/Models/Agent.php): relaciones `approvalRequests()` y `auditEvents()`.
 
 3. **Suite de Pruebas Unitarias:**
-   - [tests/Unit/ApprovalAndAuditModelTest.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Unit/ApprovalAndAuditModelTest.php): 6 pruebas unitarias verificando creación, flujos de aprobación y rechazo con justificación, prevención de doble resolución, scopes de búsqueda y registro de auditoría.
+   - [tests/Unit/ApprovalAndAuditModelTest.php](../../../tests/Unit/ApprovalAndAuditModelTest.php): 6 pruebas unitarias verificando creación, flujos de aprobación y rechazo con justificación, prevención de doble resolución, scopes de búsqueda y registro de auditoría.
 
 4. **Entorno de Pruebas en Memoria:**
-   - [tests/TestCase.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/TestCase.php): Esquemas `dashboard_approval_requests` y `dashboard_audit_events` añadidos en `setUpDatabaseSchema()`.
+   - [tests/TestCase.php](../../../tests/TestCase.php): Esquemas `dashboard_approval_requests` y `dashboard_audit_events` añadidos en `setUpDatabaseSchema()`.
 
 ---
 

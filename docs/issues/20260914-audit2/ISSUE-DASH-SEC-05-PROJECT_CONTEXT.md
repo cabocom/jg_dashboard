@@ -6,9 +6,9 @@
 - **Severidad:** 🟢 BAJO
 - **CWE:** CWE-287 (Improper Authentication), CWE-347 (Improper Verification of Cryptographic Signature)
 - **Componentes Afectados:**
-  - [`jg_dashboard/app/Models/Agent.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Models/Agent.php)
-  - [`jg_dashboard/app/Services/Agents/AgentHttpClient.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Services/Agents/AgentHttpClient.php)
-  - [`jg_dashboard/tests/Unit/AgentHttpClientTest.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Unit/AgentHttpClientTest.php)
+  - [`jg_dashboard/app/Models/Agent.php`](../../../app/Models/Agent.php)
+  - [`jg_dashboard/app/Services/Agents/AgentHttpClient.php`](../../../app/Services/Agents/AgentHttpClient.php)
+  - [`jg_dashboard/tests/Unit/AgentHttpClientTest.php`](../../../tests/Unit/AgentHttpClientTest.php)
 
 ---
 

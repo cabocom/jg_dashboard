@@ -10,18 +10,18 @@
 
 Se ha configurado la infraestructura de contenedores para `jg_dashboard`:
 
-1. **Dockerfile Multi-Stage ([Dockerfile](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/Dockerfile)):**
+1. **Dockerfile Multi-Stage ([Dockerfile](../../../Dockerfile)):**
    - Stage 1 con `composer:2.7` instalando dependencias optimizadas de producción.
    - Stage 2 con `php:8.3-fpm-alpine`, Nginx, Supervisord y extensiones requeridas para PostgreSQL y Laravel.
    - Metadatos actualizados con etiquetas de mantenedor y descripción oficial de `jG Dashboard`.
    - Healthcheck nativo mediante `curl` al endpoint `/up`.
 
-2. **Entrypoint del Contenedor ([docker/entrypoint.sh](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/docker/entrypoint.sh)):**
+2. **Entrypoint del Contenedor ([docker/entrypoint.sh](../../../docker/entrypoint.sh)):**
    - Configuración y ajuste de permisos restrictivos (775) para `www-data`.
    - Descubrimiento de paquetes y publicación de assets estáticos para Filament y Livewire.
    - Ejecución automática de migraciones y arranque de Supervisord.
 
-3. **Orquestación con Docker Compose ([docker-compose.yml](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/docker-compose.yml)):**
+3. **Orquestación con Docker Compose ([docker-compose.yml](../../../docker-compose.yml)):**
    - Servicio `jg_dashboard_postgres`:
      - Imagen PostgreSQL 16 Alpine.
      - Puerto en host aislado `5434:5432` para evitar colisiones con el agente (5433) o BD local (5432).
@@ -34,7 +34,7 @@ Se ha configurado la infraestructura de contenedores para `jg_dashboard`:
      - Red interna compartida `jg_dashboard_net`.
 
 4. **Variables de Entorno y Configuración:**
-   - [.env.example](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/.env.example): Puerto por defecto `DB_PORT=5434` y base de datos `DB_DATABASE=jg_dashboard`.
+   - [.env.example](../../../.env.example): Puerto por defecto `DB_PORT=5434` y base de datos `DB_DATABASE=jg_dashboard`.
 
 ---
 

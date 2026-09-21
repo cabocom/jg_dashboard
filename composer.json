@@ -3,7 +3,7 @@
     "type": "project",
     "description": "jg_dashboard - Control Plane, Governance & HITL Management Panel",
     "keywords": ["ai-agent", "control-plane", "laravel", "filament", "langgraph", "hitl", "governance"],
-    "license": "Proprietary",
+    "license": "AGPL-3.0-or-later",
     "require": {
         "php": "^8.2|^8.3|^8.4",
         "filament/filament": "^3.2",

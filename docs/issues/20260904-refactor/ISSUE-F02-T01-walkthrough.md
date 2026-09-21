@@ -10,17 +10,17 @@
 
 Se ha consolidado la capa de persistencia y autorización RBAC de usuarios en `jg_dashboard`:
 
-1. **Migración de Usuarios ([database/migrations/0001_01_01_000000_create_users_table.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/database/migrations/0001_01_01_000000_create_users_table.php)):**
+1. **Migración de Usuarios ([database/migrations/0001_01_01_000000_create_users_table.php](../../../database/migrations/0001_01_01_000000_create_users_table.php)):**
    - Creación de tabla `users` con campo `role` por defecto `'operator'`.
    - Soporte para tablas de tokens de reseteo de contraseñas (`password_reset_tokens`) y sesiones en base de datos (`sessions`).
 
-2. **Modelo Eloquent con RBAC ([app/Models/User.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Models/User.php)):**
+2. **Modelo Eloquent con RBAC ([app/Models/User.php](../../../app/Models/User.php)):**
    - Implementa `Filament\Models\Contracts\FilamentUser`.
    - `canAccessPanel(Panel $panel)`: Devuelve `true` únicamente si `$this->role` pertenece a `['admin', 'operator']`.
    - Métodos auxiliares: `isAdmin()` e `isOperator()`.
    - Cast de contraseñas hasheadas: `'password' => 'hashed'`.
 
-3. **Seeder Seguro ([database/seeders/DatabaseSeeder.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/database/seeders/DatabaseSeeder.php)):**
+3. **Seeder Seguro ([database/seeders/DatabaseSeeder.php](../../../database/seeders/DatabaseSeeder.php)):**
    - Inyección obligatoria de `ADMIN_DEFAULT_PASSWORD` para provisionar o rotar credenciales del administrador inicial.
 
 ---

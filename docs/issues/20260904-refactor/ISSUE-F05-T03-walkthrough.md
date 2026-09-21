@@ -10,7 +10,7 @@
 
 Se ha implementado el endpoint de listado y consulta de salud de agentes en `jg_dashboard`:
 
-1. **Controlador API ([app/Http/Controllers/Api/AgentController.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Http/Controllers/Api/AgentController.php)):**
+1. **Controlador API ([app/Http/Controllers/Api/AgentController.php](../../../app/Http/Controllers/Api/AgentController.php)):**
    - Método `index()`:
      - Valida parámetros de consulta (`status`, `search`, `per_page`).
      - Construye la consulta paginada ordenada por fecha de creación descendente.
@@ -20,11 +20,11 @@ Se ha implementado el endpoint de listado y consulta de salud de agentes en `jg_
    - Método `show()`:
      - Devuelve los detalles exhaustivos de un agente específico o responde `404 Not Found`.
 
-2. **Enrutamiento y RBAC ([routes/api.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/routes/api.php)):**
+2. **Enrutamiento y RBAC ([routes/api.php](../../../routes/api.php)):**
    - Agregadas las rutas `GET /api/v1/agents` y `GET /api/v1/agents/{agent_id}` bajo el middleware `jwt.auth`.
    - Agregados los alias correspondientes bajo `/api/agents`.
 
-3. **Suite de Pruebas de Feature ([tests/Feature/AgentListApiTest.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Feature/AgentListApiTest.php)):**
+3. **Suite de Pruebas de Feature ([tests/Feature/AgentListApiTest.php](../../../tests/Feature/AgentListApiTest.php)):**
    - 8 pruebas exhaustivas validando:
      - Rechazo `401 Unauthorized` ante peticiones anónimas.
      - Respuesta `200 OK` con paginación y resumen de métricas para rol `VIEWER`.

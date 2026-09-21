@@ -5,14 +5,14 @@
 > **Fecha del Informe:** 12 de Septiembre de 2026  
 > **Ubicación:** `audit2/INFORME_COMPARATIVO_AUDITORIAS.md`  
 > **Auditorías Analizadas:**
-> - **Auditoría A (Claude Opus):** [`audit2/Claude Opus/AUDIT_REPORT_CLAUDE.md`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/audit2/Claude%20Opus/AUDIT_REPORT_CLAUDE.md) (30.9 KB, 629 líneas)
-> - **Auditoría B (Gemini 3.8 Flash):** [`audit2/Gemini 3.8/AUDIT_REPORT_GEMINI.md`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/audit2/Gemini%203.8/AUDIT_REPORT_GEMINI.md) (49.9 KB, 563 líneas)
+> - **Auditoría A (Claude Opus):** [`audit2/Claude Opus/AUDIT_REPORT_CLAUDE.md`](audit2/Claude%20Opus/AUDIT_REPORT_CLAUDE.md) (30.9 KB, 629 líneas)
+> - **Auditoría B (Gemini 3.8 Flash):** [`audit2/Gemini 3.8/AUDIT_REPORT_GEMINI.md`](audit2/Gemini%203.8/AUDIT_REPORT_GEMINI.md) (49.9 KB, 563 líneas)
 
 ---
 
 ## 1. Resumen Ejecutivo de la Comparativa
 
-Ambos auditores ejecutaron una inspección técnica de caja blanca sobre la totalidad del repositorio (`jg_agente`, `jg_dashboard`, configuraciones Docker, migraciones y scripts), respondiendo a los mismos requerimientos de [`audit2/prompt1.txt`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/audit2/prompt1.txt).
+Ambos auditores ejecutaron una inspección técnica de caja blanca sobre la totalidad del repositorio (`jg_agente`, `jg_dashboard`, configuraciones Docker, migraciones y scripts), respondiendo a los mismos requerimientos de [`audit2/prompt1.txt`](audit2/prompt1.txt).
 
 Sin embargo, sus **enfoques metodológicos, profundidad en subsistemas específicos y vectores de detección resultaron marcadamente complementarios**:
 
@@ -224,5 +224,5 @@ La realización de dos auditorías independientes con modelos de razonamiento di
 
 **Próximo paso operativo:**
 A partir de este diagnóstico integrado, se generan de forma inmediata los dos registros de trabajo e issues técnicos:
-1. [`audit2/ISSUES_AGENTE.md`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/audit2/ISSUES_AGENTE.md) (Específico para `jg_agente` + cuestiones compartidas).
-2. [`audit2/ISSUES_DASHBOARD.md`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/audit2/ISSUES_DASHBOARD.md) (Específico para `jg_dashboard` + cuestiones compartidas).
+1. [`audit2/ISSUES_AGENTE.md`](audit2/ISSUES_AGENTE.md) (Específico para `jg_agente` + cuestiones compartidas).
+2. [`audit2/ISSUES_DASHBOARD.md`](audit2/ISSUES_DASHBOARD.md) (Específico para `jg_dashboard` + cuestiones compartidas).

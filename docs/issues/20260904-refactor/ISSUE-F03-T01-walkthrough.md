@@ -10,26 +10,26 @@
 
 Se ha implementado el servicio de autenticación JWT y hashing seguro de contraseñas para `jg_dashboard`:
 
-1. **Configuración de Autenticación ([config/auth.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/config/auth.php)):**
+1. **Configuración de Autenticación ([config/auth.php](../../../config/auth.php)):**
    - Agregada sección `jwt` con clave secreta (`JWT_SECRET`), TTL configurable en minutos (`JWT_TTL_MINUTES`, por defecto 60) y algoritmo `HS256`.
 
-2. **Servicio Criptográfico JWT ([app/Services/Auth/JwtService.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Services/Auth/JwtService.php)):**
+2. **Servicio Criptográfico JWT ([app/Services/Auth/JwtService.php](../../../app/Services/Auth/JwtService.php)):**
    - Implementación nativa de RFC 7519 HMAC-SHA256.
    - Emisión de tokens firmados con claims del usuario (`sub`, `email`, `role`, `name`, etc.).
    - Validación robusta contra tokens manipulados, cabeceras alteradas (`alg: none`) y tokens expirados.
 
-3. **Servicio de Autenticación ([app/Services/Auth/AuthService.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Services/Auth/AuthService.php)):**
+3. **Servicio de Autenticación ([app/Services/Auth/AuthService.php](../../../app/Services/Auth/AuthService.php)):**
    - Método `attempt()` que verifica credenciales con hash seguro y emite el token Bearer.
    - Helpers de hashing y verificación de contraseñas.
 
-4. **Capa HTTP y Rutas API ([app/Http/Controllers/Api/AuthController.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Http/Controllers/Api/AuthController.php), [routes/api.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/routes/api.php), [bootstrap/app.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/bootstrap/app.php)):**
+4. **Capa HTTP y Rutas API ([app/Http/Controllers/Api/AuthController.php](../../../app/Http/Controllers/Api/AuthController.php), [routes/api.php](../../../routes/api.php), [bootstrap/app.php](../../../bootstrap/app.php)):**
    - Configuración de enrutamiento API en `bootstrap/app.php`.
    - Endpoints de login: `POST /api/v1/auth/login` y `POST /api/auth/login`.
    - Controlador base `App\Http\Controllers\Controller`.
 
 5. **Batería de Pruebas Unitarias y de Integración:**
-   - [tests/Unit/JwtAndAuthServiceTest.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Unit/JwtAndAuthServiceTest.php): 7 pruebas unitarias para `JwtService` y `AuthService`.
-   - [tests/Feature/AuthApiTest.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Feature/AuthApiTest.php): 3 pruebas de integración para el endpoint HTTP de login.
+   - [tests/Unit/JwtAndAuthServiceTest.php](../../../tests/Unit/JwtAndAuthServiceTest.php): 7 pruebas unitarias para `JwtService` y `AuthService`.
+   - [tests/Feature/AuthApiTest.php](../../../tests/Feature/AuthApiTest.php): 3 pruebas de integración para el endpoint HTTP de login.
 
 ---
 

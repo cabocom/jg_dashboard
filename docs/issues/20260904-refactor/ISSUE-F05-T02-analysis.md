@@ -35,6 +35,6 @@ Implementar la tarea en segundo plano y el servicio supervisor (`AgentHealthMoni
 
 ## 3. Decisiones Técnicas y de Arquitectura
 
-- **Desacoplamiento en Capa de Servicio ([app/Services/Agents/AgentHealthMonitorService.php](file:///Users/javiergalvez-ia/jg_dashboard/app/Services/Agents/AgentHealthMonitorService.php)):** Toda la lógica de detección y transición reside en un servicio reutilizable y testeable de forma independiente del entorno de ejecución (CLI, Worker o Web).
+- **Desacoplamiento en Capa de Servicio ([app/Services/Agents/AgentHealthMonitorService.php](app/Services/Agents/AgentHealthMonitorService.php)):** Toda la lógica de detección y transición reside en un servicio reutilizable y testeable de forma independiente del entorno de ejecución (CLI, Worker o Web).
 - **Alcance Selectivo de Estados:** Solo los agentes que estuvieron previamente operativos (`ACTIVE`) son evaluados para transición a `OFFLINE`. Los agentes no aprovisionados (`PENDING`) se mantienen intactos.
 - **Transaccionalidad Atómica:** Las actualizaciones de estado y los registros de auditoría se encapsulan en transacciones de base de datos para garantizar consistencia.

@@ -6,9 +6,9 @@
 - **Severidad:** 🟢 BAJO
 - **CWE:** CWE-561 (Dead Code), CWE-287 (Improper Authentication)
 - **Componentes Afectados:**
-  - [`jg_dashboard/app/Services/DevOps60kApiClient.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Services/DevOps60kApiClient.php) (Eliminado)
-  - [`jg_dashboard/tests/Feature/DevOps60kApiClientTest.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Feature/DevOps60kApiClientTest.php) (Eliminado)
-  - [`jg_dashboard/README.md`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/README.md)
+  - [`jg_dashboard/app/Services/DevOps60kApiClient.php`](../../../app/Services/DevOps60kApiClient.php) (Eliminado)
+  - [`jg_dashboard/tests/Feature/DevOps60kApiClientTest.php`](../../../tests/Feature/DevOps60kApiClientTest.php) (Eliminado)
+  - [`jg_dashboard/README.md`](../../../README.md)
 
 ---
 

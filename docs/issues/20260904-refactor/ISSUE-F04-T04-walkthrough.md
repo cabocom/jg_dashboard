@@ -10,20 +10,20 @@
 
 Se han implementado las validaciones estrictas de caducidad, uso único y revocación de tokens en `jg_dashboard`:
 
-1. **Modelo `BootstrapToken` ([app/Models/BootstrapToken.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Models/BootstrapToken.php)):**
+1. **Modelo `BootstrapToken` ([app/Models/BootstrapToken.php](../../../app/Models/BootstrapToken.php)):**
    - Actualización de `isExpired()` para validar tanto el campo `expires_at` como el límite absoluto estricto de 24 horas a partir del timestamp de creación (`created_at`).
    - Incorporación del método `revoke()` para invalidación manual inmediata.
 
-2. **Servicio de Registro ([app/Services/Agents/AgentRegistrationService.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Services/Agents/AgentRegistrationService.php)):**
+2. **Servicio de Registro ([app/Services/Agents/AgentRegistrationService.php](../../../app/Services/Agents/AgentRegistrationService.php)):**
    - Bloqueo pesimista `lockForUpdate()` en el proceso de consumo del token para evitar condiciones de carrera.
    - Retorno estricto de código HTTP `401 Unauthorized` para tokens expirados (`>24h`), consumidos o alterados.
    - Implementación del método `revokeBootstrapTokens($agent, $adminUser)` con registro de auditoría `AGENT_BOOTSTRAP_TOKENS_REVOKED`.
 
-3. **Controladores y Rutas ([app/Http/Controllers/Api/AdminAgentController.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Http/Controllers/Api/AdminAgentController.php), [routes/api.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/routes/api.php)):**
+3. **Controladores y Rutas ([app/Http/Controllers/Api/AdminAgentController.php](../../../app/Http/Controllers/Api/AdminAgentController.php), [routes/api.php](../../../routes/api.php)):**
    - Endpoint administrativo `POST /api/v1/admin/agents/{agent_id}/revoke-tokens` protegido por `role:admin`.
    - Ajuste en `AgentRegistrationController` para responder uniformemente `401 Unauthorized` ante cualquier fallo de validación de token.
 
-4. **Suite de Pruebas ([tests/Unit/AgentRegistrationServiceTest.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Unit/AgentRegistrationServiceTest.php), [tests/Feature/AgentRegistrationApiTest.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Feature/AgentRegistrationApiTest.php), [tests/Feature/AdminAgentApiTest.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Feature/AdminAgentApiTest.php)):**
+4. **Suite de Pruebas ([tests/Unit/AgentRegistrationServiceTest.php](../../../tests/Unit/AgentRegistrationServiceTest.php), [tests/Feature/AgentRegistrationApiTest.php](../../../tests/Feature/AgentRegistrationApiTest.php), [tests/Feature/AdminAgentApiTest.php](../../../tests/Feature/AdminAgentApiTest.php)):**
    - Validación de respuesta 401 para tokens expirados (>24h).
    - Validación de respuesta 401 para tokens ya consumidos (uso único).
    - Validación de respuesta 401 para tokens revocados administrativamente.

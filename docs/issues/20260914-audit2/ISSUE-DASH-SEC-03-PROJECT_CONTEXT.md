@@ -6,18 +6,18 @@
 - **Severidad:** 🟡 MEDIO
 - **CWE:** CWE-668 (Exposure of Resource to Wrong Sphere)
 - **Componentes Afectados:**
-  - [`jg_dashboard/routes/api.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/routes/api.php)
-  - [`jg_dashboard/tests/Feature/AgentHeartbeatApiTest.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Feature/AgentHeartbeatApiTest.php)
-  - [`jg_dashboard/tests/Feature/HitlApprovalApproveApiTest.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Feature/HitlApprovalApproveApiTest.php)
-  - [`jg_dashboard/tests/Feature/HitlApprovalRejectApiTest.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Feature/HitlApprovalRejectApiTest.php)
-  - [`jg_dashboard/tests/Feature/HitlApprovalsPendingApiTest.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Feature/HitlApprovalsPendingApiTest.php)
-  - [`jg_dashboard/tests/Feature/InternalExecutionWebhookTest.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Feature/InternalExecutionWebhookTest.php)
-  - [`jg_dashboard/tests/Feature/ExecutionStatusApiTest.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Feature/ExecutionStatusApiTest.php)
-  - [`jg_dashboard/tests/Feature/ExecutionTriggerApiTest.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Feature/ExecutionTriggerApiTest.php)
-  - [`jg_dashboard/tests/Feature/AgentCapabilitiesApiTest.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Feature/AgentCapabilitiesApiTest.php)
-  - [`jg_dashboard/tests/Feature/AgentRegistrationApiTest.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Feature/AgentRegistrationApiTest.php)
-  - [`jg_dashboard/tests/Feature/AgentListApiTest.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Feature/AgentListApiTest.php)
-  - [`jg_dashboard/tests/Feature/AuthApiTest.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Feature/AuthApiTest.php)
+  - [`jg_dashboard/routes/api.php`](../../../routes/api.php)
+  - [`jg_dashboard/tests/Feature/AgentHeartbeatApiTest.php`](../../../tests/Feature/AgentHeartbeatApiTest.php)
+  - [`jg_dashboard/tests/Feature/HitlApprovalApproveApiTest.php`](../../../tests/Feature/HitlApprovalApproveApiTest.php)
+  - [`jg_dashboard/tests/Feature/HitlApprovalRejectApiTest.php`](../../../tests/Feature/HitlApprovalRejectApiTest.php)
+  - [`jg_dashboard/tests/Feature/HitlApprovalsPendingApiTest.php`](../../../tests/Feature/HitlApprovalsPendingApiTest.php)
+  - [`jg_dashboard/tests/Feature/InternalExecutionWebhookTest.php`](../../../tests/Feature/InternalExecutionWebhookTest.php)
+  - [`jg_dashboard/tests/Feature/ExecutionStatusApiTest.php`](../../../tests/Feature/ExecutionStatusApiTest.php)
+  - [`jg_dashboard/tests/Feature/ExecutionTriggerApiTest.php`](../../../tests/Feature/ExecutionTriggerApiTest.php)
+  - [`jg_dashboard/tests/Feature/AgentCapabilitiesApiTest.php`](../../../tests/Feature/AgentCapabilitiesApiTest.php)
+  - [`jg_dashboard/tests/Feature/AgentRegistrationApiTest.php`](../../../tests/Feature/AgentRegistrationApiTest.php)
+  - [`jg_dashboard/tests/Feature/AgentListApiTest.php`](../../../tests/Feature/AgentListApiTest.php)
+  - [`jg_dashboard/tests/Feature/AuthApiTest.php`](../../../tests/Feature/AuthApiTest.php)
 
 ---
 

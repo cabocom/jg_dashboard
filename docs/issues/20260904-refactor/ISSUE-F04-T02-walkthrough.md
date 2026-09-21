@@ -10,20 +10,20 @@
 
 Se ha implementado el endpoint administrativo protegido para el aprovisionamiento de agentes en `jg_dashboard`:
 
-1. **Controlador Administrativo ([app/Http/Controllers/Api/AdminAgentController.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Http/Controllers/Api/AdminAgentController.php)):**
+1. **Controlador Administrativo ([app/Http/Controllers/Api/AdminAgentController.php](../../../app/Http/Controllers/Api/AdminAgentController.php)):**
    - Inyección de dependencias de `AgentRegistrationService`.
    - `store()`: Valida payload de entrada (`name`, `version`, `capabilities`, `metadata`, `ttl_hours`), delega la creación al servicio y retorna respuesta HTTP `201 Created` con `agent_id`, `bootstrap_token`, estado y caducidad.
    - `index()`: Consulta y lista todos los agentes ordenados por fecha descendente (código `200 OK`).
    - `regenerateToken()`: Valida TTL opcional, invoca regeneración para agentes `PENDING` y devuelve el nuevo token o código `400 Bad Request` si el agente no es apto.
 
-2. **Rutas de API ([routes/api.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/routes/api.php)):**
+2. **Rutas de API ([routes/api.php](../../../routes/api.php)):**
    - Agrupación de rutas bajo `jwt.auth` y `role:admin`:
      - `POST /api/v1/admin/agents` -> `AdminAgentController@store`
      - `GET /api/v1/admin/agents` -> `AdminAgentController@index`
      - `POST /api/v1/admin/agents/{agent_id}/regenerate-token` -> `AdminAgentController@regenerateToken`
    - Configuración de alias sin prefijo v1 (`/api/admin/agents`).
 
-3. **Suite de Pruebas de Integración y Feature ([tests/Feature/AdminAgentApiTest.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Feature/AdminAgentApiTest.php)):**
+3. **Suite de Pruebas de Integración y Feature ([tests/Feature/AdminAgentApiTest.php](../../../tests/Feature/AdminAgentApiTest.php)):**
    - 9 pruebas completas que verifican:
      - Retorno `401 Unauthorized` ante peticiones anónimas.
      - Retorno `403 Forbidden` ante usuarios con rol `VIEWER`.

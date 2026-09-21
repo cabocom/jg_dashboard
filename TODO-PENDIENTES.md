@@ -37,8 +37,8 @@ No obstante, la auditoría exhaustiva del código fuente revela seis ítems pend
   1. Adaptar el serializador en `jg_agente` o enriquecer la respuesta de `GET /executions/{thread_id}` para incluir el array de transiciones de nodos del grafo (`state.node_history` o similar).
   2. Actualizar `console.js` y la vista Blade para renderizar las etapas del grafo con sus respectivos iconos de estado (observación, razonamiento, planificación, verificación).
 - **Archivos de Referencia:**
-  - [public/js/console.js](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/public/js/console.js)
-  - [resources/views/console/index.blade.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/resources/views/console/index.blade.php)
+  - [public/js/console.js](public/js/console.js)
+  - [resources/views/console/index.blade.php](resources/views/console/index.blade.php)
 
 ---
 
@@ -53,8 +53,8 @@ No obstante, la auditoría exhaustiva del código fuente revela seis ítems pend
   1. Crear módulo `App\Adapters\` con drivers para Webhooks genéricos (JSON mapping hacia `AgentInput`).
   2. Implementar controlador `WebhookAdapterController` y enrutamiento por tipo de evento.
 - **Archivos de Referencia:**
-  - [app/Http/Controllers/Api/ExecutionController.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Http/Controllers/Api/ExecutionController.php)
-  - [routes/api.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/routes/api.php)
+  - [app/Http/Controllers/Api/ExecutionController.php](app/Http/Controllers/Api/ExecutionController.php)
+  - [routes/api.php](routes/api.php)
 
 ---
 
@@ -70,8 +70,8 @@ No obstante, la auditoría exhaustiva del código fuente revela seis ítems pend
 - **Acciones Necesarias para Resolución:**
   1. Configurar un job en `.gitlab-ci.yml` con servicios Docker-in-Docker o compose para ejecutar pruebas de integración end-to-end entre ambos contenedores.
 - **Archivos de Referencia:**
-  - [.gitlab-ci.yml](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/.gitlab-ci.yml)
-  - [tests/Feature/](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Feature/)
+  - [.gitlab-ci.yml](.gitlab-ci.yml)
+  - [tests/Feature/](tests/Feature/)
 
 ---
 
@@ -88,10 +88,10 @@ No obstante, la auditoría exhaustiva del código fuente revela seis ítems pend
   1. Refactorizar `TopologyMap`, `AgentHealthWidget` y `AgentTaskResource` para consumir `AgentHttpClient` o modelos Eloquent de `Agent`.
   2. Eliminar la clase `DevOps60kApiClient.php`, su configuración en `config/devops60k.php` y el binding en `AppServiceProvider.php`.
 - **Archivos de Referencia:**
-  - [app/Services/DevOps60kApiClient.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Services/DevOps60kApiClient.php)
-  - [app/Services/Agents/AgentHttpClient.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Services/Agents/AgentHttpClient.php)
-  - [app/Filament/Pages/TopologyMap.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Filament/Pages/TopologyMap.php)
-  - [app/Providers/AppServiceProvider.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Providers/AppServiceProvider.php)
+  - [app/Services/DevOps60kApiClient.php](app/Services/DevOps60kApiClient.php)
+  - [app/Services/Agents/AgentHttpClient.php](app/Services/Agents/AgentHttpClient.php)
+  - [app/Filament/Pages/TopologyMap.php](app/Filament/Pages/TopologyMap.php)
+  - [app/Providers/AppServiceProvider.php](app/Providers/AppServiceProvider.php)
 
 ---
 
@@ -109,8 +109,8 @@ No obstante, la auditoría exhaustiva del código fuente revela seis ítems pend
 - **Acciones Necesarias para Resolución:**
   1. Añadir target `dev` en el Dockerfile multi-stage de `jg_dashboard` que instale dependencias de desarrollo (`composer install` completo).
 - **Archivos de Referencia:**
-  - [Dockerfile](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/Dockerfile)
-  - [scripts/check.sh](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/scripts/check.sh)
+  - [Dockerfile](Dockerfile)
+  - [scripts/check.sh](scripts/check.sh)
 
 ---
 
@@ -124,4 +124,4 @@ No obstante, la auditoría exhaustiva del código fuente revela seis ítems pend
 - **Acciones Necesarias para Resolución:**
   1. Implementar streaming SSE o Laravel Reverb / WebSockets en futuras versiones cuando `jg_agente` soporte streaming de tokens y eventos de nodos.
 - **Archivos de Referencia:**
-  - [public/js/console.js](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/public/js/console.js)
+  - [public/js/console.js](public/js/console.js)

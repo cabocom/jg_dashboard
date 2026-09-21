@@ -10,26 +10,26 @@
 
 Se ha implementado el conjunto de middlewares de autenticación JWT y autorización RBAC para `jg_dashboard`:
 
-1. **Middleware de Autenticación JWT ([app/Http/Middleware/JwtAuthenticate.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Http/Middleware/JwtAuthenticate.php)):**
+1. **Middleware de Autenticación JWT ([app/Http/Middleware/JwtAuthenticate.php](../../../app/Http/Middleware/JwtAuthenticate.php)):**
    - Valida el token Bearer usando `JwtService`.
    - Rechaza peticiones sin token o con token alterado/vencido con `401 Unauthorized`.
    - Inyecta el usuario autenticado en la sesión y contexto del request.
 
-2. **Middleware de Roles RBAC ([app/Http/Middleware/RequireRole.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Http/Middleware/RequireRole.php)):**
+2. **Middleware de Roles RBAC ([app/Http/Middleware/RequireRole.php](../../../app/Http/Middleware/RequireRole.php)):**
    - Comprueba si el usuario autenticado posee los roles solicitados (`ADMIN`, `OPERATOR`, `VIEWER`).
    - Aplica jerarquía de roles (ADMIN incluye permisos de OPERATOR y VIEWER).
    - Retorna `403 Forbidden` si los roles son insuficientes.
 
-3. **Middleware de Permisos Granulares ([app/Http/Middleware/RequirePermission.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Http/Middleware/RequirePermission.php)):**
+3. **Middleware de Permisos Granulares ([app/Http/Middleware/RequirePermission.php](../../../app/Http/Middleware/RequirePermission.php)):**
    - Valida permisos de capacidades operativas (`agents:manage`, `hitl:approve`, etc.) respondiendo `403 Forbidden` cuando no corresponde.
 
-4. **Registro de Middleware Aliases ([bootstrap/app.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/bootstrap/app.php)):**
+4. **Registro de Middleware Aliases ([bootstrap/app.php](../../../bootstrap/app.php)):**
    - Registrados los aliases `jwt.auth`, `role` y `permission` en el pipeline de Laravel 11.
 
-5. **Lógica de Roles en Modelo ([app/Models/User.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Models/User.php)):**
+5. **Lógica de Roles en Modelo ([app/Models/User.php](../../../app/Models/User.php)):**
    - Métodos `hasRole()`, `hasPermission()` e `isViewer()` agregados y normalizados.
 
-6. **Rutas Protegidas y Pruebas ([routes/api.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/routes/api.php), [tests/Feature/RbacMiddlewareTest.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Feature/RbacMiddlewareTest.php)):**
+6. **Rutas Protegidas y Pruebas ([routes/api.php](../../../routes/api.php), [tests/Feature/RbacMiddlewareTest.php](../../../tests/Feature/RbacMiddlewareTest.php)):**
    - 11 pruebas de integración verificando escenarios de 401 por falta de token o expiración, y 403 por roles insuficientes entre ADMIN, OPERATOR y VIEWER.
 
 ---

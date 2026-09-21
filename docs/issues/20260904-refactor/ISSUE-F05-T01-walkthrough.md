@@ -10,27 +10,27 @@
 
 Se ha implementado el endpoint de procesamiento de heartbeats y telemetría de agentes en `jg_dashboard`:
 
-1. **Modelo `Agent` ([app/Models/Agent.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Models/Agent.php)):**
+1. **Modelo `Agent` ([app/Models/Agent.php](../../../app/Models/Agent.php)):**
    - Incorporado el método `verifyPermanentSecret(string $plainSecret): bool` con comparación en tiempo constante `hash_equals` para contrastar contra `permanent_secret_hash`.
 
-2. **Servicio de Heartbeat ([app/Services/Agents/AgentHeartbeatService.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Services/Agents/AgentHeartbeatService.php)):**
+2. **Servicio de Heartbeat ([app/Services/Agents/AgentHeartbeatService.php](../../../app/Services/Agents/AgentHeartbeatService.php)):**
    - Método `processHeartbeat(...)`:
      - Valida la presencia de `agent_id` y `plainSecret`.
      - Verifica existencia del agente, rechaza agentes no activados (`PENDING`) y valida la firma criptográfica del secreto permanente.
      - Actualiza `last_heartbeat_at = now()`, consolida `status = 'ACTIVE'` y persiste el objeto `metrics_json` con las métricas operativas del agente.
 
-3. **Controlador API ([app/Http/Controllers/Api/AgentHeartbeatController.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Http/Controllers/Api/AgentHeartbeatController.php)):**
+3. **Controlador API ([app/Http/Controllers/Api/AgentHeartbeatController.php](../../../app/Http/Controllers/Api/AgentHeartbeatController.php)):**
    - Extracción de `agent_id` desde header `X-Agent-ID` o payload JSON.
    - Extracción de credencial desde `Authorization: Bearer <secret>`, header `X-Agent-Secret` o payload JSON.
    - Validación de esquema de métricas y ejecuciones activas.
    - Retorno de código HTTP `200 OK` con datos actualizados del agente o `401 Unauthorized` ante fallos de autenticación.
 
-4. **Enrutamiento ([routes/api.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/routes/api.php)):**
+4. **Enrutamiento ([routes/api.php](../../../routes/api.php)):**
    - Declaración de `POST /api/v1/agents/heartbeat` y alias `POST /api/agents/heartbeat`.
 
 5. **Suite de Pruebas Unitarias y de Feature:**
-   - [tests/Unit/AgentHeartbeatServiceTest.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Unit/AgentHeartbeatServiceTest.php): 5 pruebas unitarias verificando validación de secreto, actualización de métricas, rechazo de credenciales inválidas y rechazo de agentes en estado PENDING.
-   - [tests/Feature/AgentHeartbeatApiTest.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Feature/AgentHeartbeatApiTest.php): 7 pruebas de feature verificando autenticación por headers, por body JSON, códigos 401 y funcionamiento del alias.
+   - [tests/Unit/AgentHeartbeatServiceTest.php](../../../tests/Unit/AgentHeartbeatServiceTest.php): 5 pruebas unitarias verificando validación de secreto, actualización de métricas, rechazo de credenciales inválidas y rechazo de agentes en estado PENDING.
+   - [tests/Feature/AgentHeartbeatApiTest.php](../../../tests/Feature/AgentHeartbeatApiTest.php): 7 pruebas de feature verificando autenticación por headers, por body JSON, códigos 401 y funcionamiento del alias.
 
 ---
 

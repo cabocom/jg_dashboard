@@ -43,6 +43,6 @@ Implementar y exponer el endpoint protegido `GET /api/v1/agents` en `jg_dashboar
 
 ## 3. Decisiones Técnicas y de Arquitectura
 
-- **Controlador REST Dedicado ([app/Http/Controllers/Api/AgentController.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Http/Controllers/Api/AgentController.php)):** Desacoplado del controlador administrativo de creación y enfocado en la consulta, supervisión y observabilidad del estado de los agentes.
+- **Controlador REST Dedicado ([app/Http/Controllers/Api/AgentController.php](../../../app/Http/Controllers/Api/AgentController.php)):** Desacoplado del controlador administrativo de creación y enfocado en la consulta, supervisión y observabilidad del estado de los agentes.
 - **Cálculo Dinámico de Salud:** Mediante `$agent->isHealthy(90)` se computa al vuelo si el agente está realmente vivo (activo con reporte en <90s) independientemente del estado en BD.
 - **Acceso Democrático RBAC:** Mientras que la mutación o creación de agentes es exclusiva de `admin`, la consulta de estado y salud está disponible para `viewer` y `operator`.

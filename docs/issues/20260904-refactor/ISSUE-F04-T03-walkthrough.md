@@ -10,7 +10,7 @@
 
 Se ha implementado el endpoint de consumo de registro y activación de agentes en `jg_dashboard`:
 
-1. **Extensión del Servicio ([app/Services/Agents/AgentRegistrationService.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Services/Agents/AgentRegistrationService.php)):**
+1. **Extensión del Servicio ([app/Services/Agents/AgentRegistrationService.php](../../../app/Services/Agents/AgentRegistrationService.php)):**
    - Método `consumeBootstrapTokenAndActivate(...)`:
      - Valida el token contra `dashboard_bootstrap_tokens`.
      - Lanza excepciones semánticas con códigos HTTP precisos (`404` no encontrado, `409` ya consumido, `410` expirado, `400` agente no pendiente).
@@ -21,15 +21,15 @@ Se ha implementado el endpoint de consumo de registro y activación de agentes e
        4. Asigna metadatos, versión y capacidades recibidas.
        5. Registra evento de auditoría `AGENT_ACTIVATED`.
 
-2. **Controlador API ([app/Http/Controllers/Api/AgentRegistrationController.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Http/Controllers/Api/AgentRegistrationController.php)):**
+2. **Controlador API ([app/Http/Controllers/Api/AgentRegistrationController.php](../../../app/Http/Controllers/Api/AgentRegistrationController.php)):**
    - Extracción inteligente del token: prioritariamente desde encabezado HTTP `Authorization: Bearer <token>`, o secundariamente desde el body JSON `bootstrap_token`.
    - Validación de esquema de payload de entrada.
    - Retorno de respuesta HTTP `200 OK` con `agent_id`, nombre, estado `ACTIVE`, credencial permanente y timestamp.
 
-3. **Rutas de API ([routes/api.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/routes/api.php)):**
+3. **Rutas de API ([routes/api.php](../../../routes/api.php)):**
    - Registro de `POST /api/v1/agents/register` y alias `POST /api/agents/register`.
 
-4. **Suite de Pruebas Unitarias y de Feature ([tests/Unit/AgentRegistrationServiceTest.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Unit/AgentRegistrationServiceTest.php), [tests/Feature/AgentRegistrationApiTest.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Feature/AgentRegistrationApiTest.php)):**
+4. **Suite de Pruebas Unitarias y de Feature ([tests/Unit/AgentRegistrationServiceTest.php](../../../tests/Unit/AgentRegistrationServiceTest.php), [tests/Feature/AgentRegistrationApiTest.php](../../../tests/Feature/AgentRegistrationApiTest.php)):**
    - 4 nuevas pruebas unitarias en `AgentRegistrationServiceTest`.
    - 7 nuevas pruebas de integración feature en `AgentRegistrationApiTest`.
    - Verificación de códigos 401, 200, 409, 410, 404, verificación de consumo único y persistencia en BD.

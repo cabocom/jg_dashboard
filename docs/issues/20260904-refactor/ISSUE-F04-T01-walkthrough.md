@@ -10,7 +10,7 @@
 
 Se ha implementado el servicio de registro de agentes y emisión de tokens de aprovisionamiento en `jg_dashboard`:
 
-1. **Servicio de Registro ([app/Services/Agents/AgentRegistrationService.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Services/Agents/AgentRegistrationService.php)):**
+1. **Servicio de Registro ([app/Services/Agents/AgentRegistrationService.php](../../../app/Services/Agents/AgentRegistrationService.php)):**
    - `createAgent()`:
      - Crea la entidad `Agent` en estado `PENDING` con UUID v4 único.
      - Genera token aleatorio criptográfico con TTL de 24 horas.
@@ -23,7 +23,7 @@ Se ha implementado el servicio de registro de agentes y emisión de tokens de ap
    - `validateBootstrapToken()`:
      - Inspecciona tokens entrantes evaluando vigencia, no-expiración y no-consumo.
 
-2. **Suite de Pruebas Unitarias ([tests/Unit/AgentRegistrationServiceTest.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Unit/AgentRegistrationServiceTest.php)):**
+2. **Suite de Pruebas Unitarias ([tests/Unit/AgentRegistrationServiceTest.php](../../../tests/Unit/AgentRegistrationServiceTest.php)):**
    - 5 pruebas exhaustivas en Pest PHP validando:
      - Creación de agente con UUID, estado PENDING y token de 24h.
      - Almacenamiento exclusivo del hash en base de datos.

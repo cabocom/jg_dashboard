@@ -10,22 +10,22 @@
 
 Se ha inicializado y adaptado la estructura troncal del Control Plane para `jg_dashboard`:
 
-1. **Configuración de Dependencias ([composer.json](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/composer.json)):**
+1. **Configuración de Dependencias ([composer.json](../../../composer.json)):**
    - Paquete: `javiergalvez-ia/jg-dashboard`.
    - Dependencias de producción: `php ^8.2|^8.3|^8.4`, `laravel/framework ^11.0`, `filament/filament ^3.2`, `guzzlehttp/guzzle ^7.8`.
    - Dependencias de desarrollo: `pestphp/pest ^3.0`, `pestphp/pest-plugin-laravel ^3.0`, `mockery/mockery`, `fakerphp/faker`.
 
 2. **Estructura de la Aplicación y Recursos:**
-   - [app/Filament/](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Filament): Panel Filament con `AgentTaskResource`, `CircuitBreakerResource`, `NotifiedIncidentResource` y página de mapa topológico interactivo.
-   - [app/Models/](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Models): Modelos Eloquent (`User`, `AgentTask`, `CircuitBreakerState`, `InfraTopology`, `NotifiedIncident`).
-   - [app/Services/DevOps60kApiClient.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Services/DevOps60kApiClient.php): Cliente HTTP para interactuar con la API REST del agente (`POST /trigger`, `POST /executions/{thread_id}/approve`, `POST /executions/{thread_id}/reject`, `GET /health`).
+   - [app/Filament/](../../../app/Filament): Panel Filament con `AgentTaskResource`, `CircuitBreakerResource`, `NotifiedIncidentResource` y página de mapa topológico interactivo.
+   - [app/Models/](../../../app/Models): Modelos Eloquent (`User`, `AgentTask`, `CircuitBreakerState`, `InfraTopology`, `NotifiedIncident`).
+   - [app/Services/DevOps60kApiClient.php](../../../app/Services/DevOps60kApiClient.php): Cliente HTTP para interactuar con la API REST del agente (`POST /trigger`, `POST /executions/{thread_id}/approve`, `POST /executions/{thread_id}/reject`, `GET /health`).
 
 3. **Configuración y Entorno:**
-   - [.env.example](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/.env.example) y [.env.testing](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/.env.testing): Nombres de aplicación ajustados (`jG Dashboard`) y variables de conexión a PostgreSQL y `jg_agente` (`JG_AGENTE_API_URL`).
-   - [config/app.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/config/app.php): Nombre por defecto `jG Dashboard - Control Plane`.
-   - [config/devops60k.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/config/devops60k.php): Respaldo de URLs con variables de entorno de `jg_agente`.
+   - [.env.example](../../../.env.example) y [.env.testing](../../../.env.testing): Nombres de aplicación ajustados (`jG Dashboard`) y variables de conexión a PostgreSQL y `jg_agente` (`JG_AGENTE_API_URL`).
+   - [config/app.php](../../../config/app.php): Nombre por defecto `jG Dashboard - Control Plane`.
+   - [config/devops60k.php](../../../config/devops60k.php): Respaldo de URLs con variables de entorno de `jg_agente`.
 
-4. **Script de Verificación Unificado ([scripts/check.sh](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/scripts/check.sh)):**
+4. **Script de Verificación Unificado ([scripts/check.sh](../../../scripts/check.sh)):**
    - Ejecuta de forma automatizada la suite de pruebas Pest PHP.
 
 ---

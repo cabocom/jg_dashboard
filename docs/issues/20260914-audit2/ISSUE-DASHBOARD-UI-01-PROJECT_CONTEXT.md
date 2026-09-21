@@ -5,12 +5,12 @@
 - **Código:** `DASHBOARD-UI-01`
 - **Severidad:** 🟡 MEDIO / MEJORA ESTRUCTURAL, FUNCIONAL Y UX
 - **Componentes Afectados:**
-  - [`jg_dashboard/resources/views/console/index.blade.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/resources/views/console/index.blade.php)
-  - [`jg_dashboard/public/js/console.js`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/public/js/console.js)
-  - [`jg_dashboard/app/Http/Controllers/WebConsoleController.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Http/Controllers/WebConsoleController.php)
-  - [`jg_dashboard/app/Models/Agent.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Models/Agent.php)
-  - [`jg_dashboard/app/Models/AgentTask.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Models/AgentTask.php)
-  - [`jg_dashboard/tests/Feature/ExecutionViewerWebTest.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Feature/ExecutionViewerWebTest.php)
+  - [`jg_dashboard/resources/views/console/index.blade.php`](../../../resources/views/console/index.blade.php)
+  - [`jg_dashboard/public/js/console.js`](../../../public/js/console.js)
+  - [`jg_dashboard/app/Http/Controllers/WebConsoleController.php`](../../../app/Http/Controllers/WebConsoleController.php)
+  - [`jg_dashboard/app/Models/Agent.php`](../../../app/Models/Agent.php)
+  - [`jg_dashboard/app/Models/AgentTask.php`](../../../app/Models/AgentTask.php)
+  - [`jg_dashboard/tests/Feature/ExecutionViewerWebTest.php`](../../../tests/Feature/ExecutionViewerWebTest.php)
 
 ---
 

@@ -10,19 +10,19 @@
 
 Se ha implementado el comando CLI y el script de arranque para la inicialización idempotente del usuario administrador en `jg_dashboard`:
 
-1. **Comando Artisan ([app/Console/Commands/InitAdminCommand.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Console/Commands/InitAdminCommand.php)):**
+1. **Comando Artisan ([app/Console/Commands/InitAdminCommand.php](../../../app/Console/Commands/InitAdminCommand.php)):**
    - Comando `dashboard:init-admin` con opciones `--email`, `--password`, `--name`, `--force`.
    - Soporte para variables de entorno `ADMIN_EMAIL`, `ADMIN_NAME`, `ADMIN_DEFAULT_PASSWORD`.
    - Creación segura con hash Bcrypt/Argon2id.
    - Comportamiento idempotente: omite la creación si el usuario ya existe y solo rota credenciales si se suministra el flag `--force`.
 
-2. **Script de Shell ([scripts/init_admin.sh](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/scripts/init_admin.sh)):**
+2. **Script de Shell ([scripts/init_admin.sh](../../../scripts/init_admin.sh)):**
    - Script ejecutable con permisos `+x` para aprovisionamiento directo en contenedores Docker y flujos de automatización.
 
-3. **Seeder de Base de Datos ([database/seeders/DatabaseSeeder.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/database/seeders/DatabaseSeeder.php)):**
+3. **Seeder de Base de Datos ([database/seeders/DatabaseSeeder.php](../../../database/seeders/DatabaseSeeder.php)):**
    - Actualizado para resolver variables de entorno opcionales sin alterar la compatibilidad previa.
 
-4. **Suite de Pruebas Automatizadas ([tests/Feature/InitAdminCommandTest.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Feature/InitAdminCommandTest.php)):**
+4. **Suite de Pruebas Automatizadas ([tests/Feature/InitAdminCommandTest.php](../../../tests/Feature/InitAdminCommandTest.php)):**
    - 5 pruebas en Pest PHP verificando:
      - Creación mediante argumentos CLI.
      - Idempotencia en ejecuciones repetidas.

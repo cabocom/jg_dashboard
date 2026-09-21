@@ -101,9 +101,9 @@ Arquitectura extensible con autodescubrimiento (entry_points + local filesystem)
 **Secretos HMAC hardcodeados como fallback en producción**
 
 **Ubicación:**
-- [AgentHttpClient.php:83-86](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Services/Agents/AgentHttpClient.php#L83-L86)
-- [AgentHttpClient.php:119](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Services/Agents/AgentHttpClient.php#L119)
-- [docker-compose.yml:155](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/docker-compose.yml#L155)
+- [AgentHttpClient.php:83-86](../../../../app/Services/Agents/AgentHttpClient.php#L83-L86)
+- [AgentHttpClient.php:119](../../../../app/Services/Agents/AgentHttpClient.php#L119)
+- [docker-compose.yml:155](docker-compose.yml#L155)
 
 **Evidencia:**
 ```php
@@ -126,7 +126,7 @@ PERMANENT_AGENT_SECRET: sec_devops_agent_preprovisioned_key_12345
 ### SEC-002 · CRÍTICO · CONFIRMADO
 **JWT Secret con fallback hardcodeado predecible**
 
-**Ubicación:** [JwtService.php:16-19](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Services/Auth/JwtService.php#L16-L19)
+**Ubicación:** [JwtService.php:16-19](../../../../app/Services/Auth/JwtService.php#L16-L19)
 
 **Evidencia:**
 ```php
@@ -145,7 +145,7 @@ $resolvedSecret = $secret
 ### SEC-003 · ALTO · CONFIRMADO
 **Inyección de comandos shell: cobertura incompleta por nombre de argumento**
 
-**Ubicación:** [guard.py:170-175](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_agente/app/security/guard.py#L170-L175)
+**Ubicación:** [guard.py:170-175](https://gitlab.com/javiergalvez-ia/jg_agente/-/blob/main/app/security/guard.py#L170-L175)
 
 **Evidencia:**
 ```python
@@ -168,7 +168,7 @@ La detección de inyección shell se activa **solo** si el nombre del argumento 
 ### SEC-004 · ALTO · CONFIRMADO
 **Directory traversal: detección parcial con bypass trivial**
 
-**Ubicación:** [guard.py:148](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_agente/app/security/guard.py#L148)
+**Ubicación:** [guard.py:148](https://gitlab.com/javiergalvez-ia/jg_agente/-/blob/main/app/security/guard.py#L148)
 
 **Evidencia:**
 ```python
@@ -188,7 +188,7 @@ Payload de bypass confirmado: `"/tmp/../../../../etc/passwd"` — contiene `..`,
 ### SEC-005 · ALTO · PROBABLE
 **Endpoint de heartbeat sin autenticación fuerte**
 
-**Ubicación:** [api.php:15](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/routes/api.php#L15)
+**Ubicación:** [api.php:15](../../../../routes/api.php#L15)
 
 **Evidencia:** El endpoint `/agents/heartbeat` está fuera del middleware `jwt.auth`:
 ```php
@@ -205,7 +205,7 @@ La autenticación se basa en presentar el `permanent_secret` en plaintext (como 
 ### SEC-006 · MEDIO · CONFIRMADO
 **Rutas API duplicadas sin namespace versionado**
 
-**Ubicación:** [api.php:62-86](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/routes/api.php#L62-L86)
+**Ubicación:** [api.php:62-86](../../../../routes/api.php#L62-L86)
 
 **Evidencia:** Existe un bloque completo de rutas duplicadas fuera del prefijo `/v1`, exponiendo todos los endpoints bajo `/api/` directamente además de bajo `/api/v1/`. Esto incluye rutas sensibles como `/api/agents/register`, `/api/agents/heartbeat`, y toda la capa de ejecución y HITL.
 
@@ -216,7 +216,7 @@ La autenticación se basa en presentar el `permanent_secret` en plaintext (como 
 ### SEC-007 · MEDIO · POTENCIAL
 **SSRF: resolución DNS asíncrona con race condition (TOCTOU)**
 
-**Ubicación:** [ssrf.py:239-264](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_agente/app/security/ssrf.py#L239-L264)
+**Ubicación:** [ssrf.py:239-264](https://gitlab.com/javiergalvez-ia/jg_agente/-/blob/main/app/security/ssrf.py#L239-L264)
 
 **Evidencia:** La validación SSRF resuelve DNS y verifica la IP resultante. Sin embargo, entre el momento de la validación DNS y el momento en que la herramienta hace la petición HTTP real, un atacante con control del DNS puede hacer que el registro cambie (DNS rebinding). El validador usa `socket.getaddrinfo()` que es una llamada blocking, y la validación no fuerza que la petición de la herramienta use la misma IP resuelta.
 
@@ -230,8 +230,8 @@ La autenticación se basa en presentar el `permanent_secret` en plaintext (como 
 **El bypass de aprobación HITL no distingue CUÁLES herramientas fueron aprobadas**
 
 **Ubicación:**
-- [execute.py:72](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_agente/app/nodes/execute.py#L72)
-- [guard.py:269-270](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_agente/app/security/guard.py#L269-L270)
+- [execute.py:72](https://gitlab.com/javiergalvez-ia/jg_agente/-/blob/main/app/nodes/execute.py#L72)
+- [guard.py:269-270](https://gitlab.com/javiergalvez-ia/jg_agente/-/blob/main/app/security/guard.py#L269-L270)
 
 **Evidencia:**
 ```python
@@ -252,7 +252,7 @@ Cuando `bypass_approval=True`, **todas** las herramientas del plan reciben permi
 ### AGENT-002 · MEDIO · CONFIRMADO
 **Contención secuencial rígida: aborta todo el plan ante el primer fallo**
 
-**Ubicación:** [execute.py:318-319](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_agente/app/nodes/execute.py#L318-L319)
+**Ubicación:** [execute.py:318-319](https://gitlab.com/javiergalvez-ia/jg_agente/-/blob/main/app/nodes/execute.py#L318-L319)
 
 **Evidencia:**
 ```python
@@ -270,7 +270,7 @@ No hay distinción entre errores fatales y no fatales. Si un paso de verificaci�
 ### AGENT-003 · MEDIO · PROBABLE
 **El nodo `risk_assess` otorga permisos wildcard a admins sin evaluación efectiva**
 
-**Ubicación:** [risk_assess.py:124-128](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_agente/app/nodes/risk_assess.py#L124-L128)
+**Ubicación:** [risk_assess.py:124-128](https://gitlab.com/javiergalvez-ia/jg_agente/-/blob/main/app/nodes/risk_assess.py#L124-L128)
 
 **Evidencia:**
 ```python
@@ -289,7 +289,7 @@ Un usuario con rol `admin` en el dashboard recibe `["*"]` como permisos, lo que 
 ### AGENT-004 · BAJO · PROBABLE
 **Fallback de permisos silencioso si el usuario no es admin**
 
-**Ubicación:** [risk_assess.py:130-131](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_agente/app/nodes/risk_assess.py#L130-L131)
+**Ubicación:** [risk_assess.py:130-131](https://gitlab.com/javiergalvez-ia/jg_agente/-/blob/main/app/nodes/risk_assess.py#L130-L131)
 
 **Evidencia:**
 ```python
@@ -308,7 +308,7 @@ Si un usuario no-admin no tiene permisos declarados y la herramienta define `req
 ### STATE-001 · ALTO · PROBABLE
 **La persistencia de ejecuciones es "best-effort" (no-fail-safe)**
 
-**Ubicación:** [executions.py:316-345](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_agente/app/api/executions.py#L316-L345)
+**Ubicación:** [executions.py:316-345](https://gitlab.com/javiergalvez-ia/jg_agente/-/blob/main/app/api/executions.py#L316-L345)
 
 **Evidencia:**
 ```python
@@ -333,7 +333,7 @@ Si la base de datos falla, la ejecución devuelve resultado exitoso al dashboard
 ### STATE-002 · MEDIO · CONFIRMADO
 **Doble sesión de base de datos por request en `trigger_execution`**
 
-**Ubicación:** [executions.py:504-568](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_agente/app/api/executions.py#L504-L568)
+**Ubicación:** [executions.py:504-568](https://gitlab.com/javiergalvez-ia/jg_agente/-/blob/main/app/api/executions.py#L504-L568)
 
 **Evidencia:** La función `trigger_execution` recibe `db: AsyncSession = Depends(get_async_session)` inyectado por FastAPI. Pero `execute_graph_pipeline` abre su propia sesión con `async_session_factory()` (L263, L316, L393, L440). Esto crea dos conexiones de DB concurrentes para la misma ejecución, y la sesión inyectada del router queda abierta durante toda la ejecución síncrona del grafo.
 
@@ -344,7 +344,7 @@ Si la base de datos falla, la ejecución devuelve resultado exitoso al dashboard
 ### STATE-003 · MEDIO · POTENCIAL
 **Audit trail en memoria sin límite de crecimiento**
 
-**Ubicación:** [audit.py:42](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_agente/app/security/audit.py#L42)
+**Ubicación:** [audit.py:42](https://gitlab.com/javiergalvez-ia/jg_agente/-/blob/main/app/security/audit.py#L42)
 
 **Evidencia:**
 ```python
@@ -363,9 +363,9 @@ El `SecurityAuditLogger` acumula todos los `AuditRecord` en memoria sin límite.
 **Singleton de SecurityGuard, SSRFValidator y AuditLogger no son thread-safe**
 
 **Ubicación:**
-- [guard.py:391-396](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_agente/app/security/guard.py#L391-L396)
-- [ssrf.py:332-337](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_agente/app/security/ssrf.py#L332-L337)
-- [audit.py:380-385](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_agente/app/security/audit.py#L380-L385)
+- [guard.py:391-396](https://gitlab.com/javiergalvez-ia/jg_agente/-/blob/main/app/security/guard.py#L391-L396)
+- [ssrf.py:332-337](https://gitlab.com/javiergalvez-ia/jg_agente/-/blob/main/app/security/ssrf.py#L332-L337)
+- [audit.py:380-385](https://gitlab.com/javiergalvez-ia/jg_agente/-/blob/main/app/security/audit.py#L380-L385)
 
 **Evidencia:**
 ```python
@@ -385,7 +385,7 @@ Las factories singleton usan el patrón `check-then-act` sin lock. En Uvicorn co
 ### CONC-002 · MEDIO · POTENCIAL
 **Background task de ejecución asíncrona pierde resultado completamente**
 
-**Ubicación:** [executions.py:471-483](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_agente/app/api/executions.py#L471-L483)
+**Ubicación:** [executions.py:471-483](https://gitlab.com/javiergalvez-ia/jg_agente/-/blob/main/app/api/executions.py#L471-L483)
 
 **Evidencia:**
 ```python
@@ -408,7 +408,7 @@ Cuando `sync=False`, la ejecución se delega a `BackgroundTasks` de FastAPI. Si 
 ### API-001 · CRÍTICO · PROBABLE
 **Timeout de 15 segundos por defecto para ejecuciones cognitivas**
 
-**Ubicación:** [AgentHttpClient.php:53](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Services/Agents/AgentHttpClient.php#L53)
+**Ubicación:** [AgentHttpClient.php:53](../../../../app/Services/Agents/AgentHttpClient.php#L53)
 
 **Evidencia:**
 ```php
@@ -427,7 +427,7 @@ El timeout HTTP del dashboard es 15 segundos. Una ejecución cognitiva (observe 
 ### API-002 · MEDIO · CONFIRMADO
 **Información sensible en respuestas de error HTTP**
 
-**Ubicación:** [executions.py:431](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_agente/app/api/executions.py#L431)
+**Ubicación:** [executions.py:431](https://gitlab.com/javiergalvez-ia/jg_agente/-/blob/main/app/api/executions.py#L431)
 
 **Evidencia:**
 ```python
@@ -463,7 +463,7 @@ Los mensajes de excepción de Python (que pueden incluir stack traces, rutas de 
 ### DASH-001 · MEDIO · RECOMENDACIÓN
 **Implementación JWT manual en lugar de librería auditada**
 
-**Ubicación:** [JwtService.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Services/Auth/JwtService.php)
+**Ubicación:** [JwtService.php](../../../../app/Services/Auth/JwtService.php)
 
 **Evidencia:** Se implementa JWT desde cero: encoding base64url, firma HMAC-SHA256, verificación manual de claims. No se usa `firebase/php-jwt`, `lcobucci/jwt`, ni ninguna librería con CVE tracking.
 
@@ -477,7 +477,7 @@ Los mensajes de excepción de Python (que pueden incluir stack traces, rutas de 
 ### DASH-002 · BAJO · POTENCIAL
 **`AgentHttpClient::forAgent()` tiene lógica de resolución de secretos basada en convención de nombres**
 
-**Ubicación:** [AgentHttpClient.php:77-91](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Services/Agents/AgentHttpClient.php#L77-L91)
+**Ubicación:** [AgentHttpClient.php:77-91](../../../../app/Services/Agents/AgentHttpClient.php#L77-L91)
 
 **Evidencia:**
 ```php
@@ -497,7 +497,7 @@ El secreto para la firma HMAC se resuelve por **nombre del agente** (si contiene
 ### DASH-003 · MEDIO · RECOMENDACIÓN
 **WebConsoleController no usa CSRF protection para formularios POST**
 
-**Ubicación:** [web.php:29-33](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/routes/web.php#L29-L33)
+**Ubicación:** [web.php:29-33](../../../../routes/web.php#L29-L33)
 
 **Evidencia:** Las rutas web incluyen `POST /console/approvals/{id}/approve` y `POST /console/approvals/{id}/reject` bajo middleware `auth` pero sin verificar la presencia de token `_token`. Laravel normalmente aplica `VerifyCsrfToken` globalmente, pero si fue excluido para estas rutas, un ataque CSRF podría aprobar/rechazar operaciones HITL.
 
@@ -510,7 +510,7 @@ El secreto para la firma HMAC se resuelve por **nombre del agente** (si contiene
 ### INFRA-001 · BAJO · RECOMENDACIÓN
 **El Dockerfile del agente no fija versiones de dependencias del sistema operativo**
 
-**Ubicación:** [Dockerfile (agente)](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_agente/Dockerfile)
+**Ubicación:** [Dockerfile (agente)](https://gitlab.com/javiergalvez-ia/jg_agente/-/blob/main/Dockerfile)
 
 **Evidencia:**
 ```dockerfile
@@ -525,7 +525,7 @@ No se fija la versión minor de Python (`3.12-slim` puede ser 3.12.0 o 3.12.6). 
 ### INFRA-002 · BAJO · RECOMENDACIÓN
 **El agente no define `--workers` en el CMD de Uvicorn**
 
-**Ubicación:** [Dockerfile (agente):56](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_agente/Dockerfile#L56)
+**Ubicación:** [Dockerfile (agente):56](https://gitlab.com/javiergalvez-ia/jg_agente/-/blob/main/Dockerfile#L56)
 
 **Evidencia:**
 ```dockerfile

@@ -10,24 +10,24 @@
 
 Se ha implementado el monitor de salud y detección de agentes inactivos en `jg_dashboard`:
 
-1. **Modelo `Agent` ([app/Models/Agent.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Models/Agent.php)):**
+1. **Modelo `Agent` ([app/Models/Agent.php](../../../app/Models/Agent.php)):**
    - Incorporado el scope `scopeTimedOut(Builder $query, int $timeoutSeconds = 90)` que filtra agentes en estado `ACTIVE` con `last_heartbeat_at` nulo o anterior al umbral configurado.
 
-2. **Servicio Supervisor ([app/Services/Agents/AgentHealthMonitorService.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Services/Agents/AgentHealthMonitorService.php)):**
+2. **Servicio Supervisor ([app/Services/Agents/AgentHealthMonitorService.php](../../../app/Services/Agents/AgentHealthMonitorService.php)):**
    - Método `checkAndMarkOfflineAgents(int $timeoutSeconds = 90)`:
      - Identifica agentes caducados.
      - Ejecuta la transición de estado a `OFFLINE`.
      - Registra eventos de auditoría `AGENT_OFFLINE` con metadatos contextuales (`timeout_seconds`, `previous_status`, `last_heartbeat_at`).
      - Devuelve la colección de agentes afectados.
 
-3. **Comando Artisan y Programación ([app/Console/Commands/CheckAgentHealthCommand.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Console/Commands/CheckAgentHealthCommand.php), [routes/console.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/routes/console.php)):**
+3. **Comando Artisan y Programación ([app/Console/Commands/CheckAgentHealthCommand.php](../../../app/Console/Commands/CheckAgentHealthCommand.php), [routes/console.php](../../../routes/console.php)):**
    - Comando `agents:check-health {--timeout=90}`.
    - Programación en el Scheduler de Laravel para ejecución periódica cada minuto (`everyMinute()`).
    - Script helper ejecutable `scripts/check_health.sh`.
 
 4. **Suite de Pruebas Unitarias y de Feature:**
-   - [tests/Unit/AgentHealthMonitorServiceTest.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Unit/AgentHealthMonitorServiceTest.php): 3 pruebas unitarias verificando la detección de agentes sin heartbeat >90s, retención de agentes sanos y agentes pendientes, y auditoría.
-   - [tests/Feature/CheckAgentHealthCommandTest.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Feature/CheckAgentHealthCommandTest.php): 2 pruebas de feature verificando la salida CLI de Artisan y la actualización en base de datos.
+   - [tests/Unit/AgentHealthMonitorServiceTest.php](../../../tests/Unit/AgentHealthMonitorServiceTest.php): 3 pruebas unitarias verificando la detección de agentes sin heartbeat >90s, retención de agentes sanos y agentes pendientes, y auditoría.
+   - [tests/Feature/CheckAgentHealthCommandTest.php](../../../tests/Feature/CheckAgentHealthCommandTest.php): 2 pruebas de feature verificando la salida CLI de Artisan y la actualización en base de datos.
 
 ---
 

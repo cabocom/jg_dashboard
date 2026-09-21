@@ -10,19 +10,19 @@
 
 Se han implementado y verificado los endpoints de autenticación y consulta de perfil de usuario en `jg_dashboard`:
 
-1. **Método `getPermissions()` en Modelo de Usuario ([app/Models/User.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Models/User.php)):**
+1. **Método `getPermissions()` en Modelo de Usuario ([app/Models/User.php](../../../app/Models/User.php)):**
    - Resuelve el listado de capacidades operativas autorizadas para el usuario en función de su rol (`admin`, `operator`, `viewer`).
 
-2. **Controlador de Autenticación ([app/Http/Controllers/Api/AuthController.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Http/Controllers/Api/AuthController.php)):**
+2. **Controlador de Autenticación ([app/Http/Controllers/Api/AuthController.php](../../../app/Http/Controllers/Api/AuthController.php)):**
    - `login()`: Valida email y password, invoca `AuthService` y retorna token Bearer JWT.
    - `me()`: Protegido por `jwt.auth`, retorna los datos del perfil (`id`, `name`, `email`, `role`, `permissions`, `created_at`).
    - `logout()`: Protegido por `jwt.auth`, retorna confirmación de cierre de sesión.
 
-3. **Rutas API ([routes/api.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/routes/api.php)):**
+3. **Rutas API ([routes/api.php](../../../routes/api.php)):**
    - Rutas `/api/v1/auth/login`, `/api/v1/auth/me`, `/api/v1/auth/logout`.
    - Aliases compatibles `/api/auth/login`, `/api/auth/me`, `/api/auth/logout`.
 
-4. **Batería de Pruebas de Integración ([tests/Feature/AuthApiTest.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Feature/AuthApiTest.php)):**
+4. **Batería de Pruebas de Integración ([tests/Feature/AuthApiTest.php](../../../tests/Feature/AuthApiTest.php)):**
    - 7 pruebas completas que validan:
      - Login correcto (200 con JWT).
      - Login fallido por credenciales inválidas (401).

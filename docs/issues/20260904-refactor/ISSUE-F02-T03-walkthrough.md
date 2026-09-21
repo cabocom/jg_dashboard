@@ -10,12 +10,12 @@
 
 Se ha implementado el modelo y la migración para la gestión de tokens de aprovisionamiento (`bootstrap_tokens`) en `jg_dashboard`:
 
-1. **Migración de Base de Datos ([database/migrations/2026_09_05_000002_create_dashboard_bootstrap_tokens_table.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/database/migrations/2026_09_05_000002_create_dashboard_bootstrap_tokens_table.php)):**
+1. **Migración de Base de Datos ([database/migrations/2026_09_05_000002_create_dashboard_bootstrap_tokens_table.php](../../../database/migrations/2026_09_05_000002_create_dashboard_bootstrap_tokens_table.php)):**
    - Tabla `dashboard_bootstrap_tokens` con índice único para `token_hash` (SHA-256).
    - Clave foránea `agent_id` apuntando a `dashboard_agents.agent_id` con eliminación en cascada (`cascadeOnDelete`).
    - Campos de control: `expires_at` (indexado), `consumed` (booleano indexado, por defecto `false`), y `consumed_at` (timestamp nullable).
 
-2. **Modelo Eloquent ([app/Models/BootstrapToken.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Models/BootstrapToken.php)):**
+2. **Modelo Eloquent ([app/Models/BootstrapToken.php](../../../app/Models/BootstrapToken.php)):**
    - Atributos sensibles ocultos (`token_hash` en `$hidden`).
    - Casts de tipos automáticos (`expires_at`, `consumed_at`, `consumed`).
    - Métodos de inspección y validación: `isConsumed()`, `isExpired()`, `isValid()`.
@@ -24,13 +24,13 @@ Se ha implementado el modelo y la migración para la gestión de tokens de aprov
    - Scopes para consultas eficientes: `valid()`, `consumed()`, `expired()`.
    - Relación `agent()` hacia `App\Models\Agent`.
 
-3. **Actualización de Modelo de Agente ([app/Models/Agent.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Models/Agent.php)):**
+3. **Actualización de Modelo de Agente ([app/Models/Agent.php](../../../app/Models/Agent.php)):**
    - Adición de la relación `bootstrapTokens()` tipo `HasMany`.
 
-4. **Suite de Pruebas Unitarias ([tests/Unit/BootstrapTokenModelTest.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Unit/BootstrapTokenModelTest.php)):**
+4. **Suite de Pruebas Unitarias ([tests/Unit/BootstrapTokenModelTest.php](../../../tests/Unit/BootstrapTokenModelTest.php)):**
    - 7 pruebas exhaustivas en Pest PHP validando creación, serialización protegida, expiración TTL 24h, consumo de un solo uso, scopes de consulta, prevención de reutilización y generación criptográfica.
 
-5. **Entorno de Pruebas SQLite ([tests/TestCase.php](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/TestCase.php)):**
+5. **Entorno de Pruebas SQLite ([tests/TestCase.php](../../../tests/TestCase.php)):**
    - Incorporación de la tabla `dashboard_bootstrap_tokens` en `setUpDatabaseSchema()`.
 
 ---

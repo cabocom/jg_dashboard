@@ -6,32 +6,32 @@
 ## 1. Archivos Modificados
 
 ### 1.1. Orquestación y Despliegue
-- [`docker-compose.yml`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/docker-compose.yml):
+- [`docker-compose.yml`](docker-compose.yml):
   - Líneas 49-53: Se configuran `JG_AGENTE_SECRET`, `JG_DEVOPS_AGENT_SECRET` y `DEVOPS60K_SECRET` mediante interpolación estricta obligatoria `${VAR:?Error...}`.
   - Línea 110: `jg_agente_conversacional` ahora interpola `${JG_CONVERSATIONAL_SECRET:-${JG_AGENTE_SECRET:?...}}` obligatoriamente.
   - Línea 155: `jg_agente_devops` ahora interpola `${JG_DEVOPS_SECRET:-${JG_DEVOPS_AGENT_SECRET:?...}}` obligatoriamente.
 
 ### 1.2. Control Plane (`jg_dashboard`)
-- [`jg_dashboard/config/agent.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/config/agent.php):
+- [`jg_dashboard/config/agent.php`](../../../config/agent.php):
   - Línea 16: `internal_secret` mapea a `JG_CONVERSATIONAL_SECRET`, `JG_AGENTE_SECRET` o `AGENT_INTERNAL_SECRET` con valor por defecto `null`.
   - Línea 18: `devops_secret` mapea a `JG_DEVOPS_SECRET`, `JG_DEVOPS_AGENT_SECRET`, `DEVOPS60K_SECRET` con valor por defecto `null` (se eliminó el fallback `'sec_devops_agent_preprovisioned_key_12345'`).
-- [`jg_dashboard/app/Services/Agents/AgentHttpClient.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/app/Services/Agents/AgentHttpClient.php):
+- [`jg_dashboard/app/Services/Agents/AgentHttpClient.php`](../../../app/Services/Agents/AgentHttpClient.php):
   - Líneas 81-86: Eliminados todos los fallbacks estáticos en `forAgent()`.
   - Líneas 117-126: Eliminados todos los fallbacks estáticos en `withAgentId()`.
-- [`jg_dashboard/database/seeders/DatabaseSeeder.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/database/seeders/DatabaseSeeder.php):
+- [`jg_dashboard/database/seeders/DatabaseSeeder.php`](../../../database/seeders/DatabaseSeeder.php):
   - Líneas 38-84: Derivación dinámica de `permanent_secret_hash` calculando `hash('sha256', $conversationalSecret)` y `hash('sha256', $devopsSecret)`.
   - Verificación previa que lanza `RuntimeException` si alguna de las claves obligatorias falta.
-- [`jg_dashboard/phpunit.xml`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/phpunit.xml):
+- [`jg_dashboard/phpunit.xml`](../../../phpunit.xml):
   - Se añadieron las variables de prueba `JG_CONVERSATIONAL_SECRET`, `JG_DEVOPS_SECRET` y `JG_DEVOPS_AGENT_SECRET`.
-- [`jg_dashboard/tests/Feature/DeploymentSecurityTest.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Feature/DeploymentSecurityTest.php):
+- [`jg_dashboard/tests/Feature/DeploymentSecurityTest.php`](../../../tests/Feature/DeploymentSecurityTest.php):
   - Prueba de seguridad ampliada para validar que ni `internal_secret` ni `devops_secret` contienen ningún fallback hardcodeado.
 
 ### 1.3. Plantillas de Configuración
-- [`.env.example`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/.env.example):
+- [`.env.example`](.env.example):
   - Actualización en la raíz para incluir `JG_CONVERSATIONAL_SECRET` y `JG_DEVOPS_SECRET`.
-- [`jg_dashboard/.env.example`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/.env.example):
+- [`jg_dashboard/.env.example`](../../../.env.example):
   - Documentación de variables secretas correspondientes.
-- [`jg_agente/.env.example`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_agente/.env.example):
+- [`jg_agente/.env.example`](https://gitlab.com/javiergalvez-ia/jg_agente/-/blob/main/.env.example):
   - Documentación de `PERMANENT_AGENT_SECRET`.
 
 ---

@@ -6,10 +6,10 @@
 - **Severidad:** 🟡 MEDIO
 - **CWE:** CWE-352 (Cross-Site Request Forgery)
 - **Componentes Afectados:**
-  - [`jg_dashboard/bootstrap/app.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/bootstrap/app.php)
-  - [`jg_dashboard/resources/views/console/index.blade.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/resources/views/console/index.blade.php)
-  - [`jg_dashboard/public/js/console.js`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/public/js/console.js)
-  - [`jg_dashboard/tests/Feature/HitlConsoleWebTest.php`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_dashboard/tests/Feature/HitlConsoleWebTest.php)
+  - [`jg_dashboard/bootstrap/app.php`](../../../bootstrap/app.php)
+  - [`jg_dashboard/resources/views/console/index.blade.php`](../../../resources/views/console/index.blade.php)
+  - [`jg_dashboard/public/js/console.js`](../../../public/js/console.js)
+  - [`jg_dashboard/tests/Feature/HitlConsoleWebTest.php`](../../../tests/Feature/HitlConsoleWebTest.php)
 
 ---
 

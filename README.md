@@ -157,7 +157,7 @@ docker compose logs -f
 Para profundizar en el diseño del plano de control y sus pendientes técnicos:
 - **[Contexto de Proyecto](PROJECT_CONTEXT.md):** Arquitectura de Laravel, RBAC y modelos de persistencia.
 - **[Tareas Pendientes y Deuda Técnica](TODO-PENDIENTES.md):** Registro exhaustivo de ítems pendientes para la auditoría técnica.
-- **[Documentación Global](../docs/):** Especificaciones de arquitectura, APIs y protocolos del ecosistema.
+- **[Documentación Técnica](docs/):** Especificaciones de arquitectura, APIs y protocolos del ecosistema.
 
 ---
 
@@ -205,3 +205,18 @@ Para profundizar en el diseño del plano de control y sus pendientes técnicos:
 - [ ] **Fase 10:** Integración end-to-end con `jg_agente` (Casos de Éxito A y B).
 
 Consulte [TODO-PENDIENTES.md](TODO-PENDIENTES.md) para el desglose detallado de tareas pendientes y deuda técnica para la siguiente fase.
+
+---
+
+## 9. Licencia y Modelo Dual (Open Source / Comercial Enterprise)
+
+`jg_dashboard` se distribuye bajo un esquema de **Doble Licenciamiento (Dual Licensing)**:
+
+- **Licencia de Código Abierto:** [GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE) - Copyright (C) 2026 Javier Gálvez.
+- **Licencia Comercial Enterprise:** Exención de la obligación de copyleft de red (Sección 13 de AGPLv3) para operadores SaaS, marca blanca y uso corporativo cerrado:
+  - **Tarifa:** **200 € / mes** por cada bloque de hasta 3 agentes (sin rappel por volumen).
+  - **Mayor volumen:** Si necesita mayor volumen o licenciamiento corporativo global, contacte a través de **[https://javiergalvez.com](https://javiergalvez.com)**.
+
+Para más detalles sobre derechos, exenciones de copyleft y contratación, consulte [COMMERCIAL_TERMS.md](COMMERCIAL_TERMS.md).
+
+
