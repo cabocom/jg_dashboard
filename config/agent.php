@@ -13,11 +13,11 @@ return [
 
     'base_url' => env('JG_AGENTE_API_URL', env('AGENT_API_URL', 'http://jg_agente:8000')),
 
-    'internal_secret' => env('JG_CONVERSATIONAL_SECRET', env('JG_AGENTE_SECRET', env('AGENT_INTERNAL_SECRET', null))),
+    'internal_secret' => env('JG_AGENTE_SECRET', env('AGENT_SECRET', env('JG_CONVERSATIONAL_SECRET', null))),
 
     'devops_secret' => env('JG_DEVOPS_SECRET', env('JG_DEVOPS_AGENT_SECRET', env('DEVOPS60K_SECRET', env('DEVOPS60K_API_KEY', null)))),
 
-    'default_agent_id' => env('DEFAULT_AGENT_ID', env('AGENT_ID', 'a0000000-0000-0000-0000-000000000002')),
+    'default_agent_id' => env('DEFAULT_AGENT_ID', env('AGENT_ID', 'a0000000-0000-0000-0000-000000000001')),
 
     'timeout' => (int) env('AGENT_HTTP_TIMEOUT', 120),
 

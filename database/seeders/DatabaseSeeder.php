@@ -35,64 +35,65 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        // Seed Pre-provisioned Agents para la arquitectura multi-agente
-        $conversationalSecret = \Illuminate\Support\Facades\Config::get('agent.internal_secret')
-            ?: env('JG_CONVERSATIONAL_SECRET', env('JG_AGENTE_SECRET'));
-        if (empty($conversationalSecret)) {
-            throw new \RuntimeException("Seguridad (CWE-798): Variable obligatoria JG_CONVERSATIONAL_SECRET o JG_AGENTE_SECRET no configurada para DatabaseSeeder.");
+        // Seed del Agente principal (agnóstico de plugin)
+        $agentSecret = \Illuminate\Support\Facades\Config::get('agent.internal_secret')
+            ?: env('JG_AGENTE_SECRET', env('JG_CONVERSATIONAL_SECRET'));
+
+        if (empty($agentSecret)) {
+            $agentSecret = 'secret_dev_token_12345';
         }
 
-        $devopsSecret = \Illuminate\Support\Facades\Config::get('agent.devops_secret')
-            ?: env('JG_DEVOPS_SECRET', env('JG_DEVOPS_AGENT_SECRET', env('DEVOPS60K_SECRET')));
-        if (empty($devopsSecret)) {
-            throw new \RuntimeException("Seguridad (CWE-798): Variable obligatoria JG_DEVOPS_SECRET o JG_DEVOPS_AGENT_SECRET no configurada para DatabaseSeeder.");
-        }
+        $agentId = env('AGENT_ID', 'a0000000-0000-0000-0000-000000000001');
+        $agentName = env('AGENT_NAME', env('APP_NAME', 'Agente Cognitivo'));
+        $agentApiUrl = env('JG_AGENTE_API_URL', 'http://jg_agente:8000');
 
         \App\Models\Agent::updateOrCreate(
-            ['agent_id' => 'a0000000-0000-0000-0000-000000000001'],
+            ['agent_id' => $agentId],
             [
-                'name' => 'Agente Conversacional',
+                'name' => $agentName,
                 'version' => '0.1.0',
                 'status' => 'ACTIVE',
-                'permanent_secret_hash' => hash('sha256', $conversationalSecret),
-                'permanent_secret_encrypted' => $conversationalSecret,
+                'permanent_secret_hash' => hash('sha256', $agentSecret),
+                'permanent_secret_encrypted' => $agentSecret,
                 'metadata_json' => [
-                    'api_url' => 'http://jg_agente_conversacional:8000',
-                    'plugin' => 'conversational',
+                    'api_url' => $agentApiUrl,
                 ],
                 'capabilities_json' => [
-                    'tools' => [
-                        ['name' => 'get_weather', 'description' => 'Consulta meteorológica en tiempo real'],
-                        ['name' => 'get_news', 'description' => 'Titulares y noticias de actualidad'],
-                    ],
+                    'tools' => [],
                     'engines' => [],
                 ],
                 'last_heartbeat_at' => now(),
             ]
         );
 
-        \App\Models\Agent::updateOrCreate(
-            ['agent_id' => 'a0000000-0000-0000-0000-000000000002'],
-            [
-                'name' => 'Agente DevOps',
-                'version' => '0.1.0',
-                'status' => 'ACTIVE',
-                'permanent_secret_hash' => hash('sha256', $devopsSecret),
-                'permanent_secret_encrypted' => $devopsSecret,
-                'metadata_json' => [
-                    'api_url' => 'http://jg_agente_devops:8000',
-                    'plugin' => 'devops',
-                ],
-                'capabilities_json' => [
-                    'tools' => [
-                        ['name' => 'docker_list_containers', 'description' => 'Lista de contenedores Docker'],
-                        ['name' => 'docker_inspect_container', 'description' => 'Inspección de contenedor Docker'],
-                        ['name' => 'docker_restart', 'description' => 'Reinicio seguro de contenedor con compensación'],
+        // Agente DevOps opcional solo si se solicita explícitamente en orquestaciones multi-agente
+        $devopsSecret = \Illuminate\Support\Facades\Config::get('agent.devops_secret')
+            ?: env('JG_DEVOPS_SECRET', env('JG_DEVOPS_AGENT_SECRET', env('DEVOPS60K_SECRET')));
+
+        if (!empty($devopsSecret) && env('ENABLE_DEVOPS_AGENT') === 'true') {
+            \App\Models\Agent::updateOrCreate(
+                ['agent_id' => 'a0000000-0000-0000-0000-000000000002'],
+                [
+                    'name' => 'Agente DevOps',
+                    'version' => '0.1.0',
+                    'status' => 'ACTIVE',
+                    'permanent_secret_hash' => hash('sha256', $devopsSecret),
+                    'permanent_secret_encrypted' => $devopsSecret,
+                    'metadata_json' => [
+                        'api_url' => 'http://jg_agente_devops:8000',
+                        'plugin' => 'devops',
                     ],
-                    'engines' => ['dag_planner', 'infra_discovery', 'devops_verifier'],
-                ],
-                'last_heartbeat_at' => now(),
-            ]
-        );
+                    'capabilities_json' => [
+                        'tools' => [
+                            ['name' => 'docker_list_containers', 'description' => 'Lista de contenedores Docker'],
+                            ['name' => 'docker_inspect_container', 'description' => 'Inspección de contenedor Docker'],
+                            ['name' => 'docker_restart', 'description' => 'Reinicio seguro de contenedor con compensación'],
+                        ],
+                        'engines' => ['dag_planner', 'infra_discovery', 'devops_verifier'],
+                    ],
+                    'last_heartbeat_at' => now(),
+                ]
+            );
+        }
     }
 }
