@@ -19,12 +19,16 @@ $conf->shuffle_stmts = false;
 // Limpieza de indentación, comentarios y docblocks
 $conf->strip_indentation = true;
 
-// Preservar estructura de clases y métodos de Laravel
-$conf->obfuscate_class_name = false;
-$conf->obfuscate_function_name = false;
-$conf->obfuscate_property_name = false;
-$conf->obfuscate_constant_name = false;
-$conf->obfuscate_method_name = false;
+// Preservar estructura de clases, namespaces y métodos de Laravel
+$conf->obfuscate_namespace_name      = false;
+$conf->obfuscate_class_name          = false;
+$conf->obfuscate_interface_name      = false;
+$conf->obfuscate_trait_name          = false;
+$conf->obfuscate_class_constant_name = false;
+$conf->obfuscate_function_name       = false;
+$conf->obfuscate_property_name       = false;
+$conf->obfuscate_constant_name       = false;
+$conf->obfuscate_method_name         = false;
 
 // Exclusiones de directorios
 $conf->t_skip = [

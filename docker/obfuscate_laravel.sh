@@ -24,7 +24,8 @@ for dir in app routes; do
         mkdir -p "/tmp/obf_$dir"
         php "$YAKPRO_DIR/yakpro-po.php" "/stage/$dir" -o "/tmp/obf_$dir" --config-file "$CONFIG_FILE" -s
         rm -rf "/stage/$dir"
-        mv "/tmp/obf_$dir" "/stage/$dir"
+        mv "/tmp/obf_$dir/yakpro-po/obfuscated" "/stage/$dir"
+        rm -rf "/tmp/obf_$dir"
         echo "  ✓ $dir ofuscado correctamente."
     fi
 done
