@@ -16,14 +16,39 @@ RUN composer install \
     --ignore-platform-reqs
 
 # ==============================================================================
-# STAGE 2: Production Runtime (PHP 8.3-FPM + Nginx on Alpine)
+# STAGE 2: Code Preparation & Obfuscation (Yakpro-Po AST for Laravel)
 # ==============================================================================
-FROM php:8.3-fpm-alpine
+FROM php:8.3-fpm-alpine AS code-obfuscator
+
+WORKDIR /stage
+
+RUN apk add --no-cache git bash
+
+COPY . .
+COPY --from=vendor /app/vendor ./vendor
+
+# Argumento para habilitar ofuscación durante docker build (por defecto activado en producción)
+ARG OBFUSCATE=true
+
+RUN chmod +x docker/obfuscate_laravel.sh && \
+    if [ "$OBFUSCATE" = "true" ]; then \
+        echo "🔒 [YAKPRO-PO] Activando ofuscación AST para Laravel 11..."; \
+        ./docker/obfuscate_laravel.sh; \
+    else \
+        echo "⚡ [YAKPRO-PO] Desactivado: empaquetando código estándar..."; \
+    fi && \
+    # Limpieza de archivos de desarrollo
+    rm -rf .git tests phpunit.xml node_modules .env.example
+
+# ==============================================================================
+# STAGE 3: Production Runtime (PHP 8.3-FPM + Nginx on Alpine)
+# ==============================================================================
+FROM php:8.3-fpm-alpine AS runner
 
 LABEL maintainer="Javier Gálvez <cabocom>"
 LABEL description="jG Dashboard - Control Plane, Governance & HITL Management Panel"
 
-# Dependencias del sistema y librerías PostgreSQL
+# Dependencias del sistema y utilidades de runtime (incluye Python 3 y jg CLI)
 RUN apk add --no-cache \
     nginx \
     supervisor \
@@ -33,7 +58,10 @@ RUN apk add --no-cache \
     libzip-dev \
     zip \
     unzip \
-    curl
+    curl \
+    python3 \
+    py3-pip && \
+    pip install --no-cache-dir --break-system-packages "jg-agente-sdk>=1.0.0"
 
 # Compilar extensiones PHP necesarias
 RUN docker-php-ext-configure pgsql -with-pgsql=/usr/include/postgresql/ \
@@ -57,9 +85,8 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 # Directorio de trabajo
 WORKDIR /var/www/html
 
-# Copiar aplicación y dependencias compiladas
-COPY --chown=www-data:www-data . /var/www/html
-COPY --from=vendor --chown=www-data:www-data /app/vendor /var/www/html/vendor
+# Copiar aplicación preparada y ofuscada desde la etapa code-obfuscator
+COPY --chown=www-data:www-data --from=code-obfuscator /stage /var/www/html
 
 # Asegurar directorios de almacenamiento y permisos
 RUN mkdir -p \

@@ -1,0 +1,42 @@
+<?php
+// ==============================================================================
+// Configuración Yakpro-Po para Laravel 11 + Filament v3
+// ==============================================================================
+// Reglas para Frameworks Modernos:
+// 1. Ofuscar nombres de variables locales, strings, aplanar flujo de control y remover comentarios.
+// 2. PRESERVAR nombres de clases, métodos públicos, propiedades y constantes para no romper:
+//    - Contenedor de Inyección de Dependencias (Service Container / Reflection)
+//    - Enrutador HTTP (routes/web.php, routes/api.php)
+//    - Filament / Livewire Component State Binding
+//    - Modelos Eloquent y relaciones de Base de Datos
+// ==============================================================================
+
+$conf->t_ignore_pre_defined_classes = 'all';
+
+// Ofuscación de variables locales
+$conf->obfuscate_variable_name = true;
+
+// Ofuscación de cadenas literales
+$conf->obfuscate_string_literal = true;
+
+// Aplanamiento de sentencias (control-flow shuffling)
+$conf->shuffle_statements = true;
+
+// Limpieza de indentación, comentarios y docblocks
+$conf->strip_indentation = true;
+
+// Preservar estructura de clases y métodos de Laravel
+$conf->obfuscate_class_name = false;
+$conf->obfuscate_function_name = false;
+$conf->obfuscate_property_name = false;
+$conf->obfuscate_constant_name = false;
+$conf->obfuscate_method_name = false;
+
+// Exclusiones de directorios
+$conf->t_skip = [
+    'vendor',
+    'bootstrap/cache',
+    'storage',
+    'database/migrations',
+    'public',
+];
