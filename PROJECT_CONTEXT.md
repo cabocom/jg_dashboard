@@ -1,11 +1,11 @@
 # CONTEXTO DE PROYECTO: jg_dashboard
 
-**Versión del documento:** 3.27.0  
-**Fecha de consolidación:** 12 de septiembre de 2026  
+**Versión del documento:** 3.28.0  
+**Fecha de consolidación:** 24 de septiembre de 2026  
 **Componente:** Control Plane (Plano de Control, Gestión, Gobernanza y HITL)  
 **Stack Tecnológico:** Laravel 11, Filament PHP v3, Livewire 3, Tailwind CSS, PostgreSQL, Pest PHP  
-**Estado:** Fases 01 a 07 y Fase 09 completadas al 100%. Post-Auditoría 2 en curso.  
-- Soporte Multi-Agente: Orquestación y enrutamiento simultáneo de `jg_agente_conversacional` (puerto 8001) y `jg_agente_devops` (puerto 8002) mediante `AgentHttpClient` con firma canónica HMAC-SHA256 (`METHOD\nPATH\nTIMESTAMP\nSHA256(BODY)`).  
+**Estado:** Fases 01 a 07 y Fase 09 completadas al 100%. Soporte multi-agente ampliado y verificado.  
+- Soporte Multi-Agente: Orquestación y enrutamiento simultáneo de múltiples runtimes (`jg_agente_conversacional`:8001, `jg_agente_devops`:8002 y `jg_agente_datosgob`:8881) mediante `AgentHttpClient` con firma canónica HMAC-SHA256 (`METHOD\nPATH\nTIMESTAMP\nSHA256(BODY)`).  
 - Post-Auditoría 2 (GLOBAL-01 / GitLab jg_dashboard#42): Erradicación total de secretos fallback hardcodeados en `AgentHttpClient.php`, `config/agent.php` y `docker-compose.yml`; interpolación obligatoria `${JG_CONVERSATIONAL_SECRET:?err}` y `${JG_DEVOPS_SECRET:?err}`; derivación dinámica de `permanent_secret_hash` en `DatabaseSeeder.php` desde configuración activa con validación previa estricta.  
 - Post-Auditoría 2 (GLOBAL-02 / GitLab jg_dashboard#43): Corrección de la ruptura criptográfica del registro dinámico de agentes. Incorporación de columna cifrada en reposo `permanent_secret_encrypted` (AES-256-CBC respaldada por `APP_KEY`) en `dashboard_agents`, persistida durante `AgentRegistrationService::consumeBootstrapTokenAndActivate(...)` y consumida prioritariamente por `AgentHttpClient::forAgent(...)` para el cálculo determinista de firmas HMAC `X-Signature`.  
 - Post-Auditoría 2 (GLOBAL-03 / GitLab jg_dashboard#44): Elevación del timeout HTTP por defecto a 120 segundos (`AGENT_HTTP_TIMEOUT=120`) en `config/agent.php` y `AgentHttpClient.php` para acomodar el ciclo cognitivo completo de 9-10 nodos sin cortes prematuros 504 Gateway Timeout. Incorporación de soporte para ejecución asíncrona (`async=true`) en `/console` con polling reactivo cada 3 segundos, y persistencia garantizada de tareas fallidas (`FAILED`) en `AgentTask` ante errores o timeouts de pasarela.  
@@ -14,7 +14,7 @@
 - Post-Auditoría Codex (GLOBAL-003 / ISSUE-DASH-003): Transaccionalidad, bloqueo pesimista `lockForUpdate` y control de concurrencia en HITL con estado `PROCESSING` y reconciliación automática ante fallos de red.  
 - Consola Web Unificada: `/console` operativa con panel reactivo de agentes, métricas de salud en tiempo real, gestión de aprobaciones HITL con visualización de planes de remediación y visor de ejecuciones en vivo.  
 - Aislamiento Total de Persistencia: PostgreSQL propio `jg_dashboard_postgres` (puerto 5434), sin acceso directo a la base de datos de los agentes (`jg_agente_postgres`:5433).  
-- Para detalles de deuda técnica y tareas pendientes, consulte [TODO-PENDIENTES.md](TODO-PENDIENTES.md).
+- Suite de Pruebas: Suite de pruebas completa pasando al 100% (283 tests Pest / PHPUnit con 1334 assertions en 5.3s).
 
 ---
 

@@ -44,7 +44,7 @@ class DatabaseSeeder extends Seeder
         }
 
         $agentId = env('AGENT_ID', 'a0000000-0000-0000-0000-000000000001');
-        $agentName = env('AGENT_NAME', env('APP_NAME', 'Agente Cognitivo'));
+        $agentName = env('AGENT_NAME', env('CONVERSATIONAL_AGENT_NAME', 'Agente Conversacional'));
         $agentApiUrl = env('JG_AGENTE_API_URL', 'http://jg_agente:8000');
 
         \App\Models\Agent::updateOrCreate(

@@ -12,9 +12,19 @@ mkdir -p /var/www/html/storage/framework/cache/data \
          /var/www/html/bootstrap/cache \
          /var/www/html/resources/views
 
-# Ajustar permisos
+# Ajustar permisos de directorios de Laravel
 chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/resources
 chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/resources
+
+# Asegurar directorios de Nginx y permisos para www-data (evitar error 13 permission denied en buffers)
+mkdir -p /var/lib/nginx/tmp/client_body \
+         /var/lib/nginx/tmp/fastcgi \
+         /var/lib/nginx/tmp/proxy \
+         /var/lib/nginx/tmp/scgi \
+         /var/lib/nginx/tmp/uwsgi \
+         /var/log/nginx
+chown -R www-data:www-data /var/lib/nginx /var/log/nginx
+chmod -R 775 /var/lib/nginx /var/log/nginx
 
 # Limpiar cualquier manifest o cache residual de bootstrap
 rm -f /var/www/html/bootstrap/cache/*.php
