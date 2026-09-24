@@ -1,14 +1,8 @@
 <?php
+// YAK Pro - Php Obfuscator: Config File
+// Do not delete the previous line! it's a magic string for config file!
 // ==============================================================================
 // Configuración Yakpro-Po para Laravel 11 + Filament v3
-// ==============================================================================
-// Reglas para Frameworks Modernos:
-// 1. Ofuscar nombres de variables locales, strings, aplanar flujo de control y remover comentarios.
-// 2. PRESERVAR nombres de clases, métodos públicos, propiedades y constantes para no romper:
-//    - Contenedor de Inyección de Dependencias (Service Container / Reflection)
-//    - Enrutador HTTP (routes/web.php, routes/api.php)
-//    - Filament / Livewire Component State Binding
-//    - Modelos Eloquent y relaciones de Base de Datos
 // ==============================================================================
 
 $conf->t_ignore_pre_defined_classes = 'all';
@@ -19,8 +13,8 @@ $conf->obfuscate_variable_name = true;
 // Ofuscación de cadenas literales
 $conf->obfuscate_string_literal = true;
 
-// Aplanamiento de sentencias (control-flow shuffling)
-$conf->shuffle_statements = true;
+// Aplanamiento de sentencias
+$conf->shuffle_stmts = false;
 
 // Limpieza de indentación, comentarios y docblocks
 $conf->strip_indentation = true;

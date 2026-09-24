@@ -6,16 +6,19 @@ echo "🔒 [YAKPRO-PO] Preparando entorno de ofuscación AST para Laravel..."
 YAKPRO_DIR="/opt/yakpro-po"
 
 if [ ! -d "$YAKPRO_DIR" ]; then
-    echo "📥 Descargando Yakpro-Po y motor PHP-Parser..."
+    echo "📥 Descargando Yakpro-Po..."
     git clone --depth 1 https://github.com/pk-fr/yakpro-po.git "$YAKPRO_DIR"
-    cd "$YAKPRO_DIR"
-    git clone --depth 1 --branch v4.18.0 https://github.com/nikic/PHP-Parser.git include/php-parser
+fi
+
+if [ ! -d "$YAKPRO_DIR/PHP-Parser" ]; then
+    echo "🔗 Enlazando PHP-Parser desde vendor local..."
+    ln -s /stage/vendor/nikic/php-parser "$YAKPRO_DIR/PHP-Parser"
 fi
 
 CONFIG_FILE="/stage/docker/yakpro-po.cnf"
 
-# Directorios troncales a ofuscar
-for dir in app routes config; do
+# Directorios troncales a ofuscar en Laravel (app y routes)
+for dir in app routes; do
     if [ -d "/stage/$dir" ]; then
         echo "⚡ [YAKPRO-PO] Procesando y ofuscando /stage/$dir..."
         mkdir -p "/tmp/obf_$dir"
