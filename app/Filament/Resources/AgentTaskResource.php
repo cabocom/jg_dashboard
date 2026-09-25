@@ -222,7 +222,15 @@ class AgentTaskResource extends Resource
                                 throw new \Exception($res['error'] ?? 'Fallo al rechazar ejecución');
                             }
 
-                            $record->update(['status' => 'FAILED']);
+                            $record->update([
+                                'status' => 'CANCELLED',
+                                'completed_at' => now(),
+                            ]);
+
+                            $pendingApproval = \App\Models\ApprovalRequest::where('thread_id', $record->thread_id)->pending()->first();
+                            if ($pendingApproval && auth()->user()) {
+                                $pendingApproval->reject(auth()->user(), $data['reason']);
+                            }
 
                             Notification::make()
                                 ->title('Ejecución rechazada y abortada')

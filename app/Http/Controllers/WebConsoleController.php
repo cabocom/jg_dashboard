@@ -150,27 +150,50 @@ class WebConsoleController extends Controller
                 ->get();
 
             foreach ($orphanWaitingTasks as $waitingTask) {
-                $alreadyPending = ApprovalRequest::where('thread_id', $waitingTask->thread_id)
-                    ->pending()
-                    ->exists();
+                // Verificar si ya existe una solicitud de aprobación previa para este thread o tarea
+                $existingApproval = ApprovalRequest::where('thread_id', $waitingTask->thread_id)
+                    ->orWhere('task_id', $waitingTask->task_id)
+                    ->latest()
+                    ->first();
 
-                if (!$alreadyPending) {
-                    $resultData = is_array($waitingTask->result_json) ? $waitingTask->result_json : [];
-                    $payloadData = is_array($waitingTask->payload_json) ? $waitingTask->payload_json : [];
-                    $agentIdCandidate = $waitingTask->agent_id ?? ($payloadData['agent_id'] ?? null);
+                if ($existingApproval) {
+                    if (in_array($existingApproval->status, ['REJECTED', 'CANCELLED'])) {
+                        // Si la solicitud previa fue rechazada o cancelada, sincronizar tarea a CANCELLED y no recrear
+                        $waitingTask->update([
+                            'status' => 'CANCELLED',
+                            'completed_at' => $existingApproval->resolved_at ?? now(),
+                        ]);
+                        continue;
+                    }
 
-                    $service->registerPendingApproval([
-                        'thread_id' => $waitingTask->thread_id,
-                        'agent_id' => $agentIdCandidate,
-                        'task_id' => $waitingTask->task_id,
-                        'prompt' => $waitingTask->prompt,
-                        'risk_level' => $resultData['risk_assessment']['risk_level'] ?? ($resultData['risk_level'] ?? 'HIGH'),
-                        'proposed_plan' => $resultData['plan'] ?? ['prompt' => $waitingTask->prompt],
-                        'cognitive_steps' => $resultData['cognitive_steps'] ?? ($resultData['steps'] ?? []),
-                        'compensation_commands' => $resultData['compensation_commands'] ?? [],
-                        'tools' => $resultData['tools'] ?? null,
-                    ]);
+                    if ($existingApproval->status === 'APPROVED') {
+                        // Si la solicitud previa ya fue concedida, sincronizar tarea a PROCESSING y no recrear
+                        $waitingTask->update(['status' => 'PROCESSING']);
+                        continue;
+                    }
+
+                    if ($existingApproval->isPending()) {
+                        // Ya existe una solicitud de aprobación pendiente activa
+                        continue;
+                    }
                 }
+
+                // Registrar solicitud pendiente únicamente si no existe ninguna solicitud previa
+                $resultData = is_array($waitingTask->result_json) ? $waitingTask->result_json : [];
+                $payloadData = is_array($waitingTask->payload_json) ? $waitingTask->payload_json : [];
+                $agentIdCandidate = $waitingTask->agent_id ?? ($payloadData['agent_id'] ?? null);
+
+                $service->registerPendingApproval([
+                    'thread_id' => $waitingTask->thread_id,
+                    'agent_id' => $agentIdCandidate,
+                    'task_id' => $waitingTask->task_id,
+                    'prompt' => $waitingTask->prompt,
+                    'risk_level' => $resultData['risk_assessment']['risk_level'] ?? ($resultData['risk_level'] ?? 'HIGH'),
+                    'proposed_plan' => $resultData['plan'] ?? ['prompt' => $waitingTask->prompt],
+                    'cognitive_steps' => $resultData['cognitive_steps'] ?? ($resultData['steps'] ?? []),
+                    'compensation_commands' => $resultData['compensation_commands'] ?? [],
+                    'tools' => $resultData['tools'] ?? null,
+                ]);
             }
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning("[WebConsoleController] Error en reconciliación HITL: " . $e->getMessage());

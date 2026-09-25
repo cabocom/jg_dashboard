@@ -56,6 +56,7 @@ class InternalExecutionController extends Controller
         $taskStatus = match ($statusRaw) {
             'completed', 'success', 'resolved' => 'COMPLETED',
             'waiting_approval', 'awaiting_approval' => 'WAITING_APPROVAL',
+            'cancelled', 'rejected' => 'CANCELLED',
             'failed', 'error' => 'FAILED',
             default => 'COMPLETED',
         };
@@ -66,7 +67,7 @@ class InternalExecutionController extends Controller
             || !empty($request->input('pending_approval_id'))
         );
 
-        $completedAt = in_array($taskStatus, ['COMPLETED', 'FAILED'])
+        $completedAt = in_array($taskStatus, ['COMPLETED', 'FAILED', 'CANCELLED'])
             ? (!empty($responseData['completed_at']) ? Carbon::parse($responseData['completed_at']) : now())
             : null;
 

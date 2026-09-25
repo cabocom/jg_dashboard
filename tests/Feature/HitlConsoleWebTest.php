@@ -123,6 +123,14 @@ test('POST /console/approvals/{id}/approve approves request and delegates comman
         'proposed_plan_json' => ['action' => 'Plan aprobado desde consola'],
     ]);
 
+    $task = \App\Models\AgentTask::create([
+        'task_id' => 'task-approve-web-1',
+        'thread_id' => 'th-approve-web-1',
+        'agent_id' => $this->agent->agent_id,
+        'status' => 'WAITING_APPROVAL',
+        'payload_json' => ['prompt' => 'Plan aprobado desde consola'],
+    ]);
+
     $response = $this->actingAs($this->operatorUser)
         ->postJson("/console/approvals/{$approval->id}/approve", [
             'justification' => 'Aprobado desde la consola web por el operador de guardia.',
@@ -134,6 +142,9 @@ test('POST /console/approvals/{id}/approve approves request and delegates comman
     $approval->refresh();
     expect($approval->status)->toBe('APPROVED');
     expect($approval->user_id)->toBe($this->operatorUser->id);
+
+    $task->refresh();
+    expect($task->status)->toBe('PROCESSING');
 
     $audit = AuditEvent::where('event_type', 'hitl.approved')->latest()->first();
     expect($audit)->not->toBeNull();
@@ -158,6 +169,14 @@ test('POST /console/approvals/{id}/reject rejects request with mandatory justifi
         'proposed_plan_json' => ['action' => 'Plan a rechazar'],
     ]);
 
+    $task = \App\Models\AgentTask::create([
+        'task_id' => 'task-reject-web-1',
+        'thread_id' => 'th-reject-web-1',
+        'agent_id' => $this->agent->agent_id,
+        'status' => 'WAITING_APPROVAL',
+        'payload_json' => ['prompt' => 'Test plan a rechazar'],
+    ]);
+
     $response = $this->actingAs($this->operatorUser)
         ->postJson("/console/approvals/{$approval->id}/reject", [
             'justification' => 'Rechazado por riesgo de caída del clúster.',
@@ -169,6 +188,9 @@ test('POST /console/approvals/{id}/reject rejects request with mandatory justifi
     $approval->refresh();
     expect($approval->status)->toBe('REJECTED');
     expect($approval->justification)->toBe('Rechazado por riesgo de caída del clúster.');
+
+    $task->refresh();
+    expect($task->status)->toBe('CANCELLED');
 
     $audit = AuditEvent::where('event_type', 'hitl.rejected')->latest()->first();
     expect($audit)->not->toBeNull();
@@ -437,5 +459,41 @@ test('GET /console/executions syncs PROCESSING task into WAITING_APPROVAL and re
     $approval = ApprovalRequest::where('thread_id', 'th-sync-hitl-01')->first();
     expect($approval->status)->toBe('PENDING');
 });
+
+test('GET /console/approvals/pending does NOT resurrect already REJECTED approvals and marks orphan task CANCELLED', function () {
+    $approval = ApprovalRequest::create([
+        'thread_id' => 'th-rejected-persistent',
+        'task_id' => 'task-rejected-persistent',
+        'agent_id' => $this->agent->agent_id,
+        'status' => 'REJECTED',
+        'risk_level' => 'HIGH',
+        'proposed_plan_json' => ['prompt' => 'Reiniciar base de datos'],
+        'justification' => 'Operación denegada permanentemente',
+        'resolved_at' => now(),
+    ]);
+
+    $task = \App\Models\AgentTask::create([
+        'task_id' => 'task-rejected-persistent',
+        'thread_id' => 'th-rejected-persistent',
+        'agent_id' => $this->agent->agent_id,
+        'status' => 'WAITING_APPROVAL',
+        'payload_json' => [
+            'agent_id' => $this->agent->agent_id,
+            'prompt' => 'Reiniciar base de datos',
+        ],
+    ]);
+
+    $response = $this->get('/console/approvals/pending');
+
+    $response->assertStatus(200);
+    // Debe haber exactamente 1 aprobación y seguir en REJECTED, sin crear una nueva en PENDING
+    expect(ApprovalRequest::where('thread_id', 'th-rejected-persistent')->count())->toBe(1);
+    expect(ApprovalRequest::where('thread_id', 'th-rejected-persistent')->where('status', 'PENDING')->exists())->toBeFalse();
+
+    // Y la tarea huérfana debe haber sido sincronizada a CANCELLED
+    $task->refresh();
+    expect($task->status)->toBe('CANCELLED');
+});
+
 
 

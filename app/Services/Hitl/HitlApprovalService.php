@@ -2,6 +2,8 @@
 
 namespace App\Services\Hitl;
 
+use App\Models\Agent;
+use App\Models\AgentTask;
 use App\Models\ApprovalRequest;
 use App\Models\AuditEvent;
 use App\Models\User;
@@ -369,6 +371,7 @@ class HitlApprovalService
                 Log::info("[HitlApprovalService] Reconciliando aprobación {$approval->id} (hilo {$approval->thread_id}): {$reason}");
                 $approval->approve($resolver, ($justification ? $justification . " " : "") . "[Reconciliado: {$reason}]");
                 $freshApproval = $approval->fresh(['agent', 'resolver']);
+                $this->syncAssociatedTask($approval, 'PROCESSING');
 
                 AuditEvent::record(
                     eventType: 'hitl.approved',
@@ -416,6 +419,7 @@ class HitlApprovalService
         // 3. Marcar solicitud como aprobada
         $approval->approve($resolver, $justification);
         $freshApproval = $approval->fresh(['agent', 'resolver']);
+        $this->syncAssociatedTask($approval, 'PROCESSING');
 
         // Registrar evento de auditoría
         AuditEvent::record(
@@ -566,6 +570,7 @@ class HitlApprovalService
                 Log::info("[HitlApprovalService] Reconciliando rechazo para aprobación {$approval->id} (hilo {$approval->thread_id}): {$reason}");
                 $approval->reject($resolver, $justification . " [Reconciliado: {$reason}]");
                 $freshApproval = $approval->fresh(['agent', 'resolver']);
+                $this->syncAssociatedTask($approval, 'CANCELLED', $justification);
 
                 AuditEvent::record(
                     eventType: 'hitl.rejected',
@@ -614,6 +619,7 @@ class HitlApprovalService
         // 3. Marcar solicitud como rechazada
         $approval->reject($resolver, $justification);
         $freshApproval = $approval->fresh(['agent', 'resolver']);
+        $this->syncAssociatedTask($approval, 'CANCELLED', $justification);
 
         // Registrar evento de auditoría inmutable
         AuditEvent::record(
@@ -645,5 +651,47 @@ class HitlApprovalService
                 'agent_response' => $agentResponse['data'] ?? null,
             ],
         ];
+    }
+
+    /**
+     * Sincroniza el estado de la tarea AgentTask asociada tras una resolución HITL.
+     */
+    protected function syncAssociatedTask(ApprovalRequest $approval, string $targetStatus, ?string $reason = null): void
+    {
+        try {
+            $task = AgentTask::where(function ($q) use ($approval) {
+                if (!empty($approval->task_id)) {
+                    $q->where('task_id', $approval->task_id);
+                }
+                if (!empty($approval->thread_id)) {
+                    $q->orWhere('thread_id', $approval->thread_id);
+                }
+            })->latest()->first();
+
+            if (!$task) {
+                return;
+            }
+
+            if ($targetStatus === 'CANCELLED') {
+                $updates = [
+                    'status' => 'CANCELLED',
+                    'completed_at' => now(),
+                ];
+                if ($reason) {
+                    $res = is_array($task->result_json) ? $task->result_json : [];
+                    $res['rejection_reason'] = $reason;
+                    $updates['result_json'] = $res;
+                }
+                $task->update($updates);
+                Log::info("[HitlApprovalService] AgentTask '{$task->task_id}' sincronizada a CANCELLED tras rechazo HITL");
+            } elseif ($targetStatus === 'PROCESSING') {
+                if ($task->status === 'WAITING_APPROVAL' || $task->status === 'QUEUED') {
+                    $task->update(['status' => 'PROCESSING']);
+                    Log::info("[HitlApprovalService] AgentTask '{$task->task_id}' reanudada a PROCESSING tras aprobación HITL");
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning("[HitlApprovalService] Error al sincronizar AgentTask para aprobación {$approval->id}: " . $e->getMessage());
+        }
     }
 }
