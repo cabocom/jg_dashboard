@@ -11,9 +11,12 @@ use RuntimeException;
 
 class AdminAgentController extends Controller
 {
-    public function __construct(
-        protected AgentRegistrationService $registrationService
-    ) {}
+    protected AgentRegistrationService $registrationService;
+
+    public function __construct(AgentRegistrationService $registrationService)
+    {
+        $this->registrationService = $registrationService;
+    }
 
     /**
      * List all registered agents.

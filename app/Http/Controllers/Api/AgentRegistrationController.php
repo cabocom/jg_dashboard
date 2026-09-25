@@ -10,9 +10,12 @@ use RuntimeException;
 
 class AgentRegistrationController extends Controller
 {
-    public function __construct(
-        protected AgentRegistrationService $registrationService
-    ) {}
+    protected AgentRegistrationService $registrationService;
+
+    public function __construct(AgentRegistrationService $registrationService)
+    {
+        $this->registrationService = $registrationService;
+    }
 
     /**
      * Handle the registration of an agent presenting a valid bootstrap token.

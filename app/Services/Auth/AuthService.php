@@ -7,9 +7,12 @@ use Illuminate\Support\Facades\Hash;
 
 class AuthService
 {
-    public function __construct(
-        protected JwtService $jwtService
-    ) {}
+    protected JwtService $jwtService;
+
+    public function __construct(JwtService $jwtService)
+    {
+        $this->jwtService = $jwtService;
+    }
 
     /**
      * Authenticate user credentials and return JWT payload on success.

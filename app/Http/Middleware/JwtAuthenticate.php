@@ -9,9 +9,12 @@ use Symfony\Component\HttpFoundation\Response;
 
 class JwtAuthenticate
 {
-    public function __construct(
-        protected JwtService $jwtService
-    ) {}
+    protected JwtService $jwtService;
+
+    public function __construct(JwtService $jwtService)
+    {
+        $this->jwtService = $jwtService;
+    }
 
     /**
      * Handle an incoming request verifying JWT bearer token.

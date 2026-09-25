@@ -11,9 +11,12 @@ use RuntimeException;
 
 class AgentHeartbeatController extends Controller
 {
-    public function __construct(
-        protected AgentHeartbeatService $heartbeatService
-    ) {}
+    protected AgentHeartbeatService $heartbeatService;
+
+    public function __construct(AgentHeartbeatService $heartbeatService)
+    {
+        $this->heartbeatService = $heartbeatService;
+    }
 
     /**
      * Receive and process periodic heartbeats from active agents.

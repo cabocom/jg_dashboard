@@ -10,9 +10,12 @@ use Illuminate\Http\Request;
 
 class HitlApprovalController extends Controller
 {
-    public function __construct(
-        protected HitlApprovalService $hitlService
-    ) {}
+    protected HitlApprovalService $hitlService;
+
+    public function __construct(HitlApprovalService $hitlService)
+    {
+        $this->hitlService = $hitlService;
+    }
 
     /**
      * List pending HITL approval requests awaiting human decision.
