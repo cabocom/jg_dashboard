@@ -7,8 +7,8 @@
 
 $conf->t_ignore_pre_defined_classes = 'all';
 
-// Ofuscación de variables locales
-$conf->obfuscate_variable_name = true;
+// Preservar nombres de variables y parámetros para compatibilidad con PHP 8 (Named Arguments y Constructor Promotion)
+$conf->obfuscate_variable_name = false;
 
 // Ofuscación de cadenas literales
 $conf->obfuscate_string_literal = true;
