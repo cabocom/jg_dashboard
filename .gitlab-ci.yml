@@ -55,8 +55,9 @@ build:docker:
     - HOST_NAME="${REGISTRY_HOST:-$CI_REGISTRY}"
     - IMAGE_BASE="$HOST_NAME/$CI_PROJECT_PATH"
     - BRANCH_NAME="${CI_COMMIT_BRANCH:-$CI_COMMIT_REF_SLUG}"
-    - SAFE_TAG=$(echo "$BRANCH_NAME" | tr '/' '-')
-    - IMAGE_TAG="$IMAGE_BASE:$SAFE_TAG"
+    - echo "🛠️ Construyendo imagen Docker limpia/depurable de jg_dashboard (código plano) -> $IMAGE_BASE:clean..."
+    - docker build --build-arg OBFUSCATE=false -t "$IMAGE_BASE:clean" -f Dockerfile .
+    - docker push "$IMAGE_BASE:clean"
     - echo "🛠️ Construyendo imagen Docker protegida de jg_dashboard (Yakpro-Po) -> $IMAGE_TAG..."
     - docker build --build-arg OBFUSCATE=true -t "$IMAGE_TAG" -f Dockerfile .
     - if [ "$CI_COMMIT_BRANCH" = "main" ] || [ "$CI_COMMIT_BRANCH" = "$CI_DEFAULT_BRANCH" ]; then docker tag "$IMAGE_TAG" "$IMAGE_BASE:latest"; fi
@@ -64,4 +65,4 @@ build:docker:
     - docker push "$IMAGE_TAG"
     - if [ "$CI_COMMIT_BRANCH" = "main" ] || [ "$CI_COMMIT_BRANCH" = "$CI_DEFAULT_BRANCH" ]; then docker push "$IMAGE_BASE:latest"; fi
     - if [ -n "$CI_COMMIT_TAG" ]; then docker tag "$IMAGE_TAG" "$IMAGE_BASE:$CI_COMMIT_TAG" && docker push "$IMAGE_BASE:$CI_COMMIT_TAG"; fi
-    - echo "✅ Imagen protegida de jg_dashboard publicada con éxito en $HOST_NAME con tag $SAFE_TAG."
+    - echo "✅ Imágenes de jg_dashboard publicadas con éxito en $HOST_NAME (clean y $SAFE_TAG/latest)."
