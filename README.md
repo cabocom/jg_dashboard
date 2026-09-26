@@ -214,8 +214,8 @@ Consulte [TODO-PENDIENTES.md](TODO-PENDIENTES.md) para el desglose detallado de 
 
 - **Licencia de Código Abierto:** [GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE) - Copyright (C) 2026 Javier Gálvez.
 - **Licencia Comercial Enterprise:** Exención de la obligación de copyleft de red (Sección 13 de AGPLv3) para operadores SaaS, marca blanca y uso corporativo cerrado:
-  - **Tarifa:** **200 € / mes** por cada bloque de hasta 3 agentes (sin rappel por volumen).
-  - **Mayor volumen:** Si necesita mayor volumen o licenciamiento corporativo global, contacte a través de **[https://javiergalvez.com](https://javiergalvez.com)**.
+  - **Tarifa:** **1 € / mes por agente** (estrictamente lineal, sin rappel y sin límite).
+  - **Casos singulares:** Contactar a través de **[https://javiergalvez.com](https://javiergalvez.com)** únicamente para casos muy particulares o acuerdos especiales a medida.
 
 Para más detalles sobre derechos, exenciones de copyleft y contratación, consulte [COMMERCIAL_TERMS.md](COMMERCIAL_TERMS.md).
 

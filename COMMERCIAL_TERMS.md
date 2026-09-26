@@ -11,7 +11,7 @@
 El panel de control y gobernanza **`jg_dashboard`** (Laravel 11 / Filament v3 / Livewire) se distribuye bajo un esquema formal de **Doble Licenciamiento (Dual Licensing)**:
 
 1. **Licencia de Código Abierto (AGPLv3):** Destinada a la comunidad de software libre, investigación y proyectos comunitarios dispuestos a compartir íntegramente sus modificaciones y código bajo la misma licencia recíproca ([LICENSE](LICENSE)).
-2. **Licencia Comercial Enterprise (200 € / mes cada 3 agentes):** Diseñada para organizaciones, operadores de servicios gestionados, integradores y plataformas SaaS que requieren operar, adaptar, personalizar o distribuir el panel **sin la obligación de revelar su código fuente** ni sus personalizaciones privadas.
+2. **Licencia Comercial Enterprise (1 € / mes por agente):** Diseñada para organizaciones, operadores de servicios gestionados, integradores y plataformas SaaS que requieren operar, adaptar, personalizar o distribuir el panel **sin la obligación de revelar su código fuente** ni sus personalizaciones privadas.
 
 ---
 
@@ -35,14 +35,10 @@ La licencia AGPLv3 incluye una cláusula vinculante de copyleft de red (*Remote 
 Para empresas y proveedores de servicios que necesitan utilizar `jg_dashboard` como parte de su infraestructura corporativa o catálogo comercial sin liberar código fuente, ofrecemos la **Licencia Comercial Enterprise directa del autor original**.
 
 ### 3.1 Esquema de Tarifas
-- **Cuota de Suscripción Base:** **200 € / mes** (+ IVA aplicable) **por cada bloque de hasta 3 agentes**.
-- **Sin rappel por volumen:** La tarificación es estrictamente lineal y acumulativa por número de agentes gestionados:
-  - De 1 a 3 agentes: **200 € / mes**
-  - De 4 a 6 agentes: **400 € / mes**
-  - De 7 a 9 agentes: **600 € / mes**
-  - *(Tarifa plana lineal sin descuentos por tramos ni rappel).*
+- **Tarifa Única Universal:** **1 € / mes** (+ IVA aplicable) **por cada agente gestionado**, sin importe mínimo ni límite superior.
+- **Sin rappel y sin límite:** La tarificación es estrictamente proporcional y lineal a razón de 1 €/mes por cada agente activo gestionado (ej. 1 agente = 1 €/mes, 10 agentes = 10 €/mes, 500 agentes = 500 €/mes), sin descuentos por tramos, sin rappel y sin empaquetado en bloques mínimos.
 - **Periodicidad:** Facturación mensual o anual recurrente.
-- **Despliegues de Gran Volumen:** Si tu organización requiere un volumen superior de agentes o una licencia corporativa global (*unlimited instances* / OEM), contacta directamente a través de **[https://javiergalvez.com](https://javiergalvez.com)**.
+- **Casos Singulares y Acuerdos Especiales:** Si tu organización requiere un acuerdo corporativo muy particular (e.g. acuerdos OEM a medida, integración en appliances cerrados o condiciones específicas de contratación pública), puedes contactar directamente a través de **[https://javiergalvez.com](https://javiergalvez.com)**.
 
 ### 3.2 Derechos y Ventajas Otorgados
 Al adquirir la Licencia Comercial Enterprise, tu organización obtiene:
@@ -60,8 +56,8 @@ Al adquirir la Licencia Comercial Enterprise, tu organización obtiene:
 
 | Característica / Obligación | Licencia Comunitaria (AGPLv3) | Licencia Comercial Enterprise |
 | :--- | :---: | :---: |
-| **Coste de Licencia** | Gratuito (0 €) | **200 € / mes (cada 3 agentes)** |
-| **Escalado de tarifa** | N/A | **Lineal (sin rappel)** |
+| **Coste de Licencia** | Gratuito (0 €) | **1 € / mes por agente** |
+| **Escalado de tarifa** | N/A | **Lineal (1 €/agente, sin rappel y sin límite)** |
 | **Acceso al código fuente** | Sí | Sí |
 | **Uso en red sin compartir código (SaaS / Web)** | **Prohibido (Sec. 13 obliga a liberar)** | **PERMITIDO (Exento)** |
 | **Marca blanca (White-labeling)** | No permitido | **Permitido** |
