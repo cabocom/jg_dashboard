@@ -2362,32 +2362,41 @@ ${this.escapeHtml(det.steps.map((st, i) => `${i + 1}. [${st.tool_name || st.name
     },
 
     initTheme() {
-      const savedTheme = localStorage.getItem('console_theme') || 'cyber-dark';
+      const savedTheme = localStorage.getItem('console_theme') || localStorage.getItem('jg_theme') || 'dark';
       this.applyTheme(savedTheme, false);
     },
 
     applyTheme(themeName, showNotification = true) {
-      document.documentElement.setAttribute('data-theme', themeName);
-      localStorage.setItem('console_theme', themeName);
+      const normalizedTheme = (themeName === 'light' || themeName === 'blanco') ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', normalizedTheme);
+      localStorage.setItem('console_theme', normalizedTheme);
+      localStorage.setItem('jg_theme', normalizedTheme);
 
       document.querySelectorAll('.theme-option-btn').forEach((btn) => {
-        btn.classList.toggle('active', btn.getAttribute('data-theme') === themeName);
+        btn.classList.toggle('active', btn.getAttribute('data-theme') === normalizedTheme);
       });
 
       const labels = {
-        'cyber-dark': 'Cyber Dark',
-        'emerald-matrix': 'Matrix Emerald',
-        'midnight-slate': 'Midnight Slate',
-        'amethyst-purple': 'Amethyst Night',
-        'high-contrast': 'High Contrast',
+        'dark': 'Oscuro',
+        'light': 'Claro',
       };
+      const icons = {
+        'dark': '🌙',
+        'light': '☀️',
+      };
+
       const labelEl = document.getElementById('current-theme-label');
       if (labelEl) {
-        labelEl.textContent = labels[themeName] || 'Tema';
+        labelEl.textContent = labels[normalizedTheme] || 'Tema';
+      }
+
+      const iconEl = document.getElementById('current-theme-icon');
+      if (iconEl) {
+        iconEl.textContent = icons[normalizedTheme] || '🎨';
       }
 
       if (showNotification) {
-        this.showToast(`Estilo visual cambiado a: ${labels[themeName] || themeName}`, 'info');
+        this.showToast(`Estilo visual cambiado a: ${labels[normalizedTheme]}`, 'info');
       }
     },
 

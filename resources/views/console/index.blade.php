@@ -86,33 +86,21 @@
         </div>
 
         <div class="header-actions" style="display: flex; align-items: center; gap: 8px;">
-          <!-- Selector de Estilos / Temas -->
+          <!-- Selector de Estilos / Temas (Solo Dos Temas: Blanco y Negro) -->
           <div class="theme-dropdown-wrapper" style="position: relative;">
-            <button id="btn-toggle-theme" type="button" class="btn btn-secondary" title="Cambiar tema o estilo visual del panel" style="display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 7px 12px;">
-              <span>🎨</span>
-              <span id="current-theme-label">Tema</span>
+            <button id="btn-toggle-theme" type="button" class="btn btn-secondary" title="Cambiar tema visual (Negro / Blanco)" style="display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 7px 12px;">
+              <span id="current-theme-icon">🌙</span>
+              <span id="current-theme-label">Oscuro</span>
               <span style="font-size: 9px; opacity: 0.7;">▼</span>
             </button>
             <div id="theme-dropdown-menu" class="theme-dropdown-menu" style="display: none;">
-              <button type="button" class="theme-option-btn active" data-theme="cyber-dark">
-                <span class="theme-swatch" style="background: linear-gradient(135deg, #090a0f, #06b6d4);"></span>
-                <span>Cyber Dark (Predeterminado)</span>
+              <button type="button" class="theme-option-btn active" data-theme="dark">
+                <span class="theme-swatch" style="background: #090a0f; border: 1px solid rgba(255,255,255,0.2);"></span>
+                <span>Oscuro (Negro)</span>
               </button>
-              <button type="button" class="theme-option-btn" data-theme="emerald-matrix">
-                <span class="theme-swatch" style="background: linear-gradient(135deg, #040d08, #10b981);"></span>
-                <span>Matrix Emerald</span>
-              </button>
-              <button type="button" class="theme-option-btn" data-theme="midnight-slate">
-                <span class="theme-swatch" style="background: linear-gradient(135deg, #0b0f19, #38bdf8);"></span>
-                <span>Midnight Slate</span>
-              </button>
-              <button type="button" class="theme-option-btn" data-theme="amethyst-purple">
-                <span class="theme-swatch" style="background: linear-gradient(135deg, #0d0818, #c084fc);"></span>
-                <span>Amethyst Night</span>
-              </button>
-              <button type="button" class="theme-option-btn" data-theme="high-contrast">
-                <span class="theme-swatch" style="background: linear-gradient(135deg, #000000, #facc15);"></span>
-                <span>High Contrast</span>
+              <button type="button" class="theme-option-btn" data-theme="light">
+                <span class="theme-swatch" style="background: #ffffff; border: 1px solid #cbd5e1;"></span>
+                <span>Claro (Blanco)</span>
               </button>
             </div>
           </div>
