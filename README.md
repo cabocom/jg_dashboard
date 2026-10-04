@@ -1,222 +1,184 @@
 # jg_dashboard
 
 **Plano de Control, Administración y Gobernanza Human-In-The-Loop**  
-*Control Plane del ecosistema jG*
+*Control Plane del ecosistema agéntico jG*
 
 ---
 
-## 1. ¿Qué es `jg_dashboard`?
+## 1. Visión General y Propósito
 
-`jg_dashboard` es el **Control Plane** central del ecosistema de agentes. Proporciona la interfaz administrativa, el sistema de autenticación y autorización (RBAC), el registro y aprovisionamiento seguro de agentes (`jg_agente`), la consola de monitorización y la pasarela de aprobación humana (**Human-In-The-Loop - HITL**) para planes de ejecución críticos.
+`jg_dashboard` es el **Control Plane** central del ecosistema de agentes jG. Desarrollado sobre [Laravel 11](https://laravel.com/), [Filament v3](https://filamentphp.com/), [Livewire 3](https://livewire.laravel.com/) y [Pest PHP](https://pestphp.com/), proporciona la interfaz de administración, el sistema de autenticación y autorización (RBAC), el aprovisionamiento Zero-Trust de agentes (`jg_agente`), la consola de monitorización y la pasarela de aprobación humana (**Human-In-The-Loop - HITL**) para planes de ejecución críticos.
 
-Es el **único componente del ecosistema expuesto hacia el exterior**. Actúa como escudo de seguridad, asegurando que los motores de ejecución (`jg_agente`) permanezcan completamente aislados en redes internas privadas.
+Es el **único componente del ecosistema expuesto hacia el exterior**, actuando como escudo perimetral para asegurar que los motores de ejecución (`jg_agente`) permanezcan completamente aislados en redes internas privadas sin acceso directo no autenticado.
+
+### Documentación Técnica Modular
+Para profundizar en la arquitectura y gobernanza del Control Plane:
+- [01. Arquitectura del Control Plane](docs/01_control_plane.md) — Separación de planos, pipeline de servicios y PostgreSQL aislado.
+- [02. Control de Acceso y Roles (RBAC)](docs/02_rbac_tenancy.md) — Modelo de roles `admin`, `operator` y `viewer`, JwtService y auditoría inmutable.
+- [03. Gobernanza Human-In-The-Loop (HITL)](docs/03_hitl_governance.md) — Lock pesimista, reconciliación ante fallos 404/409 y rescate de solicitudes huérfanas.
+- [04. Protocolo Criptográfico Inter-Servicio](docs/04_hmac_handshake.md) — Firmas HMAC-SHA256, dualidad de almacenamiento de secretos y resiliencia HTTP.
+- [05. Esquema de Base de Datos](docs/05_database_schema.md) — Diccionario de datos de las 9 entidades relacionales de `jg_dashboard`.
+- [06. Observabilidad y Resiliencia](docs/06_observability_resilience.md) — Circuit Breakers, Mapa Topológico, Deduplicación de Incidentes y CLI SRE.
 
 ---
 
-## 2. ¿Qué problema resuelve?
-
-1. **Aislamiento de seguridad:** Impide la exposición pública de los motores de ejecución y sus herramientas de infraestructura.
-2. **Gobernanza Human-In-The-Loop (HITL):** Proporciona un punto centralizado donde los operadores humanos pueden auditar, autorizar o rechazar planes automatizados de alto riesgo generados por agentes autónomos.
-3. **Aprovisionamiento Zero-Trust:** Administra la creación de agentes mediante `bootstrap_tokens` temporales (24h de uso único) y emite credenciales permanentes revocables.
-4. **Desacoplamiento de clientes externos:** Centraliza los adaptadores de entrada y salida (Web, REST, mensajería), convirtiendo estímulos diversos en contratos normalizados (`AgentInput` y `AgentOutput`).
-5. **Independencia de base de datos:** Opera sobre su propia base de datos PostgreSQL; **nunca se conecta a la base de datos interna de los agentes**.
-
----
-
-## 3. Arquitectura General y Separación de Planos
+## 2. Arquitectura de Separación de Planos
 
 ```text
-  USUARIOS & OPERADORES                     SISTEMAS EXTERNOS (APIs, Webhooks)
-           │                                                │
-           └───────────────────────┬────────────────────────┘
-                                   │ HTTPS
-                                   ▼
+  USUARIOS & OPERADORES (Web Browser / REST)
+                     │
+                     │ HTTPS / JWT
+                     ▼
 ┌────────────────────────────────────────────────────────────────────────┐
 │                      jg_dashboard (Control Plane)                      │
 │                                                                        │
 │  ┌───────────────────────┐         ┌────────────────────────────────┐  │
-│  │    Web UI & Static    │         │      API Gateway & Normalizer  │  │
-│  │   (Next.js / Vanilla) │         │    (FastAPI / REST External)   │  │
+│  │    Web UI & Console   │         │      REST API (Laravel 11)     │  │
+│  │   (Filament / Blade)  │         │   (JWT Auth / Rate Limiting)   │  │
 │  └───────────┬───────────┘         └───────────────┬────────────────┘  │
 │              │                                     │                   │
 │              ▼                                     ▼                   │
 │  ┌──────────────────────────────────────────────────────────────────┐  │
 │  │                     Servicios del Dashboard                      │  │
-│  │  - Auth & RBAC (Admin/Operator/Viewer)                           │  │
-│  │  - Agent Registry & Bootstrap Token Service (TTL 24h)            │  │
-│  │  - HITL Approval Engine (/approve, /reject)                     │  │
-│  │  - Agent Monitor & Heartbeat Collector                           │  │
-│  │  - Agent HTTP Client (Proxy hacia red privada)                   │  │
+│  │  - Auth & RBAC (Admin / Operator / Viewer) + JwtService          │  │
+│  │  - Agent Registration Service (Bootstrap Token 24h + Dual Secret)│  │
+│  │  - HitlApprovalService (lockForUpdate + Reconciliación 404/409)  │  │
+│  │  - AgentHealthMonitorService (Schedule everyMinute)              │  │
+│  │  - AgentHttpClient (Firmas canónicas HMAC-SHA256 y Retries)      │  │
+│  │  - Observabilidad: CircuitBreakerState, InfraTopology, Incidentes│  │
 │  └──────────────────────────────────┬───────────────────────────────┘  │
 │                                     │                                  │
 │                                     ▼                                  │
 │                    ┌─────────────────────────────────┐                 │
 │                    │     PostgreSQL del Dashboard    │                 │
-│                    │   (dashboard_users, agents...)  │                 │
+│                    │  (users, agents, tasks, audit,  │                 │
+│                    │   circuit_breaker, topology,    │                 │
+│                    │   notified_incidents)           │                 │
 │                    └─────────────────────────────────┘                 │
 └──────────────────────────────────────┬─────────────────────────────────┘
-                                       │ HTTP (Red Privada Docker)
+                                       │ HTTP / HMAC-SHA256 (Red Privada)
                                        ▼
 ┌────────────────────────────────────────────────────────────────────────┐
 │                      jg_agente (Execution Plane)                       │
-│             (LangGraph · Tools · PostgreSQL del Agente)                │
+│                         (FastAPI / LangGraph)                          │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
+### Principios Fundamentales
+1. **Aislamiento Físico y de Datos:** Opera sobre su propia base de datos PostgreSQL (`jg_dashboard`). **Bajo ninguna circunstancia consulta ni se conecta a las bases de datos internas de los agentes.**
+2. **Desacoplamiento de Clientes Externos:** Centraliza la normalización de peticiones, transformando entradas de APIs o consolas en contratos canónicos `AgentInput` y `AgentOutput`.
+3. **Firmado Criptográfico Saliente:** Cada invocación delegada hacia `jg_agente` se firma en tiempo real mediante `AgentHttpClient` con HMAC-SHA256 y marca temporal anti-repetición.
+4. **Resiliencia y Supervisión de Topología:** Aísla fallos de dependencias mediante Circuit Breakers y representa visualmente la topología del clúster con fallback dinámico a modelos Eloquent.
+
 ---
 
-## 4. Flujo de Gobernanza y HITL
+## 3. Matriz de Control de Acceso Basado en Roles (RBAC)
 
-```text
-[Operador/Sistema] ──► Dispara acción vía Dashboard ──► [jg_dashboard]
-                                                             │ POST /executions/trigger
-                                                             ▼
-                                                        [jg_agente]
-                                                             │ Evalúa riesgo
-                                                             │ ¿Riesgo >= HIGH?
-                                                             ▼
-                                                    [Pausa en Checkpoint]
-                                                             │
-                                                             ▼ Emite evento de espera
-                                                        [jg_dashboard]
-                                                             │
-                                                             ▼ (Notificación en UI)
-                                                    [Consola HITL Dashboard]
-                                                             │ Operador revisa plan
-                                                             │ Pulsa "Aprobar"
-                                                             ▼
-                                                  POST /approve en jg_agente
-                                                             │
-                                                             ▼
-                                                        [jg_agente]
-                                                    (Reanuda y ejecuta)
+La jerarquía de roles satisface la relación de orden transitiva: $\text{ADMIN} \succ \text{OPERATOR} \succ \text{VIEWER}$.
+
+| Funcionalidad / Endpoint | ADMIN | OPERATOR | VIEWER |
+| :--- | :---: | :---: | :---: |
+| **Login / Logout / Auth Me (`/api/v1/auth/*`)** | Sí | Sí | Sí |
+| **Acceso a Panel Administrativo Web (`canAccessPanel`)** | Sí | Sí | No |
+| **Aprovisionamiento de Agentes (`POST /api/v1/admin/agents`)** | Sí | No | No |
+| **Regenerar / Revocar Tokens (`/api/v1/admin/agents/{id}/*`)** | Sí | No | No |
+| **Listar Agentes y Estados (`GET /api/v1/agents`)** | Sí | Sí | Sí |
+| **Inspección de Capacidades (`GET /api/v1/agents/{id}/capabilities`)** | Sí | Sí | Sí |
+| **Consulta de Estado de Ejecución (`GET /api/v1/executions/{id}/{th}`)**| Sí | Sí | Sí |
+| **Disparo de Ejecuciones (`POST /api/v1/executions/trigger`)** | Sí | Sí | No |
+| **Listar Aprobaciones Pendientes (`GET /api/v1/approvals/pending`)** | Sí | Sí | No |
+| **Aprobar Solicitud HITL (`POST /api/v1/approvals/{id}/approve`)** | Sí | Sí | No |
+| **Rechazar Solicitud HITL (`POST /api/v1/approvals/{id}/reject`)** | Sí | Sí | No |
+
+---
+
+## 4. Gobernanza Human-In-The-Loop (HITL)
+
+### Concurrencia Segura con Bloqueo Pesimista
+Para impedir que dos operadores autoricen o rechacen simultáneamente la misma operación de alto riesgo, `HitlApprovalService` ejecuta la resolución dentro de una transacción de base de datos con bloqueo pesimista a nivel de fila (`lockForUpdate`):
+```php
+$lockResult = DB::transaction(function () use ($approvalId) {
+    $approval = ApprovalRequest::where('id', $approvalId)->lockForUpdate()->first();
+    if (!$approval || $approval->status !== 'PENDING') {
+        return ['success' => false, 'error' => 'Solicitud ya resuelta previamente.'];
+    }
+    $approval->status = 'APPROVED';
+    $approval->save();
+    return ['success' => true, 'approval' => $approval];
+});
 ```
 
----
-
-## 5. Estructura del Repositorio
-
-```text
-jg_dashboard/
-├── composer.json                   # Dependencias Laravel 11, Filament v3 y Pest
-├── composer.lock                   # Lockfile de dependencias PHP
-├── phpunit.xml                     # Configuración de pruebas Pest/PHPUnit
-├── Dockerfile                      # Contenedor PHP 8.3-FPM + Nginx
-├── app/
-│   ├── Filament/                   # Recursos y páginas del panel Filament
-│   │   ├── Pages/                  # Vistas personalizadas y mapa de topología
-│   │   ├── Resources/              # Recursos reactivos (AgentTaskResource, etc.)
-│   │   └── Widgets/                # Widgets de métricas y estados
-│   ├── Models/                     # Modelos Eloquent ORM (AgentTask, User, etc.)
-│   ├── Providers/                  # Service Providers (AppServiceProvider, etc.)
-│   └── Services/                   # Clientes y servicios del Control Plane (AgentHttpClient, AgentRegistrationService, etc.)
-├── bootstrap/                      # Bootstrap de Laravel
-├── config/                         # Configuraciones (app, database, devops60k/agent)
-├── database/                       # Migraciones, factories y seeders
-├── docker/                         # Configuraciones y entrypoint Docker
-├── public/                         # Assets públicos y punto de entrada index.php
-├── resources/                      # Vistas Blade y recursos estáticos
-├── routes/                         # Rutas web y de consola
-├── scripts/
-│   └── check.sh                    # Script de verificación integral (Pest)
-└── tests/                          # Suite integral de pruebas (Unit + Feature)
-    ├── Feature/
-    └── Unit/
-```
+### Alcance de Aprobación
+> [!NOTE]
+> En la base de código actual, el endpoint `POST /api/v1/approvals/{id}/approve` opera bajo autorización o rechazo determinista del plan formulado por el agente. **No se admite la modificación de argumentos en caliente** (`modified_arguments`). Ante parámetros inadecuados, el operador rechaza la solicitud registrando la justificación técnica (`justification`), lo que aborta la ejecución en el agente con estado `CANCELLED`.
 
 ---
 
-## 6. Verificación de Calidad y Despliegue Local
+## 5. Protocolo Criptográfico Inter-Servicio (HMAC-SHA256)
 
-### Pruebas Automatizadas (Pest PHP)
-La suite automatizada incluye **35 pruebas de unidad e integración** que validan autenticación JWT, RBAC, registro de agentes Zero-Trust, heartbeats y orquestación HITL:
+La comunicación saliente generada por `AgentHttpClient` y la recepción de heartbeats en `AgentHeartbeatController` siguen el contrato canónico compartido:
 
+$$\text{CanonicalString} = \text{METHOD} + \text{"\textbackslash n"} + \text{PATH} + \text{"\textbackslash n"} + \text{TIMESTAMP} + \text{"\textbackslash n"} + \text{SHA256(RAW\_BODY)}$$
+$$\text{Signature} = \text{hash\_hmac}('sha256', \text{CanonicalString}, \text{SecretKey})$$
+
+- **Cabeceras exactas en código:** `X-Signature`, `X-Timestamp`, `X-Agent-ID`, `X-Correlation-ID`.
+- **Ventana de tolerancia anti-replay:** $\|t_{\text{actual}} - t_{\text{req}}\| \le 300\text{ segundos (5 minutos)}$.
+- **Verificación segura:** Comparación en tiempo constante con `hash_equals()`.
+
+---
+
+## 6. Esquema de Persistencia (PostgreSQL)
+
+| Tabla | Propósito y Contenido |
+| :--- | :--- |
+| **`users`** | Cuentas de operadores y administradores, hash de contraseñas (`bcrypt`/`argon2id`) y roles RBAC. |
+| **`dashboard_agents`** | Catálogo de agentes, estado, secreto dual (`hash` inbound + `encrypted` outbound), versión y métricas. |
+| **`dashboard_bootstrap_tokens`** | Tokens temporales de aprovisionamiento Zero-Trust (TTL 24h, hash SHA-256, un solo uso). |
+| **`dashboard_approval_requests`** | Solicitudes HITL en espera, planes propuestos, trazas cognitivas y justificaciones. |
+| **`dashboard_audit_events`** | Pista inmutable de auditoría forense (`const UPDATED_AT = null;`) con IP y User-Agent. |
+| **`agent_tasks`** | Historial de tareas, prompts, estados de finalización, duraciones calculadas y trazas intermedias. |
+| **`circuit_breaker_state`** | Control de corte de tráfico por servicio dependiente (`is_tripped`, motivo e historial JSON). |
+| **`infra_topology`** | Snapshots estructurados en grafo (`nodes_json`, `edges_json`) con contadores de salud. |
+| **`notified_incidents`** | Registro y deduplicación de incidentes de observabilidad para mitigar fatiga de alertas. |
+
+---
+
+## 7. Despliegue Local, Comandos CLI y Verificación de Calidad
+
+### Arranque con Docker Compose
 ```bash
-# Ejecución en el host con dependencias de desarrollo
-./scripts/check.sh
-# o directamente:
-./vendor/bin/pest
-```
-
-> **Nota:** La imagen Docker de producción se construye con `--no-dev` por seguridad y optimización de tamaño, por lo que la suite Pest se ejecuta en el entorno de desarrollo del host o en el pipeline de CI.
-
-### Ejecución con Docker Compose
-```bash
-# Levantar contenedor web de jg_dashboard y PostgreSQL propio aislado (puerto 5434)
+# Levantar contenedor web de jg_dashboard y su PostgreSQL propio aislado (puerto 5434)
 docker compose up -d
 
-# Verificar estado y logs
-docker compose ps
+# Inspeccionar logs de ejecución
 docker compose logs -f
 ```
 
----
+### Comandos de Administración y Monitorización CLI
+```bash
+# 1. Aprovisionamiento desatendido e inicialización idempotente del superadministrador
+php artisan dashboard:init-admin
 
-## 7. Documentación y Deuda Técnica
+# 2. Comprobación y transición a OFFLINE de agentes inactivos sin heartbeat (>90s)
+php artisan agents:check-health --timeout=90
+```
 
-Para profundizar en el diseño del plano de control y sus pendientes técnicos:
-- **[Contexto de Proyecto](PROJECT_CONTEXT.md):** Arquitectura de Laravel, RBAC y modelos de persistencia.
-- **[Tareas Pendientes y Deuda Técnica](TODO-PENDIENTES.md):** Registro exhaustivo de ítems pendientes para la auditoría técnica.
-- **[Documentación Técnica](docs/):** Especificaciones de arquitectura, APIs y protocolos del ecosistema.
+### Ejecución de Pruebas Automatizadas
+La suite automatizada cuenta con **285 pruebas** de unidad e integración (256 Pest PHP + 29 PHPUnit):
+```bash
+# Ejecutar verificación completa de linters y pruebas
+./scripts/check.sh
 
----
-
-## 8. Roadmap y Estado
-
-- [x] **Fase 01:** Bootstrap, Documentación y Tooling (100%):
-  - [x] `ISSUE-F01-T01`: Estructura base del repositorio jg_dashboard y configuración de entorno (Laravel 11, Filament v3, Livewire 3, Pest PHP).
-  - [x] `ISSUE-F01-T02`: Dockerfile multi-stage y Docker Compose con PostgreSQL propio (puerto 5434 y volumen aislado).
-  - [x] `ISSUE-F01-T03`: Pipeline de CI/CD para jg_dashboard (.gitlab-ci.yml con stage test y build).
-- [x] **Fase 02:** Persistencia y modelos de base de datos PostgreSQL (100%):
-  - [x] `ISSUE-F02-T01`: Modelos de base de datos para usuarios y roles RBAC (Eloquent User, FilamentUser, contraseñas hasheadas y migración).
-  - [x] `ISSUE-F02-T02`: Modelos de base de datos para agentes registrados (`dashboard_agents`, modelo Eloquent `Agent`, UUIDs, scopes y tests).
-  - [x] `ISSUE-F02-T03`: Modelos de base de datos para tokens de aprovisionamiento (`dashboard_bootstrap_tokens`, modelo Eloquent `BootstrapToken`, TTL 24h, flag de uso único).
-  - [x] `ISSUE-F02-T04`: Modelos de base de datos para solicitudes HITL y eventos de auditoría (`dashboard_approval_requests`, `dashboard_audit_events`).
-- [x] **Fase 03:** Autenticación de usuarios y RBAC (Admin, Operator, Viewer) (100%):
-  - [x] `ISSUE-F03-T01`: Servicio de autenticación JWT y hashing de contraseñas (`JwtService`, `AuthService`, `/api/v1/auth/login`).
-  - [x] `ISSUE-F03-T02`: Middleware y dependencias de autorización RBAC (`jwt.auth`, `role`, `permission`, 401/403).
-  - [x] `ISSUE-F03-T03`: Endpoints de autenticación de usuarios: POST /auth/login y GET /auth/me (`/api/v1/auth/me`, `/api/v1/auth/logout`, roles y permisos).
-  - [x] `ISSUE-F03-T04`: Script de inicialización para creación del usuario administrador inicial (`php artisan dashboard:init-admin`).
-- [x] **Fase 04:** Sistema de registro de agentes con `bootstrap_token` de 24h y credencial permanente (100%):
-  - [x] `ISSUE-F04-T01`: Servicio de registro de agentes y generación de bootstrap tokens (`AgentRegistrationService`, TTL 24h, Zero-Trust).
-  - [x] `ISSUE-F04-T02`: Endpoint administrativo: POST /api/v1/admin/agents (`AdminAgentController`, RBAC `role:admin`, 201 Created con token y agent_id).
-  - [x] `ISSUE-F04-T03`: Endpoint de consumo de registro por el agente: POST /api/v1/agents/register (`AgentRegistrationController`, intercambio por `permanent_secret`, activación y un solo uso).
-  - [x] `ISSUE-F04-T04`: Validación de expiración y uso único del bootstrap_token (`BootstrapToken@isExpired`, rechazo 401 Unauthorized ante tokens expirados/consumidos y revocación administrativa).
-- [x] **Fase 05:** Monitoreo de agentes y procesamiento de heartbeats periódicos (100%):
-  - [x] `ISSUE-F05-T01`: Endpoint de recepción de heartbeats: POST /api/v1/agents/heartbeat (`AgentHeartbeatController`, autenticación por `permanent_secret`, métricas y actualización de último latido).
-  - [x] `ISSUE-F05-T02`: Servicio en background de detección de agentes caídos (`AgentHealthMonitorService`, Artisan `agents:check-health`, Schedule everyMinute, transición automática a OFFLINE >90s).
-  - [x] `ISSUE-F05-T03`: Endpoint de consulta de estado/métricas de salud de agentes (`AgentController`, paginación, filtros de estado, búsqueda y métricas agregadas).
-- [x] **Fase 06:** Cliente HTTP proxy y orquestación de ejecuciones hacia `jg_agente` (100%):
-  - [x] `ISSUE-F06-T01`: Cliente HTTP interno para comunicación con jg_agente (`AgentHttpClient`, firmado HMAC-SHA256, timeouts, reintentos con backoff y resiliencia de red).
-  - [x] `ISSUE-F06-T02`: Pasarela para disparar ejecuciones: POST /api/v1/executions/trigger (`ExecutionController`, RBAC `role:operator`, normalización a `AgentInput`, auditoría y persistencia HITL).
-  - [x] `ISSUE-F06-T03`: Consulta de estado de ejecuciones: GET /api/v1/executions/{agent_id}/{thread_id} (`ExecutionController@show`, aislamiento de BD, estado unificado y gobernanza HITL).
-  - [x] `ISSUE-F06-T04`: Endpoint de inspección de capacidades: GET /api/v1/agents/{agent_id}/capabilities (`AgentController@capabilities`, consulta en vivo y sincronización en BD).
-- [x] **Fase 07:** Consola y acciones de aprobación Human-In-The-Loop (HITL) (100%):
-  - [x] `ISSUE-F07-T01`: Gestión de solicitudes de aprobación HITL en Dashboard (`HitlApprovalService`, idempotencia por `thread_id`, planes de alto riesgo, herramientas involucradas y auditoría).
-  - [x] `ISSUE-F07-T02`: Endpoint de listado de aprobaciones pendientes: GET /api/v1/approvals/pending (`HitlApprovalController@pending`, RBAC `role:operator`, resumen de acciones, nivel de riesgo y tiempo transcurrido).
-  - [x] `ISSUE-F07-T03`: Endpoint de aprobación HITL: POST /api/v1/approvals/{approval_id}/approve (`HitlApprovalController@approve`, delegación hacia `jg_agente`, actualización de estado y auditoría).
-  - [x] `ISSUE-F07-T04`: Endpoint de rechazo HITL: POST /api/v1/approvals/{approval_id}/reject (`HitlApprovalController@reject`, justificación obligatoria, cancelación en `jg_agente` y auditoría inmutable).
-- [x] **Fase 09:** Interfaz Gráfica Web y Consola HITL (100%):
-  - [x] `ISSUE-F09-T01`: Estructura base de la interfaz gráfica web (`/console`, Vanilla CSS `console.css`, Vanilla JS `console.js`, templates Blade y navegación entre Agentes, Aprobaciones HITL y Ejecuciones).
-  - [x] `ISSUE-F09-T02`: Panel de agentes con visualización de telemetría y métricas de salud en tiempo real (tarjetas con KPIs, tabla alternativa, búsqueda/filtros, modal de provisión con Bootstrap Token de 24h y endpoint `POST /console/agents`).
-  - [x] `ISSUE-F09-T03`: Vista UI: Consola de aprobación Human-In-The-Loop (HITL) (desglose secuencial de pasos, indicadores de riesgo, comandos de compensación, inspector de JSON y acciones directas de aprobación y rechazo).
-  - [x] `ISSUE-F09-T04`: Vista UI: Visor de ejecuciones y traza de pasos en tiempo real (prompt de entrada AgentInput, línea de tiempo interactiva de herramientas con estado/latencia, visor de salida AgentOutput con portapapeles, chips rápidos de hilos de sesión y polling en vivo cada 3s).
-- [ ] **Fase 08:** Adaptadores de estímulos externos (Webhooks / Mock Chat).
-- [ ] **Fase 10:** Integración end-to-end con `jg_agente` (Casos de Éxito A y B).
-
-Consulte [TODO-PENDIENTES.md](TODO-PENDIENTES.md) para el desglose detallado de tareas pendientes y deuda técnica para la siguiente fase.
+# O invocar Pest directamente en el entorno con dependencias de desarrollo
+./vendor/bin/pest
+```
 
 ---
 
-## 9. Licencia y Modelo Dual (Open Source / Comercial Enterprise)
+## 8. Licencia y Modelo Dual
 
 `jg_dashboard` se distribuye bajo un esquema de **Doble Licenciamiento (Dual Licensing)**:
+- **Código Abierto:** [GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE) - Copyright (C) 2026 Javier Gálvez.
+- **Licencia Comercial Enterprise:** Exención de copyleft de red para despliegues cerrados, marca blanca o integraciones SaaS propietarias.
 
-- **Licencia de Código Abierto:** [GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE) - Copyright (C) 2026 Javier Gálvez.
-- **Licencia Comercial Enterprise:** Exención de la obligación de copyleft de red (Sección 13 de AGPLv3) para operadores SaaS, marca blanca y uso corporativo cerrado:
-  - **Tarifa:** **1 € / mes por agente** (estrictamente lineal, sin rappel y sin límite).
-  - **Casos singulares:** Contactar a través de **[https://javiergalvez.com](https://javiergalvez.com)** únicamente para casos muy particulares o acuerdos especiales a medida.
-
-Para más detalles sobre derechos, exenciones de copyleft y contratación, consulte [COMMERCIAL_TERMS.md](COMMERCIAL_TERMS.md).
-
-
+Contacto comercial: **[https://javiergalvez.com](https://javiergalvez.com)**.
