@@ -9,6 +9,14 @@
   
   <!-- CSS Stylesheet -->
   <link rel="stylesheet" href="/css/console.css?v={{ file_exists(public_path('css/console.css')) ? filemtime(public_path('css/console.css')) : time() }}">
+
+  <script>
+    (function() {
+      const saved = localStorage.getItem('console_theme') || localStorage.getItem('jg_theme') || 'dark';
+      const theme = (saved === 'light' || saved === 'blanco') ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+  </script>
 </head>
 <body>
   <div class="bg-mesh"></div>
