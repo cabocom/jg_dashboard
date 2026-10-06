@@ -19,6 +19,7 @@ Para profundizar en la arquitectura y gobernanza del Control Plane:
 - [04. Protocolo Criptográfico Inter-Servicio](docs/04_hmac_handshake.md) — Firmas HMAC-SHA256, dualidad de almacenamiento de secretos y resiliencia HTTP.
 - [05. Esquema de Base de Datos](docs/05_database_schema.md) — Diccionario de datos de las 9 entidades relacionales de `jg_dashboard`.
 - [06. Observabilidad y Resiliencia](docs/06_observability_resilience.md) — Circuit Breakers, Mapa Topológico, Deduplicación de Incidentes y CLI SRE.
+- [07. Pasarela de Adaptadores y Webhooks](docs/07_adapters_webhooks.md) — Normalizador de estímulos externos (`InputNormalizer`), formateo adaptativo (`ClientOutputFormatter`) y controlador webhook.
 
 ---
 
@@ -164,7 +165,7 @@ php artisan agents:check-health --timeout=90
 ```
 
 ### Ejecución de Pruebas Automatizadas
-La suite automatizada cuenta con **285 pruebas** de unidad e integración (256 Pest PHP + 29 PHPUnit):
+La suite automatizada cuenta con **303 pruebas** de unidad e integración (274 Pest PHP + 29 PHPUnit):
 ```bash
 # Ejecutar verificación completa de linters y pruebas
 ./scripts/check.sh

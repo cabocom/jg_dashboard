@@ -139,5 +139,5 @@ php artisan agents:check-health --timeout=120
 
 ## 7. Navegación
 
-- [← Volver al Esquema de Base de Datos (05)](05_database_schema.md)
+- [← Volver al Esquema de Base de Datos (05)](05_database_schema.md) | [07. Pasarela de Adaptadores y Webhooks →](07_adapters_webhooks.md)
 - [Volver al README Principal](../README.md)

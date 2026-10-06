@@ -61,11 +61,17 @@ La comunicación con los agentes se canaliza mediante `App\Services\Agents\Agent
 ```text
 jg_dashboard/
 ├── app/
+│   ├── Adapters/                # Capa Modular de Adaptadores I/O Gateway (Fase 08)
+│   │   ├── Contracts/           # InputNormalizerInterface, OutputFormatterInterface
+│   │   ├── Normalizers/         # InputNormalizer (transformación multi-estímulo a AgentInput)
+│   │   ├── Formatters/          # ClientOutputFormatter (generic, chatbot, ci_cd)
+│   │   └── HttpWebhookAdapter.php # Orquestador webhook, auth X-Webhook-Secret y auditoría
 │   ├── Filament/                # Interfaz Gráfica Administrativa (Filament v3 + Livewire)
 │   │   ├── Pages/               # Páginas personalizadas (TopologyMap, etc.)
 │   │   └── Resources/           # Recursos CRUD reactivos (AgentTaskResource, etc.)
 │   ├── Http/
 │   │   ├── Controllers/Api/     # Controladores REST API
+│   │   │   ├── Adapters/                     # WebhookAdapterController (/adapters/webhook)
 │   │   │   ├── AuthController.php            # Autenticación JWT (/auth/login, /auth/me)
 │   │   │   ├── AdminAgentController.php      # Aprovisionamiento (/admin/agents)
 │   │   │   ├── AgentRegistrationController.php# Handshake Zero-Trust (/agents/register)
