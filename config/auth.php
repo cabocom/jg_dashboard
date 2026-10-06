@@ -33,7 +33,13 @@ return [
 
     'jwt' => [
         'secret' => env('JWT_SECRET'),
+        'key_id' => env('JWT_KEY_ID', 'v1'),
+        'keys' => [
+            // Associative map of 'kid' => 'secret' for seamless key rotation
+        ],
         'ttl' => (int) env('JWT_TTL_MINUTES', 60),
         'algo' => 'HS256',
+        'blacklist_enabled' => env('JWT_BLACKLIST_ENABLED', true),
+        'blacklist_cache_ttl' => (int) env('JWT_BLACKLIST_CACHE_TTL', 3600),
     ],
 ];

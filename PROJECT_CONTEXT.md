@@ -1,10 +1,11 @@
 # CONTEXTO DE PROYECTO: jg_dashboard
 
-**Versión del documento:** 3.29.0  
+**Versión del documento:** 3.30.0  
 **Fecha de consolidación:** 6 de octubre de 2026  
 **Componente:** Control Plane (Plano de Control, Gestión, Gobernanza y HITL)  
 **Stack Tecnológico:** Laravel 11, Filament PHP v3, Livewire 3, Tailwind CSS, PostgreSQL, Pest PHP  
-**Estado:** Fases 01 a 08 y Fase 09 completadas al 100%. Soporte multi-agente y pasarela completa de adaptadores externos (Webhooks, CI/CD, Chatbots y Mock Asterisk) operativos.  
+**Estado:** Fases 01 a 08 y Fase 09 completadas al 100%. Soporte multi-agente, pasarela completa de adaptadores externos (Webhooks, CI/CD, Chatbots y Mock Asterisk) y servicio criptográfico JWT estándar con rotación y blacklist operativos.  
+- Criptografía JWT Estándar, Rotación de Claves y Blacklist (DASH-CODE-01 / GitLab jg_dashboard#52): Sustitución de la codificación y firma manual de JWT por la biblioteca estándar de la industria `firebase/php-jwt` (^7.2.1); incorporación de soporte de rotación de claves (`kid`) vía `config/auth.php` y `JwtService`; generación de identificadores únicos por token (`jti` UUIDv4); e implementación de blacklist/revocación en doble nivel (Caché L1 en memoria y tabla PostgreSQL `dashboard_jwt_revocations` L2) con invalidación inmediata al invocar `POST /api/v1/auth/logout`.  
 - Fase 08 (Adaptadores de Estímulos Externos / ISSUE-F08-T01, ISSUE-F08-T02 & ISSUE-F08-T03): Implementada la capa completa de adaptadores `App\Adapters` con `InputNormalizer` (transformación multi-fuente a `AgentInput`), `ClientOutputFormatter` (formateo adaptativo `generic`, `chatbot`, `ci_cd`), orquestador `HttpWebhookAdapter` (endpoints `POST /api/v1/adapters/webhook` y `POST /api/v1/adapters/webhook/{agent_id}`) y adaptador simulado conversacional `MockAsteriskChatAdapter` (`POST /api/v1/adapters/mock-asterisk` y `POST /api/v1/adapters/mock-conversational`) para pruebas de telefonía/voz Asterisk PBX y chat sin requerir PBX real.  
 - Soporte Multi-Agente: Orquestación y enrutamiento simultáneo de múltiples runtimes (`jg_agente_conversacional`:8001, `jg_agente_devops`:8002 y `jg_agente_datosgob`:8881) mediante `AgentHttpClient` con firma canónica HMAC-SHA256 (`METHOD\nPATH\nTIMESTAMP\nSHA256(BODY)`).  
 - Post-Auditoría 2 (GLOBAL-01 / GitLab jg_dashboard#42): Erradicación total de secretos fallback hardcodeados en `AgentHttpClient.php`, `config/agent.php` y `docker-compose.yml`; interpolación obligatoria `${JG_CONVERSATIONAL_SECRET:?err}` y `${JG_DEVOPS_SECRET:?err}`; derivación dinámica de `permanent_secret_hash` en `DatabaseSeeder.php` desde configuración activa con validación previa estricta.  
@@ -15,7 +16,7 @@
 - Post-Auditoría Codex (GLOBAL-003 / ISSUE-DASH-003): Transaccionalidad, bloqueo pesimista `lockForUpdate` y control de concurrencia en HITL con estado `PROCESSING` y reconciliación automática ante fallos de red.  
 - Consola Web Unificada: `/console` operativa con panel reactivo de agentes, métricas de salud en tiempo real, gestión de aprobaciones HITL con visualización de planes de remediación y visor de ejecuciones en vivo.  
 - Aislamiento Total de Persistencia: PostgreSQL propio `jg_dashboard_postgres` (puerto 5434), sin acceso directo a la base de datos de los agentes (`jg_agente_postgres`:5433).  
-- Suite de Pruebas: Suite de pruebas completa pasando al 100% (315 tests Pest / PHPUnit con 1459 assertions en 5.5s).
+- Suite de Pruebas: Suite de pruebas completa pasando al 100% (318 tests Pest / PHPUnit con 1485 assertions en 5.8s).
 
 ---
 
@@ -124,6 +125,7 @@ El registro de nuevos agentes sigue un protocolo de cuatro pasos a prueba de acc
 ### 5.1 Endpoints Expuestos por `jg_dashboard`
 - `POST /api/v1/auth/login`: Autenticación JWT para administradores, operadores y observadores.
 - `GET /api/v1/auth/me`: Perfil de usuario, roles y permisos efectivos.
+- `POST /api/v1/auth/logout`: Revocación inmediata del token Bearer de sesión e invalidación en lista negra (Cache + DB).
 - `POST /api/v1/agents/register`: Validación del bootstrap token y emisión de credenciales permanentes para agentes.
 - `POST /api/v1/agents/heartbeat`: Recepción de estado de salud y telemetría de agentes activos.
 - `GET /api/v1/agents`: Listado paginado con métricas agregadas y filtros por estado.

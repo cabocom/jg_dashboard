@@ -129,5 +129,17 @@ abstract class TestCase extends BaseTestCase
                 $table->timestamp('created_at')->index();
             });
         }
+
+        if (!Schema::hasTable('dashboard_jwt_revocations')) {
+            Schema::create('dashboard_jwt_revocations', function (Blueprint $table) {
+                $table->id();
+                $table->string('jti', 64)->unique()->index();
+                $table->unsignedBigInteger('user_id')->nullable();
+                $table->timestamp('revoked_at')->nullable();
+                $table->timestamp('expires_at')->nullable()->index();
+                $table->string('reason', 128)->nullable();
+                $table->timestamps();
+            });
+        }
     }
 }

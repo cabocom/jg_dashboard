@@ -28,16 +28,24 @@ $$\text{ADMIN} \succ \text{OPERATOR} \succ \text{VIEWER}$$
 
 ## 3. Servicio Criptográfico de Identidad (`JwtService`)
 
-La autenticación de operadores y clientes REST externos se canaliza mediante `App\Services\Auth\JwtService`:
-- **Algoritmo:** Firmas HMAC-SHA256 (`HS256`) sobre cabecera y payload codificados en Base64URL sin relleno (*padding*).
+La autenticación de operadores y clientes REST externos se canaliza mediante `App\Services\Auth\JwtService`, respaldado por el estándar de la industria `firebase/php-jwt` (^7.2.1):
+- **Algoritmo:** Firmas HMAC-SHA256 (`HS256`) sobre cabecera y payload codificados en Base64URL sin relleno (*padding*). Exige una longitud de secreto mínima de 256 bits (32 bytes).
+- **Rotación de Claves (`kid`):**
+  - Cada token emitido incluye la cabecera `kid` (por defecto `v1` vía `config('auth.jwt.key_id')`).
+  - `JwtService` admite un llavero de verificación múltiple (`config('auth.jwt.keys')`), permitiendo verificar tokens generados con versiones previas mientras se emite con la versión activa.
+- **Identificador Único (`jti`) y Blacklist:**
+  - Todo token genera un identificador único UUIDv4 en el claim `jti`.
+  - Mecanismo de revocación inmediata en doble capa (Caché L1 en memoria y tabla PostgreSQL `dashboard_jwt_revocations` L2).
+  - Al ejecutar `POST /api/v1/auth/logout`, el token bearer de sesión es colocado de inmediato en la blacklist, impidiendo cualquier uso posterior.
 - **Resolución de Clave:** Resuelve `config('auth.jwt.secret')` o `config('app.key')`. Si la clave incluye el prefijo `base64:`, la decodifica de forma segura en memoria binaria.
 - **Estructura Estándar de Claims:**
   - `iss`: URL base del emisor (`config('app.url')`).
   - `sub`: Identificador numérico del usuario (`$user->id`).
+  - `jti`: Identificador único de token para control de revocación.
   - `name`, `email`, `role`: Perfil y rol RBAC activo en el momento de la firma.
   - `iat` (Issued At) y `nbf` (Not Before): Timestamp UNIX de emisión.
   - `exp` (Expiration): Caducidad estricta (por defecto `iat + 60 minutos`).
-- **Verificación en Tiempo Constante:** Emplea `hash_equals()` sobre la firma esperada y decodificada para prevenir ataques de temporización (*timing attacks*).
+- **Verificación en Tiempo Constante:** Emplea comparaciones seguras de `firebase/php-jwt` sobre firmas y algoritmos para prevenir ataques de temporización (*timing attacks*) o sustitución de algoritmos (*alg none attack*).
 
 ---
 

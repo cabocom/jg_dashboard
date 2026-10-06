@@ -65,8 +65,13 @@ class AuthController extends Controller
     /**
      * Invalidate/logout current session.
      */
-    public function logout(): JsonResponse
+    public function logout(Request $request): JsonResponse
     {
+        $token = $request->bearerToken();
+        if ($token) {
+            $this->authService->jwt()->revokeToken($token, 'user_logout');
+        }
+
         return response()->json([
             'status' => 'success',
             'message' => 'Sesión cerrada exitosamente',

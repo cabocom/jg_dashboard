@@ -153,7 +153,7 @@ test('api auth me returns admin full permissions', function () {
     expect($permissions)->toContain('agents:manage', 'agents:register', 'hitl:approve', 'audit:view');
 });
 
-test('api logout endpoint returns 200 with success message', function () {
+test('api logout endpoint returns 200 with success message and revokes token', function () {
     $user = User::create([
         'name' => 'Logout User',
         'email' => 'logout@example.com',
@@ -167,6 +167,12 @@ test('api logout endpoint returns 200 with success message', function () {
     ]);
     $token = $login->json('access_token');
 
+    // 1. Verify token works before logout
+    $preLogout = $this->withHeader('Authorization', "Bearer {$token}")
+        ->getJson('/api/v1/auth/me');
+    $preLogout->assertStatus(200);
+
+    // 2. Perform logout
     $response = $this->withHeader('Authorization', "Bearer {$token}")
         ->postJson('/api/v1/auth/logout');
 
@@ -174,5 +180,15 @@ test('api logout endpoint returns 200 with success message', function () {
         ->assertJson([
             'status' => 'success',
             'message' => 'Sesión cerrada exitosamente',
+        ]);
+
+    // 3. Subsequent request with the same token must be rejected with 401 Unauthorized
+    $postLogout = $this->withHeader('Authorization', "Bearer {$token}")
+        ->getJson('/api/v1/auth/me');
+
+    $postLogout->assertStatus(401)
+        ->assertJson([
+            'error' => 'Unauthorized',
+            'message' => 'Token de autenticación inválido o expirado',
         ]);
 });
