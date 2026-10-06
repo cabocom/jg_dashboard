@@ -49,6 +49,14 @@ Actúa como el orquestador central que gestiona el ciclo de vida de los agentes 
 5. **Aprovisionamiento Criptográfico de Agentes (Zero-Trust Bootstrap):**
    Los agentes se registran de forma segura mediante tokens de un solo uso con caducidad estricta (TTL 24h), sustituyéndose inmediatamente por secretos permanentes gestionados y revocables desde el Dashboard.
 
+6. **Pasarela y Proxy Inteligente de I/O para Entornos Heterogéneos (`App\Adapters`):**
+   `jg_dashboard` opera como un proxy inteligente que absorbe la heterogeneidad de clientes e infraestructuras externas (disparadores CI/CD de GitLab/GitHub, telefonía Asterisk PBX, bots de mensajería y REST heredado). La capa de adaptadores:
+   - Ingiere y normaliza estímulos arbitrarios hacia `AgentInput` tipado mediante `InputNormalizer`.
+   - Gestiona la correlación (`correlation_id`, `execution_id`, `thread_id`) y auditoría.
+   - Enruta y firma criptográficamente con HMAC-SHA256 las llamadas internas hacia `jg_agente`.
+   - Aplica gobernanza y pausa HITL transparente si una herramienta crítica requiere aprobación humana.
+   - Serializa y formatea la respuesta `AgentOutput` hacia el dialecto nativo del consumidor con `ClientOutputFormatter` (o adaptadores especializados como `MockAsteriskChatAdapter`).
+
 ---
 
 ## 3. Matriz de Responsabilidades
