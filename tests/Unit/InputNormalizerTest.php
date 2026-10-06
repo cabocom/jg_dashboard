@@ -98,3 +98,42 @@ test('extracts correlation_id from headers if present', function () {
     expect($result['correlation_id'])->toBe('corr-id-webhook-fixed')
         ->and($result['metadata']->correlation_id)->toBe('corr-id-webhook-fixed');
 });
+
+test('normalizes stimulus arriving via URL query parameters', function () {
+    $request = Request::create('/api/v1/adapters/webhook?query=reiniciar+proxy&session_id=sess-9988&is_async=1', 'GET');
+
+    $result = $this->normalizer->normalize($request);
+
+    expect($result['prompt'])->toBe('reiniciar proxy')
+        ->and($result['thread_id'])->toBe('sess-9988')
+        ->and($result['parameters']->async)->toBeTrue();
+});
+
+test('preserves explicit execution_id and pipeline_id as thread_id', function () {
+    $payload = [
+        'execution_id' => '00000000-1111-2222-3333-444444444444',
+        'pipeline_id' => 'gitlab-ci-run-887766',
+        'input' => 'Validar dependencias de seguridad',
+    ];
+
+    $result = $this->normalizer->normalize($payload);
+
+    expect($result['execution_id'])->toBe('00000000-1111-2222-3333-444444444444')
+        ->and($result['thread_id'])->toBe('gitlab-ci-run-887766')
+        ->and($result['prompt'])->toBe('Validar dependencias de seguridad');
+});
+
+test('synthesizes fallback prompt for arbitrary raw payloads without text fields', function () {
+    $payload = [
+        'sensor' => 'temperature_zone_1',
+        'metrics' => ['celsius' => 78.4, 'fan_rpm' => 4500],
+    ];
+
+    $result = $this->normalizer->normalize($payload);
+
+    expect($result['prompt'])->toContain('[External Webhook Stimulus]')
+        ->and($result['prompt'])->toContain('temperature_zone_1')
+        ->and(Str::isUuid($result['execution_id']))->toBeTrue()
+        ->and(Str::isUuid($result['thread_id']))->toBeTrue();
+});
+
