@@ -1,10 +1,11 @@
 # CONTEXTO DE PROYECTO: jg_dashboard
 
-**Versión del documento:** 3.28.0  
-**Fecha de consolidación:** 24 de septiembre de 2026  
+**Versión del documento:** 3.29.0  
+**Fecha de consolidación:** 6 de octubre de 2026  
 **Componente:** Control Plane (Plano de Control, Gestión, Gobernanza y HITL)  
 **Stack Tecnológico:** Laravel 11, Filament PHP v3, Livewire 3, Tailwind CSS, PostgreSQL, Pest PHP  
-**Estado:** Fases 01 a 07 y Fase 09 completadas al 100%. Soporte multi-agente ampliado y verificado.  
+**Estado:** Fases 01 a 08 y Fase 09 completadas al 100%. Soporte multi-agente y pasarela de adaptadores externos operativos.  
+- Fase 08 (Adaptadores de Estímulos Externos / ISSUE-F08-T01 & ISSUE-F08-T02): Implementada la capa de adaptadores `App\Adapters` con `InputNormalizer` (transformación de cargas arbitrarias JSON, webhooks CI/CD de GitLab/GitHub y mensajes de chatbots al contrato formal `AgentInput`), `ClientOutputFormatter` (formateo adaptativo `generic`, `chatbot`, `ci_cd`), orquestador `HttpWebhookAdapter` con soporte para verificación de firmas/secretos `X-Webhook-Secret`, propagación de correlación y endpoints dedicados `POST /api/v1/adapters/webhook` y `POST /api/v1/adapters/webhook/{agent_id}`.  
 - Soporte Multi-Agente: Orquestación y enrutamiento simultáneo de múltiples runtimes (`jg_agente_conversacional`:8001, `jg_agente_devops`:8002 y `jg_agente_datosgob`:8881) mediante `AgentHttpClient` con firma canónica HMAC-SHA256 (`METHOD\nPATH\nTIMESTAMP\nSHA256(BODY)`).  
 - Post-Auditoría 2 (GLOBAL-01 / GitLab jg_dashboard#42): Erradicación total de secretos fallback hardcodeados en `AgentHttpClient.php`, `config/agent.php` y `docker-compose.yml`; interpolación obligatoria `${JG_CONVERSATIONAL_SECRET:?err}` y `${JG_DEVOPS_SECRET:?err}`; derivación dinámica de `permanent_secret_hash` en `DatabaseSeeder.php` desde configuración activa con validación previa estricta.  
 - Post-Auditoría 2 (GLOBAL-02 / GitLab jg_dashboard#43): Corrección de la ruptura criptográfica del registro dinámico de agentes. Incorporación de columna cifrada en reposo `permanent_secret_encrypted` (AES-256-CBC respaldada por `APP_KEY`) en `dashboard_agents`, persistida durante `AgentRegistrationService::consumeBootstrapTokenAndActivate(...)` y consumida prioritariamente por `AgentHttpClient::forAgent(...)` para el cálculo determinista de firmas HMAC `X-Signature`.  
@@ -14,7 +15,7 @@
 - Post-Auditoría Codex (GLOBAL-003 / ISSUE-DASH-003): Transaccionalidad, bloqueo pesimista `lockForUpdate` y control de concurrencia en HITL con estado `PROCESSING` y reconciliación automática ante fallos de red.  
 - Consola Web Unificada: `/console` operativa con panel reactivo de agentes, métricas de salud en tiempo real, gestión de aprobaciones HITL con visualización de planes de remediación y visor de ejecuciones en vivo.  
 - Aislamiento Total de Persistencia: PostgreSQL propio `jg_dashboard_postgres` (puerto 5434), sin acceso directo a la base de datos de los agentes (`jg_agente_postgres`:5433).  
-- Suite de Pruebas: Suite de pruebas completa pasando al 100% (283 tests Pest / PHPUnit con 1334 assertions en 5.3s).
+- Suite de Pruebas: Suite de pruebas completa pasando al 100% (303 tests Pest / PHPUnit con 1416 assertions en 5.2s).
 
 ---
 
@@ -157,10 +158,26 @@ El Dashboard cuenta con su **propia base de datos PostgreSQL**, completamente de
 
 ## 7. Módulo de Adaptadores Normalizadores (I/O Gateway)
 
-Para atender a la directriz arquitectónica que prohíbe interfaces externas en el agente, `jg_dashboard` proporciona una capa modular de adaptadores:
-1. **Adaptador Web/REST:** Recibe peticiones HTTP externas autenticadas de aplicaciones cliente y las serializa en `AgentInput`.
-2. **Adaptador de Mensajería/Voz (Fase futura):** Traduce eventos de Asterisk o mensajería a texto plano normalizado con `thread_id` correlacionado.
-3. El agente responde `AgentOutput` y el adaptador formatea la respuesta específica para el protocolo emisor.
+Para atender a la directriz arquitectónica que prohíbe interfaces externas en el agente, `jg_dashboard` proporciona la capa modular de adaptadores `App\Adapters`:
+1. **Normalizador Canónico (`App\Adapters\Normalizers\InputNormalizer`):**
+   - Implementa `InputNormalizerInterface`.
+   - Ingiere cargas heterogéneas (REST genérico, Webhooks de CI/CD como GitLab/GitHub, Chatbots como Slack/Telegram).
+   - Genera o preserva de forma consistente `execution_id` (UUIDv4), `thread_id` (preservando identificadores de sesión o canal como `chat_id` o `pipeline_id`) y `correlation_id` (propagando `X-Correlation-ID`).
+   - Construye el contrato canónico formal `AgentInput` con contexto de usuario externo y metadatos de procedencia.
+2. **Formateador de Salida Adaptativo (`App\Adapters\Formatters\ClientOutputFormatter`):**
+   - Implementa `OutputFormatterInterface`.
+   - Traduce `AgentOutput` al formato nativo del consumidor:
+     - `generic`: Respuesta JSON exhaustiva con métricas, estado y datos de grafo.
+     - `chatbot`: Estructura conversacional limpia (`response`, `text`, `thread_id`).
+     - `ci_cd`: Estructura orientada a pipelines (`status`, `job_status`, `summary`, `pipeline_status`).
+3. **Orquestador Webhook (`App\Adapters\HttpWebhookAdapter`):**
+   - Valida autenticación por secreto (`X-Webhook-Secret`, token Bearer o query param).
+   - Resuelve el agente dinámicamente (`agent_id` en ruta, en payload o primer agente activo en la base de datos).
+   - Registra auditoría inmutable (`adapter.webhook.received`, `adapter.webhook.completed`) y persiste `AgentTask`.
+   - Soporta ejecuciones síncronas (200 OK) y asíncronas con encolado (202 Accepted).
+4. **Rutas Públicas Expuestas:**
+   - `POST /api/v1/adapters/webhook`: Recepción genérica de eventos y estímulos externos.
+   - `POST /api/v1/adapters/webhook/{agent_id}`: Recepción de eventos con destino explícito a un agente concreto.
 
 ---
 

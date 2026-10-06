@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Adapters\WebhookAdapterController;
 use App\Http\Controllers\Api\AdminAgentController;
 use App\Http\Controllers\Api\AgentController;
 use App\Http\Controllers\Api\AgentHeartbeatController;
@@ -15,6 +16,10 @@ Route::prefix('v1')->group(function () {
     Route::post('/agents/register', [AgentRegistrationController::class, 'register'])->name('api.v1.agents.register');
     Route::post('/agents/heartbeat', [AgentHeartbeatController::class, 'heartbeat'])->middleware('agent.hmac')->name('api.v1.agents.heartbeat');
     Route::post('/internal/executions/{execution_id}/complete', [InternalExecutionController::class, 'complete'])->name('api.v1.internal.executions.complete');
+
+    // External Stimuli Adapters Gateway (Fase 08: ISSUE-F08-T02)
+    Route::post('/adapters/webhook', [WebhookAdapterController::class, 'handle'])->name('api.v1.adapters.webhook');
+    Route::post('/adapters/webhook/{agent_id}', [WebhookAdapterController::class, 'handle'])->name('api.v1.adapters.webhook.agent');
 
     // Protected endpoints with JWT and RBAC
     Route::middleware('jwt.auth')->group(function () {

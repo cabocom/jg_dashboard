@@ -16,7 +16,7 @@ No obstante, la auditoría exhaustiva del código fuente revela seis ítems pend
 | ID | Título | Criticidad | Estado | Componente Afectado |
 | :--- | :--- | :--- | :--- | :--- |
 | **ITEM-DB-01** | Visualización de herramientas en vez de etapas cognitivas del grafo en `console.js` | MEDIA | `PARCIALMENTE IMPLEMENTADO` | `public/js/console.js`, `resources/views/console/` |
-| **ITEM-DB-02** | Adaptadores para estímulos externos (Webhooks / Canales) (Fase 08) | MEDIA | `NO IMPLEMENTADO` | `app/Adapters/`, `routes/api.php` |
+| **ITEM-DB-02** | Adaptadores para estímulos externos (Webhooks / Canales) (Fase 08) | MEDIA | `RESUELTO` | `app/Adapters/`, `routes/api.php` |
 | **ITEM-DB-03** | Tests integrales end-to-end multi-agente en CI/CD (Fase 10) | MEDIA | `NO IMPLEMENTADO` | `tests/Feature/`, `.gitlab-ci.yml` |
 | **ITEM-DB-04** | Dualidad de clientes API y residuos de `Devops60k` | MEDIA | `DEUDA TÉCNICA` | `app/Services/DevOps60kApiClient.php`, Filament |
 | **ITEM-DB-05** | Ejecución de tests (`pest`) dentro del contenedor Docker | BAJA | `PENDIENTE` | `Dockerfile`, `scripts/check.sh` |
@@ -44,16 +44,18 @@ No obstante, la auditoría exhaustiva del código fuente revela seis ítems pend
 
 ### ITEM-DB-02: Adaptadores para estímulos externos (Webhooks / Canales) (Fase 08)
 - **Severidad:** MEDIA
-- **Estado:** `NO IMPLEMENTADO`
-- **Comportamiento Esperado:**
-  Para dar cumplimiento al principio de ausencia absoluta de interfaces externas en el agente, el Dashboard debe exponer endpoints adaptadores (ej. Webhooks entrantes de monitorización, pasarelas de mensajería o telefonía simulada) que transformen payloads heterogéneos en el contrato normalizado `AgentInput` y canalicen la petición hacia el agente adecuado.
-- **Comportamiento Actual:**
-  La Fase 08 del roadmap original quedó pendiente. Actualmente, los únicos mecanismos para disparar ejecuciones son la interfaz web interactiva (`/console`), las acciones Filament o la API REST interna `POST /api/v1/executions/trigger`.
-- **Acciones Necesarias para Resolución:**
-  1. Crear módulo `App\Adapters\` con drivers para Webhooks genéricos (JSON mapping hacia `AgentInput`).
-  2. Implementar controlador `WebhookAdapterController` y enrutamiento por tipo de evento.
+- **Estado:** `RESUELTO`
+- **Comportamiento Implementado:**
+  Se ha desarrollado la capa de adaptadores en `app/Adapters/`:
+  1. `InputNormalizer`: Normaliza estímulos heterogéneos (REST genérico, Webhooks de GitLab / GitHub, Chatbots/mensajería) transformándolos en instancias válidas del contrato `AgentInput` con generación consistente de `execution_id`, `thread_id` y propagación de `X-Correlation-ID`.
+  2. `ClientOutputFormatter`: Formatea las respuestas del agente hacia los clientes (`generic`, `chatbot`, `ci_cd`).
+  3. `HttpWebhookAdapter`: Orquesta validación de credenciales webhook (`X-Webhook-Secret`), resolución de agentes y ejecución upstream.
+  4. Endpoints expuestos: `POST /api/v1/adapters/webhook` y `POST /api/v1/adapters/webhook/{agent_id}`.
 - **Archivos de Referencia:**
-  - [app/Http/Controllers/Api/ExecutionController.php](app/Http/Controllers/Api/ExecutionController.php)
+  - [app/Adapters/Normalizers/InputNormalizer.php](app/Adapters/Normalizers/InputNormalizer.php)
+  - [app/Adapters/Formatters/ClientOutputFormatter.php](app/Adapters/Formatters/ClientOutputFormatter.php)
+  - [app/Adapters/HttpWebhookAdapter.php](app/Adapters/HttpWebhookAdapter.php)
+  - [app/Http/Controllers/Api/Adapters/WebhookAdapterController.php](app/Http/Controllers/Api/Adapters/WebhookAdapterController.php)
   - [routes/api.php](routes/api.php)
 
 ---

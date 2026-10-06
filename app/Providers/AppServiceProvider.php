@@ -12,7 +12,17 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(
+            \App\Adapters\Contracts\InputNormalizerInterface::class,
+            \App\Adapters\Normalizers\InputNormalizer::class
+        );
+
+        $this->app->singleton(
+            \App\Adapters\Contracts\OutputFormatterInterface::class,
+            \App\Adapters\Formatters\ClientOutputFormatter::class
+        );
+
+        $this->app->singleton(\App\Adapters\HttpWebhookAdapter::class);
     }
 
     /**
