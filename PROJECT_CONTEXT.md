@@ -1,10 +1,11 @@
 # CONTEXTO DE PROYECTO: jg_dashboard
 
-**Versión del documento:** 3.30.0  
+**Versión del documento:** 3.31.0  
 **Fecha de consolidación:** 6 de octubre de 2026  
 **Componente:** Control Plane (Plano de Control, Gestión, Gobernanza y HITL)  
 **Stack Tecnológico:** Laravel 11, Filament PHP v3, Livewire 3, Tailwind CSS, PostgreSQL, Pest PHP  
-**Estado:** Fases 01 a 08 y Fase 09 completadas al 100%. Soporte multi-agente, pasarela completa de adaptadores externos (Webhooks, CI/CD, Chatbots y Mock Asterisk) y servicio criptográfico JWT estándar con rotación y blacklist operativos.  
+**Estado:** Fases 01 a 08 y Fase 09 completadas al 100%. Soporte multi-agente, pasarela completa de adaptadores externos (Webhooks, CI/CD, Chatbots y Mock Asterisk), servicio criptográfico JWT estándar con rotación y blacklist, y webhook de actualización asíncrona HMAC operativos.  
+- Webhooks de Actualización Asíncrona HMAC (DASH-CODE-02 / GitLab jg_dashboard#53): Implementado endpoint `POST /api/v1/internal/executions/{execution_id}/status-update` autenticado mediante `agent.hmac` (firmas HMAC-SHA256 con protección anti-replay 300s); permite a `jg_agente` notificar en tiempo real transiciones de estado, pasos cognitivos, pausas HITL y finalizaciones, superando la dependencia exclusiva de polling continuo. `ExecutionController@trigger` inyecta automáticamente `status_callback_url` y `callback_url` en modo asíncrono (`async=true`).  
 - Criptografía JWT Estándar, Rotación de Claves y Blacklist (DASH-CODE-01 / GitLab jg_dashboard#52): Sustitución de la codificación y firma manual de JWT por la biblioteca estándar de la industria `firebase/php-jwt` (^7.2.1); incorporación de soporte de rotación de claves (`kid`) vía `config/auth.php` y `JwtService`; generación de identificadores únicos por token (`jti` UUIDv4); e implementación de blacklist/revocación en doble nivel (Caché L1 en memoria y tabla PostgreSQL `dashboard_jwt_revocations` L2) con invalidación inmediata al invocar `POST /api/v1/auth/logout`.  
 - Fase 08 (Adaptadores de Estímulos Externos / ISSUE-F08-T01, ISSUE-F08-T02 & ISSUE-F08-T03): Implementada la capa completa de adaptadores `App\Adapters` con `InputNormalizer` (transformación multi-fuente a `AgentInput`), `ClientOutputFormatter` (formateo adaptativo `generic`, `chatbot`, `ci_cd`), orquestador `HttpWebhookAdapter` (endpoints `POST /api/v1/adapters/webhook` y `POST /api/v1/adapters/webhook/{agent_id}`) y adaptador simulado conversacional `MockAsteriskChatAdapter` (`POST /api/v1/adapters/mock-asterisk` y `POST /api/v1/adapters/mock-conversational`) para pruebas de telefonía/voz Asterisk PBX y chat sin requerir PBX real.  
 - Soporte Multi-Agente: Orquestación y enrutamiento simultáneo de múltiples runtimes (`jg_agente_conversacional`:8001, `jg_agente_devops`:8002 y `jg_agente_datosgob`:8881) mediante `AgentHttpClient` con firma canónica HMAC-SHA256 (`METHOD\nPATH\nTIMESTAMP\nSHA256(BODY)`).  
@@ -16,7 +17,7 @@
 - Post-Auditoría Codex (GLOBAL-003 / ISSUE-DASH-003): Transaccionalidad, bloqueo pesimista `lockForUpdate` y control de concurrencia en HITL con estado `PROCESSING` y reconciliación automática ante fallos de red.  
 - Consola Web Unificada: `/console` operativa con panel reactivo de agentes, métricas de salud en tiempo real, gestión de aprobaciones HITL con visualización de planes de remediación y visor de ejecuciones en vivo.  
 - Aislamiento Total de Persistencia: PostgreSQL propio `jg_dashboard_postgres` (puerto 5434), sin acceso directo a la base de datos de los agentes (`jg_agente_postgres`:5433).  
-- Suite de Pruebas: Suite de pruebas completa pasando al 100% (318 tests Pest / PHPUnit con 1485 assertions en 5.8s).
+- Suite de Pruebas: Suite de pruebas completa pasando al 100% (325 tests Pest / PHPUnit con 1513 assertions en 5.5s).
 
 ---
 
@@ -133,6 +134,8 @@ El registro de nuevos agentes sigue un protocolo de cuatro pasos a prueba de acc
 - `GET /api/v1/agents/{agent_id}/capabilities`: Inspección en vivo del catálogo de herramientas, engines cognitivos y plugins del agente con sincronización local.
 - `POST /api/v1/executions/trigger`: Pasarela protegida (roles `admin` y `operator`) para disparar ejecuciones hacia `jg_agente` con normalización a `AgentInput`, captura y registro automático de solicitudes HITL vía `HitlApprovalService`.
 - `GET /api/v1/executions/{agent_id}/{thread_id}`: Consulta unificada de progreso, pasos y estado de ejecución hacia la API de `jg_agente` con estricto aislamiento de base de datos.
+- `POST /api/v1/internal/executions/{execution_id}/status-update`: Webhook interno autenticado con HMAC (`agent.hmac`) para que los agentes notifiquen en tiempo real transiciones de estado, pasos cognitivos, pausas HITL y finalizaciones en tareas asíncronas.
+- `POST /api/v1/internal/executions/{execution_id}/complete`: Webhook de finalización asíncrona de ejecuciones.
 - `GET /api/v1/approvals/pending`: Listado paginado de solicitudes HITL pendientes para operadores y administradores, con resumen de acciones, nivel de riesgo, herramientas involucradas y métricas de tiempo transcurrido.
 - `POST /api/v1/approvals/{approval_id}/approve`: Endpoint de resolución HITL para operadores y administradores con bloqueo pesimista `lockForUpdate` en `HitlApprovalService`, transición inmediata a `PROCESSING`, delegación `/executions/{thread_id}/approve` hacia `jg_agente` mediante `AgentHttpClient`, reconciliación a `PENDING` si la llamada de red falla, o transición definitiva a `APPROVED` con auditoría inmutable tras éxito.
 - `POST /api/v1/approvals/{approval_id}/reject`: Endpoint de cancelación HITL para operadores y administradores con justificación obligatoria, bloqueo pesimista `lockForUpdate`, transición a `PROCESSING`, delegación `/executions/{thread_id}/reject` hacia `jg_agente`, reconciliación a `PENDING` ante fallos de red, o transición a `REJECTED` con auditoría inmutable tras confirmación.

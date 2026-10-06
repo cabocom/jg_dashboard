@@ -74,8 +74,11 @@ class ExecutionController extends Controller
         $client->withCorrelationId($correlationId);
 
         $parameters = (array) ($validated['parameters'] ?? []);
+        $statusCallbackUrl = url("/api/v1/internal/executions/{$executionId}/status-update");
         if ($isAsync) {
             $parameters['async'] = true;
+            $parameters['status_callback_url'] = $statusCallbackUrl;
+            $parameters['callback_url'] = $statusCallbackUrl;
         }
 
         $agentInput = [
@@ -96,6 +99,7 @@ class ExecutionController extends Controller
             ],
             'metadata' => (object) array_merge((array) ($validated['metadata'] ?? []), [
                 'correlation_id' => $correlationId,
+                'status_callback_url' => $isAsync ? $statusCallbackUrl : null,
                 'triggered_by' => $user->email,
                 'user_role' => $user->role,
                 'client_ip' => $request->ip(),
@@ -260,6 +264,7 @@ class ExecutionController extends Controller
             'correlation_id' => $effectiveCorrelationId,
             'agent_id' => $targetAgentId,
             'status' => $responseData['status'] ?? ($isAsync ? 'in_progress' : 'completed'),
+            'status_callback_url' => $isAsync ? $statusCallbackUrl : null,
             'requires_approval' => $requiresApproval,
             'pending_approval_id' => $responseData['pending_approval_id'] ?? null,
             'output' => $responseData['final_output'] ?? $responseData['output'] ?? $responseData['response'] ?? null,
@@ -406,5 +411,13 @@ class ExecutionController extends Controller
         }
 
         return $jsonResponse;
+    }
+
+    /**
+     * Handle asynchronous execution status-update webhook (DASH-CODE-02 proxy/entrypoint).
+     */
+    public function statusUpdate(Request $request, string $executionId): JsonResponse
+    {
+        return app(InternalExecutionController::class)->statusUpdate($request, $executionId);
     }
 }

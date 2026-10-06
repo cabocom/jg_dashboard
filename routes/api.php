@@ -16,6 +16,7 @@ Route::prefix('v1')->group(function () {
     Route::post('/auth/login', [AuthController::class, 'login'])->name('api.v1.auth.login');
     Route::post('/agents/register', [AgentRegistrationController::class, 'register'])->name('api.v1.agents.register');
     Route::post('/agents/heartbeat', [AgentHeartbeatController::class, 'heartbeat'])->middleware('agent.hmac')->name('api.v1.agents.heartbeat');
+    Route::post('/internal/executions/{execution_id}/status-update', [InternalExecutionController::class, 'statusUpdate'])->middleware('agent.hmac')->name('api.v1.internal.executions.status_update');
     Route::post('/internal/executions/{execution_id}/complete', [InternalExecutionController::class, 'complete'])->name('api.v1.internal.executions.complete');
 
     // External Stimuli Adapters Gateway (Fase 08: ISSUE-F08-T02)

@@ -186,7 +186,7 @@ test('admin role can trigger execution via role hierarchy', function () {
         ]);
 });
 
-test('async trigger execution returns 202 Accepted', function () {
+test('async trigger execution returns 202 Accepted and provides status_callback_url', function () {
     Http::fake([
         'http://test-agent:8000/executions/trigger' => Http::response([
             'execution_id' => 'exec_async_99',
@@ -207,6 +207,9 @@ test('async trigger execution returns 202 Accepted', function () {
             'execution_id' => 'exec_async_99',
             'status' => 'in_progress',
         ]);
+
+    expect($response->json('status_callback_url'))->toContain('/api/v1/internal/executions/')
+        ->and($response->json('status_callback_url'))->toContain('/status-update');
 });
 
 test('creates ApprovalRequest in database when execution requires HITL approval', function () {
