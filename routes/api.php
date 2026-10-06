@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Adapters\MockConversationalAdapterController;
 use App\Http\Controllers\Api\Adapters\WebhookAdapterController;
 use App\Http\Controllers\Api\AdminAgentController;
 use App\Http\Controllers\Api\AgentController;
@@ -20,6 +21,12 @@ Route::prefix('v1')->group(function () {
     // External Stimuli Adapters Gateway (Fase 08: ISSUE-F08-T02)
     Route::post('/adapters/webhook', [WebhookAdapterController::class, 'handle'])->name('api.v1.adapters.webhook');
     Route::post('/adapters/webhook/{agent_id}', [WebhookAdapterController::class, 'handle'])->name('api.v1.adapters.webhook.agent');
+
+    // Simulated Conversational / Asterisk Gateway (Fase 08: ISSUE-F08-T03)
+    Route::post('/adapters/mock-conversational', [MockConversationalAdapterController::class, 'handle'])->name('api.v1.adapters.mock_conversational');
+    Route::post('/adapters/mock-conversational/{agent_id}', [MockConversationalAdapterController::class, 'handle'])->name('api.v1.adapters.mock_conversational.agent');
+    Route::post('/adapters/mock-asterisk', [MockConversationalAdapterController::class, 'handle'])->name('api.v1.adapters.mock_asterisk');
+    Route::post('/adapters/mock-asterisk/{agent_id}', [MockConversationalAdapterController::class, 'handle'])->name('api.v1.adapters.mock_asterisk.agent');
 
     // Protected endpoints with JWT and RBAC
     Route::middleware('jwt.auth')->group(function () {

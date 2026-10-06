@@ -165,7 +165,7 @@ php artisan agents:check-health --timeout=90
 ```
 
 ### Ejecución de Pruebas Automatizadas
-La suite automatizada cuenta con **303 pruebas** de unidad e integración (274 Pest PHP + 29 PHPUnit):
+La suite automatizada cuenta con **315 pruebas** de unidad e integración (286 Pest PHP + 29 PHPUnit):
 ```bash
 # Ejecutar verificación completa de linters y pruebas
 ./scripts/check.sh

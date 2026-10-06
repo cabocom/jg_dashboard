@@ -4,8 +4,8 @@
 **Fecha de consolidación:** 6 de octubre de 2026  
 **Componente:** Control Plane (Plano de Control, Gestión, Gobernanza y HITL)  
 **Stack Tecnológico:** Laravel 11, Filament PHP v3, Livewire 3, Tailwind CSS, PostgreSQL, Pest PHP  
-**Estado:** Fases 01 a 08 y Fase 09 completadas al 100%. Soporte multi-agente y pasarela de adaptadores externos operativos.  
-- Fase 08 (Adaptadores de Estímulos Externos / ISSUE-F08-T01 & ISSUE-F08-T02): Implementada la capa de adaptadores `App\Adapters` con `InputNormalizer` (transformación de cargas arbitrarias JSON, webhooks CI/CD de GitLab/GitHub y mensajes de chatbots al contrato formal `AgentInput`), `ClientOutputFormatter` (formateo adaptativo `generic`, `chatbot`, `ci_cd`), orquestador `HttpWebhookAdapter` con soporte para verificación de firmas/secretos `X-Webhook-Secret`, propagación de correlación y endpoints dedicados `POST /api/v1/adapters/webhook` y `POST /api/v1/adapters/webhook/{agent_id}`.  
+**Estado:** Fases 01 a 08 y Fase 09 completadas al 100%. Soporte multi-agente y pasarela completa de adaptadores externos (Webhooks, CI/CD, Chatbots y Mock Asterisk) operativos.  
+- Fase 08 (Adaptadores de Estímulos Externos / ISSUE-F08-T01, ISSUE-F08-T02 & ISSUE-F08-T03): Implementada la capa completa de adaptadores `App\Adapters` con `InputNormalizer` (transformación multi-fuente a `AgentInput`), `ClientOutputFormatter` (formateo adaptativo `generic`, `chatbot`, `ci_cd`), orquestador `HttpWebhookAdapter` (endpoints `POST /api/v1/adapters/webhook` y `POST /api/v1/adapters/webhook/{agent_id}`) y adaptador simulado conversacional `MockAsteriskChatAdapter` (`POST /api/v1/adapters/mock-asterisk` y `POST /api/v1/adapters/mock-conversational`) para pruebas de telefonía/voz Asterisk PBX y chat sin requerir PBX real.  
 - Soporte Multi-Agente: Orquestación y enrutamiento simultáneo de múltiples runtimes (`jg_agente_conversacional`:8001, `jg_agente_devops`:8002 y `jg_agente_datosgob`:8881) mediante `AgentHttpClient` con firma canónica HMAC-SHA256 (`METHOD\nPATH\nTIMESTAMP\nSHA256(BODY)`).  
 - Post-Auditoría 2 (GLOBAL-01 / GitLab jg_dashboard#42): Erradicación total de secretos fallback hardcodeados en `AgentHttpClient.php`, `config/agent.php` y `docker-compose.yml`; interpolación obligatoria `${JG_CONVERSATIONAL_SECRET:?err}` y `${JG_DEVOPS_SECRET:?err}`; derivación dinámica de `permanent_secret_hash` en `DatabaseSeeder.php` desde configuración activa con validación previa estricta.  
 - Post-Auditoría 2 (GLOBAL-02 / GitLab jg_dashboard#43): Corrección de la ruptura criptográfica del registro dinámico de agentes. Incorporación de columna cifrada en reposo `permanent_secret_encrypted` (AES-256-CBC respaldada por `APP_KEY`) en `dashboard_agents`, persistida durante `AgentRegistrationService::consumeBootstrapTokenAndActivate(...)` y consumida prioritariamente por `AgentHttpClient::forAgent(...)` para el cálculo determinista de firmas HMAC `X-Signature`.  
@@ -15,7 +15,7 @@
 - Post-Auditoría Codex (GLOBAL-003 / ISSUE-DASH-003): Transaccionalidad, bloqueo pesimista `lockForUpdate` y control de concurrencia en HITL con estado `PROCESSING` y reconciliación automática ante fallos de red.  
 - Consola Web Unificada: `/console` operativa con panel reactivo de agentes, métricas de salud en tiempo real, gestión de aprobaciones HITL con visualización de planes de remediación y visor de ejecuciones en vivo.  
 - Aislamiento Total de Persistencia: PostgreSQL propio `jg_dashboard_postgres` (puerto 5434), sin acceso directo a la base de datos de los agentes (`jg_agente_postgres`:5433).  
-- Suite de Pruebas: Suite de pruebas completa pasando al 100% (303 tests Pest / PHPUnit con 1416 assertions en 5.2s).
+- Suite de Pruebas: Suite de pruebas completa pasando al 100% (315 tests Pest / PHPUnit con 1459 assertions en 5.5s).
 
 ---
 
@@ -175,9 +175,14 @@ Para atender a la directriz arquitectónica que prohíbe interfaces externas en 
    - Resuelve el agente dinámicamente (`agent_id` en ruta, en payload o primer agente activo en la base de datos).
    - Registra auditoría inmutable (`adapter.webhook.received`, `adapter.webhook.completed`) y persiste `AgentTask`.
    - Soporta ejecuciones síncronas (200 OK) y asíncronas con encolado (202 Accepted).
-4. **Rutas Públicas Expuestas:**
+4. **Adaptador Simulado Conversacional / Asterisk (`App\Adapters\Conversational\MockAsteriskChatAdapter`):**
+   - Simula llamadas de telefonía Asterisk PBX (`simulation_type: asterisk_voice`) transformando transcripts a `AgentInput` y generando respuestas con acciones TTS (`PLAY_TTS`, sin PBX real).
+   - Simula sesiones de chat (`simulation_type: chat`) para asistentes y mensajería instantánea.
+5. **Rutas Públicas Expuestas:**
    - `POST /api/v1/adapters/webhook`: Recepción genérica de eventos y estímulos externos.
    - `POST /api/v1/adapters/webhook/{agent_id}`: Recepción de eventos con destino explícito a un agente concreto.
+   - `POST /api/v1/adapters/mock-asterisk`: Simulación de llamada Asterisk PBX / Voz.
+   - `POST /api/v1/adapters/mock-conversational`: Simulación conversacional de chat o voz.
 
 ---
 

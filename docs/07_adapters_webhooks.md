@@ -172,16 +172,58 @@ El orquestador central `App\Adapters\HttpWebhookAdapter` ejecuta el ciclo de vid
 
 ---
 
-## 5. Endpoints de la API
+## 5. Adaptador Simulado para Interfaz Conversacional (Mock Asterisk / Chat)
+
+Para cumplir con el criterio de aceptación de **ISSUE-F08-T03**, se desarrolló `App\Adapters\Conversational\MockAsteriskChatAdapter`. Este módulo permite ejecutar pruebas funcionales y de integración conversacionales completas contra `jg_agente_conversacional` simulando clientes de voz Asterisk PBX o mensajería de chat **sin requerir una PBX Asterisk real ni infraestructura VoIP externa**.
+
+### 5.1 Simulación de Telefonía Asterisk PBX (`simulation_type: asterisk_voice`)
+- **Ingesta:** Detecta llamadas con parámetros como `call_id`, `caller_id`, `transcript`, `speech`, `extension` o canales `SIP/*`.
+- **Mapeo a `AgentInput`:**
+  - `prompt`: Extraído de la transcripción de voz (`transcript` o `speech`).
+  - `thread_id`: Mapeado deterministamente al `call_id` para preservar el contexto de la llamada.
+  - `user_context`: `{ user_id: caller_id, username: caller_name, role: "caller" }`.
+  - `parameters`: `{ is_telephony: true, channel: "SIP/trunk-..." }`.
+- **Serialización a Formato Telefónico/TTS:**
+  ```json
+  {
+    "status": "success",
+    "simulation_type": "asterisk_voice",
+    "call_id": "call-ast-9988",
+    "channel_id": "SIP/trunk-madrid-01",
+    "caller_id": "+34600123456",
+    "tts_text": "El servicio de red está funcionando perfectamente.",
+    "playback_action": "PLAY_TTS",
+    "hangup": false,
+    "execution_id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+    "thread_id": "call-ast-9988",
+    "latency_ms": 142.5,
+    "transcript_turn": {
+      "input": "¿Cuál es el estado de la conexión a Internet?",
+      "output": "El servicio de red está funcionando perfectamente."
+    }
+  }
+  ```
+
+### 5.2 Simulación de Chat Conversacional (`simulation_type: chat`)
+- **Ingesta:** Detecta estímulos de chat con `chat_id`, `message` y `sender`.
+- **Serialización:** Genera respuestas conversacionales con `response`, `text`, `sender` y bloque `conversation`.
+
+---
+
+## 6. Endpoints de la API
 
 | Método | Endpoint | Autenticación | Descripción |
 | :--- | :--- | :--- | :--- |
 | **POST** | `/api/v1/adapters/webhook` | `X-Webhook-Secret` (Configurable) | Recepción de estímulo genérico con enrutamiento automático. |
 | **POST** | `/api/v1/adapters/webhook/{agent_id}` | `X-Webhook-Secret` (Configurable) | Recepción de estímulo dirigido a un agente específico. |
+| **POST** | `/api/v1/adapters/mock-asterisk` | Opcional | Simulación de llamada telefónica Asterisk PBX sin PBX real. |
+| **POST** | `/api/v1/adapters/mock-asterisk/{agent_id}`| Opcional | Simulación de llamada telefónica dirigida a agente específico. |
+| **POST** | `/api/v1/adapters/mock-conversational` | Opcional | Simulación de sesión de chat conversacional o voz. |
+| **POST** | `/api/v1/adapters/mock-conversational/{agent_id}` | Opcional | Simulación conversacional dirigida a agente específico. |
 
 ---
 
-## 6. Configuración (`config/adapters.php`)
+## 7. Configuración (`config/adapters.php`)
 
 ```php
 return [
@@ -204,9 +246,9 @@ return [
 
 ---
 
-## 7. Ejemplos Prácticos de Integración
+## 8. Ejemplos Prácticos de Integración
 
-### 7.1 Petición Genérica REST vía cURL
+### 8.1 Petición Genérica REST vía cURL
 ```bash
 curl -X POST http://localhost:8003/api/v1/adapters/webhook \
   -H "Content-Type: application/json" \
@@ -218,29 +260,38 @@ curl -X POST http://localhost:8003/api/v1/adapters/webhook \
   }'
 ```
 
-### 7.2 Webhook desde GitLab CI/CD
+### 8.2 Webhook desde GitLab CI/CD
 Configurar en GitLab (Settings > Webhooks) con URL de destino:
 `http://jg-dashboard.internal:8000/api/v1/adapters/webhook/a0000000-0000-0000-0000-000000000002`
 - **Secret token:** Configurado en `ADAPTER_WEBHOOK_SECRET`.
 - **Trigger:** Push events o Pipeline events.
 - **Resultado:** El Dashboard normaliza automáticamente el evento de commit y activa el Agente DevOps.
 
-### 7.3 Asistente Conversacional / Chatbot
+### 8.3 Asistente Conversacional / Chatbot
 ```bash
-curl -X POST http://localhost:8003/api/v1/adapters/webhook \
+curl -X POST http://localhost:8003/api/v1/adapters/mock-conversational \
   -H "Content-Type: application/json" \
   -d '{
     "chat_id": "telegram-group-ops-88",
-    "message": {
-      "text": "¿Cuál es la previsión meteorológica para la base de datos?"
-    },
-    "format": "chatbot"
+    "message": "¿Cuál es la previsión meteorológica para la base de datos?"
+  }'
+```
+
+### 8.4 Simulación de Llamada Telefónica Asterisk
+```bash
+curl -X POST http://localhost:8003/api/v1/adapters/mock-asterisk \
+  -H "Content-Type: application/json" \
+  -d '{
+    "call_id": "call-sip-998811",
+    "caller_id": "+34600998877",
+    "caller_name": "Javier Gálvez",
+    "transcript": "¿Cuál es el estado de los contenedores del clúster?"
   }'
 ```
 
 ---
 
-## 8. Navegación
+## 9. Navegación
 
 - [← Volver a Observabilidad y Resiliencia (06)](06_observability_resilience.md)
 - [Volver al README Principal](../README.md)

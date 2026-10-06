@@ -23,6 +23,7 @@ class AppServiceProvider extends ServiceProvider
         );
 
         $this->app->singleton(\App\Adapters\HttpWebhookAdapter::class);
+        $this->app->singleton(\App\Adapters\Conversational\MockAsteriskChatAdapter::class);
     }
 
     /**
