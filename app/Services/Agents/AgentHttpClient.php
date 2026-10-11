@@ -2,11 +2,8 @@
 
 namespace App\Services\Agents;
 
-use App\Exceptions\AgentConnectionException;
 use App\Exceptions\AgentHttpException;
-use App\Exceptions\AgentTimeoutException;
 use App\Models\Agent;
-use Exception;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
@@ -20,12 +17,19 @@ use Throwable;
 class AgentHttpClient
 {
     protected string $baseUrl;
+
     protected ?string $internalSecret = null;
+
     protected int $timeout;
+
     protected int $retryTimes;
+
     protected int $retrySleepMs;
+
     protected bool $verifySsl;
+
     protected ?string $agentId = null;
+
     protected ?string $correlationId = null;
 
     public function __construct(
@@ -61,17 +65,17 @@ class AgentHttpClient
      */
     public static function forAgent(Agent $agent): self
     {
-        $instance = new self();
+        $instance = new self;
         $instance->agentId = $agent->agent_id;
 
-        if (is_array($agent->metadata_json) && !empty($agent->metadata_json['api_url'])) {
+        if (is_array($agent->metadata_json) && ! empty($agent->metadata_json['api_url'])) {
             $instance->baseUrl = rtrim($agent->metadata_json['api_url'], '/');
         }
 
         // Resolver el secreto específico del agente estrictamente mediante su registro o identificador unívoco
         $secret = $agent->resolveHmacSecret();
 
-        if (!empty($secret)) {
+        if (! empty($secret)) {
             $instance->internalSecret = $secret;
         }
 
@@ -81,12 +85,14 @@ class AgentHttpClient
     public function withBaseUrl(string $baseUrl): self
     {
         $this->baseUrl = rtrim($baseUrl, '/');
+
         return $this;
     }
 
     public function withSecret(string $secret): self
     {
         $this->internalSecret = $secret;
+
         return $this;
     }
 
@@ -102,7 +108,7 @@ class AgentHttpClient
             $this->internalSecret = Config::get('agent.internal_secret')
                 ?: env('JG_CONVERSATIONAL_SECRET', env('JG_AGENTE_SECRET'));
         } else {
-            $envKey = 'AGENT_SECRET_' . strtoupper(str_replace(['-', ' '], '_', $agentId));
+            $envKey = 'AGENT_SECRET_'.strtoupper(str_replace(['-', ' '], '_', $agentId));
             $this->internalSecret = env($envKey) ?: Config::get('agent.internal_secret');
         }
 
@@ -112,6 +118,7 @@ class AgentHttpClient
     public function withCorrelationId(string $correlationId): self
     {
         $this->correlationId = $correlationId;
+
         return $this;
     }
 
@@ -133,6 +140,7 @@ class AgentHttpClient
     public function withTimeout(int $timeout): self
     {
         $this->timeout = $timeout;
+
         return $this;
     }
 
@@ -146,18 +154,21 @@ class AgentHttpClient
      * following the canonical contract:
      * canonical_string = METHOD\nPATH\nTIMESTAMP\nSHA256(RAW_BODY)
      */
-    public function generateSignatureHeaders(string $body = '', string $method = 'POST', string $path = '/executions/trigger'): array
+    public function generateSignatureHeaders(string $body = '', string $method = 'POST', string $path = '/executions/trigger', ?string $nonce = null): array
     {
         $timestamp = (string) time();
         $normalizedMethod = strtoupper(trim($method));
-        $normalizedPath = '/' . ltrim($path, '/');
+        $normalizedPath = '/'.ltrim($path, '/');
         $bodyHash = hash('sha256', $body);
 
         if (empty($this->internalSecret)) {
-            throw new \RuntimeException("Seguridad (CWE-798): El secreto interno para firma HMAC no está configurado (JG_AGENTE_SECRET).");
+            throw new \RuntimeException('Seguridad (CWE-798): El secreto interno para firma HMAC no está configurado (JG_AGENTE_SECRET).');
         }
 
-        $canonicalString = $normalizedMethod . "\n" . $normalizedPath . "\n" . $timestamp . "\n" . $bodyHash;
+        $canonicalString = $normalizedMethod."\n".$normalizedPath."\n".$timestamp."\n".$bodyHash;
+        if (! empty($nonce)) {
+            $canonicalString .= "\n".$nonce;
+        }
         $signature = hash_hmac('sha256', $canonicalString, $this->internalSecret);
 
         $resolvedAgentId = $this->agentId ?: Config::get('agent.default_agent_id', env('DEFAULT_AGENT_ID', env('AGENT_ID', 'a0000000-0000-0000-0000-000000000002')));
@@ -175,6 +186,10 @@ class AgentHttpClient
             'X-Correlation-ID' => $this->correlationId,
             'X-Agent-ID' => $resolvedAgentId,
         ];
+
+        if (! empty($nonce)) {
+            $headers['X-Nonce'] = $nonce;
+        }
 
         return $headers;
     }
@@ -215,16 +230,16 @@ class AgentHttpClient
         ?string $baseUrl = null
     ): array {
         $startTime = microtime(true);
-        $endpoint = '/' . ltrim($endpoint, '/');
+        $endpoint = '/'.ltrim($endpoint, '/');
         $isGet = strtoupper($method) === 'GET';
-        $encodedBody = (!$isGet && !empty($data)) ? json_encode($data, JSON_UNESCAPED_SLASHES) : '';
+        $encodedBody = (! $isGet && ! empty($data)) ? json_encode($data, JSON_UNESCAPED_SLASHES) : '';
         $client = $this->prepareClient($encodedBody, $headers, $baseUrl, $method, $endpoint);
 
         try {
             /** @var Response $response */
             if ($encodedBody !== '') {
                 $client = $client->withBody($encodedBody, 'application/json');
-            } elseif (!$isGet) {
+            } elseif (! $isGet) {
                 // Ensure empty POST/PUT/DELETE requests explicitly attach empty body
                 // so Laravel HTTP Client does not default to serializing '[]'
                 $client = $client->withBody('', 'application/json');
@@ -265,7 +280,7 @@ class AgentHttpClient
                 'success' => false,
                 'status_code' => $response->status(),
                 'data' => $response->json() ?? ['raw' => $response->body()],
-                'error' => 'HTTP ' . $response->status() . ': ' . $detailStr,
+                'error' => 'HTTP '.$response->status().': '.$detailStr,
                 'latency_ms' => $latencyMs,
             ];
         } catch (RequestException $e) {
@@ -287,7 +302,7 @@ class AgentHttpClient
                 'success' => false,
                 'status_code' => $statusCode,
                 'data' => $response ? $response->json() : null,
-                'error' => 'HTTP ' . $statusCode . ': ' . $detailStr,
+                'error' => 'HTTP '.$statusCode.': '.$detailStr,
                 'latency_ms' => $latencyMs,
             ];
         } catch (ConnectionException $e) {
@@ -306,7 +321,7 @@ class AgentHttpClient
                 'success' => false,
                 'status_code' => $isTimeout ? 504 : 503,
                 'data' => null,
-                'error' => $isTimeout ? 'Timeout al conectar con el agente' : 'Agente inaccesible o fallo de red: ' . $e->getMessage(),
+                'error' => $isTimeout ? 'Timeout al conectar con el agente' : 'Agente inaccesible o fallo de red: '.$e->getMessage(),
                 'latency_ms' => $latencyMs,
             ];
         } catch (Throwable $e) {
@@ -316,7 +331,7 @@ class AgentHttpClient
                 'method' => $method,
                 'endpoint' => $endpoint,
                 'message' => $e->getMessage(),
-                'file' => $e->getFile() . ':' . $e->getLine(),
+                'file' => $e->getFile().':'.$e->getLine(),
                 'trace' => $e->getTraceAsString(),
                 'agent_id' => $this->agentId,
             ]);
@@ -325,7 +340,7 @@ class AgentHttpClient
                 'success' => false,
                 'status_code' => 500,
                 'data' => null,
-                'error' => 'Error de comunicación interna: ' . $e->getMessage(),
+                'error' => 'Error de comunicación interna: '.$e->getMessage(),
                 'latency_ms' => $latencyMs,
             ];
         }
@@ -339,7 +354,7 @@ class AgentHttpClient
         $result = $this->sendRequest('GET', '/health', [], [], $baseUrl);
 
         // Si /health responde 404 por versión previa, fallback a /
-        if (!$result['success'] && $result['status_code'] === 404) {
+        if (! $result['success'] && $result['status_code'] === 404) {
             $result = $this->sendRequest('GET', '/', [], [], $baseUrl);
         }
 
@@ -365,6 +380,7 @@ class AgentHttpClient
         if (empty($payload['thread_id'])) {
             $payload['thread_id'] = (string) Str::uuid();
         }
+
         return $this->sendRequest('POST', '/executions/trigger', $payload, $headers, $baseUrl);
     }
 
@@ -383,6 +399,7 @@ class AgentHttpClient
     {
         $payload['thread_id'] = $threadId;
         $payload['approved'] = true;
+
         return $this->sendRequest('POST', "/executions/{$threadId}/approve", $payload, [], $baseUrl);
     }
 
@@ -394,6 +411,7 @@ class AgentHttpClient
         $payload['thread_id'] = $threadId;
         $payload['approved'] = false;
         $payload['rejected'] = true;
+
         return $this->sendRequest('POST', "/executions/{$threadId}/reject", $payload, [], $baseUrl);
     }
 

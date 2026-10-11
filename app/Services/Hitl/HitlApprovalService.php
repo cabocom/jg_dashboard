@@ -27,10 +27,6 @@ class HitlApprovalService
      *     compensation_commands?: ?array,
      *     tools?: ?array
      * } $data
-     * @param User|null $initiator
-     * @param string|null $ipAddress
-     * @param string|null $userAgent
-     * @return ApprovalRequest
      */
     public function registerPendingApproval(
         array $data,
@@ -52,15 +48,15 @@ class HitlApprovalService
         $tools = (array) ($data['tools'] ?? ($plan['tools'] ?? ($plan['tools_involved'] ?? [])));
         $compensation = (array) ($data['compensation_commands'] ?? []);
 
-        if (!empty($tools) && !isset($plan['tools_involved'])) {
+        if (! empty($tools) && ! isset($plan['tools_involved'])) {
             $plan['tools_involved'] = $tools;
         }
 
-        if (!empty($data['prompt']) && !isset($plan['prompt'])) {
+        if (! empty($data['prompt']) && ! isset($plan['prompt'])) {
             $plan['prompt'] = $data['prompt'];
         }
 
-        if (!empty($data['cognitive_steps']) && !isset($plan['cognitive_steps'])) {
+        if (! empty($data['cognitive_steps']) && ! isset($plan['cognitive_steps'])) {
             $plan['cognitive_steps'] = $data['cognitive_steps'];
         }
 
@@ -99,7 +95,7 @@ class HitlApprovalService
                 'task_id' => $taskId,
                 'risk_level' => $riskLevel,
                 'tools_count' => count($tools),
-                'has_compensation' => !empty($compensation),
+                'has_compensation' => ! empty($compensation),
             ],
             user: $initiator,
             agent: $agentId,
@@ -122,11 +118,11 @@ class HitlApprovalService
             ->pending()
             ->orderByDesc('created_at');
 
-        if (!empty($agentId)) {
+        if (! empty($agentId)) {
             $query->where('agent_id', $agentId);
         }
 
-        if (!empty($riskLevel)) {
+        if (! empty($riskLevel)) {
             $query->where('risk_level', strtoupper($riskLevel));
         }
 
@@ -140,32 +136,32 @@ class HitlApprovalService
     {
         $plan = $approval->proposed_plan_json ?? [];
 
-        if (!empty($plan['summary']) && is_string($plan['summary'])) {
+        if (! empty($plan['summary']) && is_string($plan['summary'])) {
             return $plan['summary'];
         }
 
-        if (!empty($plan['action']) && is_string($plan['action'])) {
+        if (! empty($plan['action']) && is_string($plan['action'])) {
             return $plan['action'];
         }
 
-        if (!empty($plan['description']) && is_string($plan['description'])) {
+        if (! empty($plan['description']) && is_string($plan['description'])) {
             return $plan['description'];
         }
 
-        if (!empty($plan['command']) && is_string($plan['command'])) {
+        if (! empty($plan['command']) && is_string($plan['command'])) {
             return "Ejecución de comando: {$plan['command']}";
         }
 
-        if (!empty($plan['step']) && is_string($plan['step'])) {
+        if (! empty($plan['step']) && is_string($plan['step'])) {
             return "Paso del plan: {$plan['step']}";
         }
 
         $tools = $plan['tools_involved'] ?? ($plan['tools'] ?? []);
-        if (!empty($tools) && is_array($tools)) {
-            return "Ejecución de herramientas: " . implode(', ', $tools);
+        if (! empty($tools) && is_array($tools)) {
+            return 'Ejecución de herramientas: '.implode(', ', $tools);
         }
 
-        return "Plan de ejecución pendiente de revisión humana";
+        return 'Plan de ejecución pendiente de revisión humana';
     }
 
     /**
@@ -184,30 +180,30 @@ class HitlApprovalService
             try {
                 $client = AgentHttpClient::forAgent($approval->agent);
                 $statusRes = $client->getExecutionStatus($approval->thread_id);
-                if ($statusRes['success'] && !empty($statusRes['data'])) {
+                if ($statusRes['success'] && ! empty($statusRes['data'])) {
                     $agentData = $statusRes['data'];
                     $fetchedPrompt = $agentData['prompt'] ?? ($agentData['goal'] ?? null);
                     $fetchedSteps = $agentData['cognitive_steps'] ?? ($agentData['steps'] ?? []);
                     $fetchedPlan = $agentData['plan'] ?? [];
 
                     $dirty = false;
-                    if (empty($prompt) && !empty($fetchedPrompt)) {
+                    if (empty($prompt) && ! empty($fetchedPrompt)) {
                         $prompt = $fetchedPrompt;
                         $plan['prompt'] = $fetchedPrompt;
                         $dirty = true;
                     }
-                    if (empty($cognitiveSteps) && !empty($fetchedSteps)) {
+                    if (empty($cognitiveSteps) && ! empty($fetchedSteps)) {
                         $cognitiveSteps = $fetchedSteps;
                         $plan['cognitive_steps'] = $fetchedSteps;
                         $dirty = true;
                     }
-                    if (empty($plan['steps']) && !empty($fetchedPlan['steps'])) {
+                    if (empty($plan['steps']) && ! empty($fetchedPlan['steps'])) {
                         $plan['steps'] = $fetchedPlan['steps'];
                         $dirty = true;
                     }
-                    if (empty($plan['tools_involved']) && !empty($fetchedPlan['steps'])) {
-                        $planTools = array_filter(array_map(fn($s) => $s['tool_name'] ?? null, $fetchedPlan['steps']));
-                        if (!empty($planTools)) {
+                    if (empty($plan['tools_involved']) && ! empty($fetchedPlan['steps'])) {
+                        $planTools = array_filter(array_map(fn ($s) => $s['tool_name'] ?? null, $fetchedPlan['steps']));
+                        if (! empty($planTools)) {
                             $plan['tools_involved'] = array_values($planTools);
                             $dirty = true;
                         }
@@ -218,7 +214,7 @@ class HitlApprovalService
                     }
                 }
             } catch (\Throwable $e) {
-                Log::warning("[HitlApprovalService] Sincronización pasiva de plan omitida para thread '{$approval->thread_id}': " . $e->getMessage());
+                Log::warning("[HitlApprovalService] Sincronización pasiva de plan omitida para thread '{$approval->thread_id}': ".$e->getMessage());
             }
         }
 
@@ -289,7 +285,7 @@ class HitlApprovalService
                 ->lockForUpdate()
                 ->first();
 
-            if (!$record) {
+            if (! $record) {
                 return ['status_code' => 404, 'error' => "Solicitud de aprobación con ID '{$approvalId}' no encontrada."];
             }
 
@@ -297,12 +293,12 @@ class HitlApprovalService
                 return ['status_code' => 409, 'error' => "La solicitud '{$approvalId}' ya se encuentra en procesamiento."];
             }
 
-            if (!$record->isPending()) {
+            if (! $record->isPending()) {
                 return ['status_code' => 409, 'error' => "La solicitud '{$approvalId}' ya fue resuelta previamente con estado '{$record->status}'."];
             }
 
             $agent = $record->agent;
-            if (!$agent) {
+            if (! $agent) {
                 return ['status_code' => 400, 'error' => "No se encontró el agente registrado asociado a la solicitud '{$approvalId}'."];
             }
 
@@ -310,8 +306,11 @@ class HitlApprovalService
                 return ['status_code' => 400, 'error' => "El agente '{$agent->agent_id}' aún está en estado PENDING y no puede recibir aprobaciones."];
             }
 
-            // Transicionar a PROCESSING para bloquear dobles aprobaciones concurrentes
-            $record->update(['status' => 'PROCESSING']);
+            // Transicionar a PROCESSING para bloquear dobles aprobaciones concurrentes (registrando timestamp)
+            $record->update([
+                'status' => 'PROCESSING',
+                'processing_started_at' => now(),
+            ]);
 
             return ['status_code' => 200, 'record' => $record];
         });
@@ -333,7 +332,7 @@ class HitlApprovalService
         // 2. Delegar el comando /approve hacia jg_agente a través de AgentHttpClient
         $client = $agent
             ? AgentHttpClient::forAgent($agent)
-            : (new AgentHttpClient())->withAgentId($approval->agent_id);
+            : (new AgentHttpClient)->withAgentId($approval->agent_id);
         $payload = [
             'thread_id' => $approval->thread_id,
             'approved' => true,
@@ -352,7 +351,10 @@ class HitlApprovalService
             $agentResponse = $client->approveExecution($approval->thread_id, $payload);
         } catch (\Throwable $e) {
             // Reconciliar estado a PENDING ante fallo de red / excepción de transporte
-            $approval->update(['status' => 'PENDING']);
+            $approval->update([
+                'status' => 'PENDING',
+                'processing_started_at' => null,
+            ]);
             Log::error("[HitlApprovalService] Excepción de red al delegar aprobación al agente '{$agent->agent_id}' para thread '{$approval->thread_id}'", [
                 'error' => $e->getMessage(),
             ]);
@@ -360,16 +362,16 @@ class HitlApprovalService
             return [
                 'success' => false,
                 'status_code' => 500,
-                'error' => "Fallo de conexión al comunicar la aprobación con el agente: " . $e->getMessage(),
+                'error' => 'Fallo de conexión al comunicar la aprobación con el agente: '.$e->getMessage(),
             ];
         }
 
-        if (!$agentResponse['success']) {
+        if (! $agentResponse['success']) {
             // Si el hilo en el agente ya concluyó (409) o expiró (404), reconciliar el estado localmente
             if (in_array($agentResponse['status_code'], [404, 409], true)) {
                 $reason = $agentResponse['error'] ?? 'El hilo en el agente ya concluyó o no requiere aprobación activa';
                 Log::info("[HitlApprovalService] Reconciliando aprobación {$approval->id} (hilo {$approval->thread_id}): {$reason}");
-                $approval->approve($resolver, ($justification ? $justification . " " : "") . "[Reconciliado: {$reason}]");
+                $approval->approve($resolver, ($justification ? $justification.' ' : '')."[Reconciliado: {$reason}]");
                 $freshApproval = $approval->fresh(['agent', 'resolver']);
                 $this->syncAssociatedTask($approval, 'PROCESSING');
 
@@ -403,7 +405,10 @@ class HitlApprovalService
             }
 
             // Reconciliar estado a PENDING ante otro tipo de error retornado por el agente
-            $approval->update(['status' => 'PENDING']);
+            $approval->update([
+                'status' => 'PENDING',
+                'processing_started_at' => null,
+            ]);
             Log::error("[HitlApprovalService] Error al delegar aprobación al agente '{$agent->agent_id}' para thread '{$approval->thread_id}'", [
                 'status_code' => $agentResponse['status_code'],
                 'error' => $agentResponse['error'],
@@ -412,7 +417,7 @@ class HitlApprovalService
             return [
                 'success' => false,
                 'status_code' => $agentResponse['status_code'],
-                'error' => "Error al comunicar la aprobación con el agente: " . ($agentResponse['error'] ?? 'Error desconocido'),
+                'error' => 'Error al comunicar la aprobación con el agente: '.($agentResponse['error'] ?? 'Error desconocido'),
             ];
         }
 
@@ -474,7 +479,7 @@ class HitlApprovalService
             return [
                 'success' => false,
                 'status_code' => 422,
-                'error' => "El motivo o justificación del rechazo es estrictamente obligatorio.",
+                'error' => 'El motivo o justificación del rechazo es estrictamente obligatorio.',
             ];
         }
 
@@ -486,7 +491,7 @@ class HitlApprovalService
                 ->lockForUpdate()
                 ->first();
 
-            if (!$record) {
+            if (! $record) {
                 return ['status_code' => 404, 'error' => "Solicitud de aprobación con ID '{$approvalId}' no encontrada."];
             }
 
@@ -494,12 +499,12 @@ class HitlApprovalService
                 return ['status_code' => 409, 'error' => "La solicitud '{$approvalId}' ya se encuentra en procesamiento."];
             }
 
-            if (!$record->isPending()) {
+            if (! $record->isPending()) {
                 return ['status_code' => 409, 'error' => "La solicitud '{$approvalId}' ya fue resuelta previamente con estado '{$record->status}'."];
             }
 
             $agent = $record->agent;
-            if (!$agent) {
+            if (! $agent) {
                 return ['status_code' => 400, 'error' => "No se encontró el agente registrado asociado a la solicitud '{$approvalId}'."];
             }
 
@@ -508,7 +513,10 @@ class HitlApprovalService
             }
 
             // Transicionar a PROCESSING antes de invocar la API del agente para impedir rechazos concurrentes
-            $record->update(['status' => 'PROCESSING']);
+            $record->update([
+                'status' => 'PROCESSING',
+                'processing_started_at' => now(),
+            ]);
 
             return ['status_code' => 200, 'record' => $record];
         });
@@ -530,7 +538,7 @@ class HitlApprovalService
         // 2. Delegar el comando /reject hacia jg_agente a través de AgentHttpClient
         $client = $agent
             ? AgentHttpClient::forAgent($agent)
-            : (new AgentHttpClient())->withAgentId($approval->agent_id);
+            : (new AgentHttpClient)->withAgentId($approval->agent_id);
         $payload = [
             'thread_id' => $approval->thread_id,
             'approved' => false,
@@ -551,7 +559,10 @@ class HitlApprovalService
             $agentResponse = $client->rejectExecution($approval->thread_id, $payload);
         } catch (\Throwable $e) {
             // Reconciliar estado a PENDING ante fallo de red / excepción de transporte
-            $approval->update(['status' => 'PENDING']);
+            $approval->update([
+                'status' => 'PENDING',
+                'processing_started_at' => null,
+            ]);
             Log::error("[HitlApprovalService] Excepción de red al delegar rechazo al agente '{$agent->agent_id}' para thread '{$approval->thread_id}'", [
                 'error' => $e->getMessage(),
             ]);
@@ -559,16 +570,16 @@ class HitlApprovalService
             return [
                 'success' => false,
                 'status_code' => 500,
-                'error' => "Fallo de conexión al comunicar el rechazo con el agente: " . $e->getMessage(),
+                'error' => 'Fallo de conexión al comunicar el rechazo con el agente: '.$e->getMessage(),
             ];
         }
 
-        if (!$agentResponse['success']) {
+        if (! $agentResponse['success']) {
             // Si el hilo en el agente ya concluyó (409) o expiró (404), reconciliar el estado localmente
             if (in_array($agentResponse['status_code'], [404, 409], true)) {
                 $reason = $agentResponse['error'] ?? 'El hilo en el agente ya concluyó o no requiere aprobación activa';
                 Log::info("[HitlApprovalService] Reconciliando rechazo para aprobación {$approval->id} (hilo {$approval->thread_id}): {$reason}");
-                $approval->reject($resolver, $justification . " [Reconciliado: {$reason}]");
+                $approval->reject($resolver, $justification." [Reconciliado: {$reason}]");
                 $freshApproval = $approval->fresh(['agent', 'resolver']);
                 $this->syncAssociatedTask($approval, 'CANCELLED', $justification);
 
@@ -603,7 +614,10 @@ class HitlApprovalService
             }
 
             // Reconciliar estado a PENDING ante error retornado por el agente
-            $approval->update(['status' => 'PENDING']);
+            $approval->update([
+                'status' => 'PENDING',
+                'processing_started_at' => null,
+            ]);
             Log::error("[HitlApprovalService] Error al delegar rechazo al agente '{$agent->agent_id}' para thread '{$approval->thread_id}'", [
                 'status_code' => $agentResponse['status_code'],
                 'error' => $agentResponse['error'],
@@ -612,7 +626,7 @@ class HitlApprovalService
             return [
                 'success' => false,
                 'status_code' => $agentResponse['status_code'],
-                'error' => "Error al comunicar el rechazo con el agente: " . ($agentResponse['error'] ?? 'Error desconocido'),
+                'error' => 'Error al comunicar el rechazo con el agente: '.($agentResponse['error'] ?? 'Error desconocido'),
             ];
         }
 
@@ -660,15 +674,15 @@ class HitlApprovalService
     {
         try {
             $task = AgentTask::where(function ($q) use ($approval) {
-                if (!empty($approval->task_id)) {
+                if (! empty($approval->task_id)) {
                     $q->where('task_id', $approval->task_id);
                 }
-                if (!empty($approval->thread_id)) {
+                if (! empty($approval->thread_id)) {
                     $q->orWhere('thread_id', $approval->thread_id);
                 }
             })->latest()->first();
 
-            if (!$task) {
+            if (! $task) {
                 return;
             }
 
@@ -691,7 +705,69 @@ class HitlApprovalService
                 }
             }
         } catch (\Throwable $e) {
-            Log::warning("[HitlApprovalService] Error al sincronizar AgentTask para aprobación {$approval->id}: " . $e->getMessage());
+            Log::warning("[HitlApprovalService] Error al sincronizar AgentTask para aprobación {$approval->id}: ".$e->getMessage());
         }
+    }
+
+    /**
+     * Reconcile stuck approval requests in PROCESSING status that exceeded the TTL threshold.
+     * Restores them atomically to PENDING with an immutable audit event trail.
+     *
+     * @return array{
+     *     reconciled_count: int,
+     *     reconciled_ids: array<int|string>
+     * }
+     */
+    public function reconcileStaleProcessingApprovals(int $ttlSeconds = 120): array
+    {
+        $threshold = now()->subSeconds($ttlSeconds);
+        $reconciledIds = [];
+
+        $staleApprovals = ApprovalRequest::where('status', 'PROCESSING')
+            ->whereNotNull('processing_started_at')
+            ->where('processing_started_at', '<=', $threshold)
+            ->get();
+
+        foreach ($staleApprovals as $approval) {
+            DB::transaction(function () use ($approval, $ttlSeconds, &$reconciledIds) {
+                /** @var ApprovalRequest|null $locked */
+                $locked = ApprovalRequest::where('id', $approval->id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (! $locked || $locked->status !== 'PROCESSING') {
+                    return;
+                }
+
+                $startedAtIso = $locked->processing_started_at?->toIso8601String();
+
+                $locked->update([
+                    'status' => 'PENDING',
+                    'processing_started_at' => null,
+                ]);
+
+                AuditEvent::record(
+                    eventType: 'hitl.reconciled_stale_processing',
+                    actionSummary: "Solicitud HITL {$locked->id} (hilo {$locked->thread_id}) restaurada a PENDING tras superar TTL de procesamiento ({$ttlSeconds}s)",
+                    payload: [
+                        'approval_id' => $locked->id,
+                        'thread_id' => $locked->thread_id,
+                        'agent_id' => $locked->agent_id,
+                        'previous_status' => 'PROCESSING',
+                        'new_status' => 'PENDING',
+                        'processing_started_at' => $startedAtIso,
+                        'ttl_seconds' => $ttlSeconds,
+                        'reconciled_at' => now()->toIso8601String(),
+                    ]
+                );
+
+                $reconciledIds[] = $locked->id;
+            });
+        }
+
+        return [
+            'reconciled_count' => count($reconciledIds),
+            'reconciled_ids' => $reconciledIds,
+        ];
     }
 }

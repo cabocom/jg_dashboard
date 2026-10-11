@@ -24,6 +24,7 @@ class ApprovalRequest extends Model
         'task_id',
         'status',
         'risk_level',
+        'processing_started_at',
         'proposed_plan_json',
         'compensation_commands_json',
         'user_id',
@@ -41,6 +42,7 @@ class ApprovalRequest extends Model
         return [
             'proposed_plan_json' => 'array',
             'compensation_commands_json' => 'array',
+            'processing_started_at' => 'datetime',
             'resolved_at' => 'datetime',
         ];
     }
@@ -91,7 +93,7 @@ class ApprovalRequest extends Model
      */
     public function approve(User|int $user, ?string $justification = null): bool
     {
-        if (!$this->isPending() && !$this->isProcessing()) {
+        if (! $this->isPending() && ! $this->isProcessing()) {
             return false;
         }
 
@@ -110,7 +112,7 @@ class ApprovalRequest extends Model
      */
     public function reject(User|int $user, ?string $justification = null): bool
     {
-        if (!$this->isPending() && !$this->isProcessing()) {
+        if (! $this->isPending() && ! $this->isProcessing()) {
             return false;
         }
 
@@ -162,5 +164,41 @@ class ApprovalRequest extends Model
     public function scopeByRisk(Builder $query, string $riskLevel): Builder
     {
         return $query->where('risk_level', strtoupper($riskLevel));
+    }
+
+    /**
+     * Scope for stale processing approval requests exceeding TTL.
+     */
+    public function scopeStaleProcessing(Builder $query, int $ttlSeconds = 120): Builder
+    {
+        return $query->where('status', 'PROCESSING')
+            ->whereNotNull('processing_started_at')
+            ->where('processing_started_at', '<=', now()->subSeconds($ttlSeconds));
+    }
+
+    /**
+     * Transition cleanly to PROCESSING storing the started_at timestamp.
+     */
+    public function markProcessing(): bool
+    {
+        return $this->update([
+            'status' => 'PROCESSING',
+            'processing_started_at' => now(),
+        ]);
+    }
+
+    /**
+     * Atomically revert a stale PROCESSING request back to PENDING.
+     */
+    public function revertToPendingFromStale(string $reason = 'TTL exceeded'): bool
+    {
+        if ($this->status !== 'PROCESSING') {
+            return false;
+        }
+
+        return $this->update([
+            'status' => 'PENDING',
+            'processing_started_at' => null,
+        ]);
     }
 }
