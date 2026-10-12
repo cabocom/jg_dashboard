@@ -179,7 +179,8 @@ La suite automatizada cuenta con **315 pruebas** de unidad e integración (286 P
 ## 8. Licencia y Modelo Dual
 
 `jg_dashboard` se distribuye bajo un esquema de **Doble Licenciamiento (Dual Licensing)**:
-- **Código Abierto:** [GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE) - Copyright (C) 2026 Javier Gálvez.
-- **Licencia Comercial Enterprise:** Exención de copyleft de red para despliegues cerrados, marca blanca o integraciones SaaS propietarias.
 
-Contacto comercial: **[https://javiergalvez.com](https://javiergalvez.com)**.
+1. **Código Abierto (GNU AGPL-3.0):** Disponible para uso personal, auditoría y auto-hospedaje comunitario bajo los términos de la [GNU Affero General Public License v3.0](LICENSE).
+2. **Licencia Comercial Enterprise:** Exención legal de copyleft de red para despliegues corporativos cerrados, marca blanca, integraciones con Active Directory/SAML o plataformas SaaS propietarias.
+
+Para consultas sobre licencias comerciales: contacto@javiergalvez.com o visita [https://javiergalvez.com](https://javiergalvez.com).
