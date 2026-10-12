@@ -45,10 +45,14 @@ build:docker:
     - if: $CI_COMMIT_BRANCH
     - if: $CI_COMMIT_TAG
   before_script:
-    - echo "🔑 Iniciando sesión en GitLab Container Registry ($CI_REGISTRY)..."
-    - echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin
+    - REGISTRY_HOST="${CI_REGISTRY:-registry.gitlab.com}"
+    - REGISTRY_USER="${CI_REGISTRY_USER:-gitlab-ci-token}"
+    - REGISTRY_PASS="${CI_REGISTRY_PASSWORD:-$CI_JOB_TOKEN}"
+    - echo "🔑 Iniciando sesión en GitLab Container Registry ($REGISTRY_HOST)..."
+    - echo "$REGISTRY_PASS" | docker login "$REGISTRY_HOST" -u "$REGISTRY_USER" --password-stdin
   script:
-    - IMAGE_BASE="$CI_REGISTRY_IMAGE"
+    - REGISTRY_HOST="${CI_REGISTRY:-registry.gitlab.com}"
+    - IMAGE_BASE="${CI_REGISTRY_IMAGE:-$REGISTRY_HOST/$CI_PROJECT_PATH}"
     - BRANCH_NAME="${CI_COMMIT_BRANCH:-$CI_COMMIT_REF_SLUG}"
     - SAFE_TAG=$(echo "$BRANCH_NAME" | tr '/' '-')
     - IMAGE_TAG="$IMAGE_BASE:$SAFE_TAG"
@@ -58,8 +62,8 @@ build:docker:
     - echo "🛠️ Construyendo imagen Docker protegida de jg_dashboard (Yakpro-Po) -> $IMAGE_TAG..."
     - docker build --build-arg OBFUSCATE=true -t "$IMAGE_TAG" -f Dockerfile .
     - if [ "$CI_COMMIT_BRANCH" = "main" ] || [ "$CI_COMMIT_BRANCH" = "$CI_DEFAULT_BRANCH" ]; then docker tag "$IMAGE_TAG" "$IMAGE_BASE:latest"; fi
-    - echo "🚀 Publicando imagen protegida en $CI_REGISTRY..."
+    - echo "🚀 Publicando imagen protegida en $REGISTRY_HOST..."
     - docker push "$IMAGE_TAG"
     - if [ "$CI_COMMIT_BRANCH" = "main" ] || [ "$CI_COMMIT_BRANCH" = "$CI_DEFAULT_BRANCH" ]; then docker push "$IMAGE_BASE:latest"; fi
     - if [ -n "$CI_COMMIT_TAG" ]; then docker tag "$IMAGE_TAG" "$IMAGE_BASE:$CI_COMMIT_TAG" && docker push "$IMAGE_BASE:$CI_COMMIT_TAG"; fi
-    - echo "✅ Imágenes de jg_dashboard publicadas con éxito en $CI_REGISTRY (clean y $SAFE_TAG/latest)."
+    - echo "✅ Imágenes de jg_dashboard publicadas con éxito en $REGISTRY_HOST (clean y $SAFE_TAG/latest)."
