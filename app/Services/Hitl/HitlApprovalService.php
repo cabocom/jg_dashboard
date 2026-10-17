@@ -121,7 +121,7 @@ class HitlApprovalService
     public function getPendingApprovals(
         ?string $agentId = null,
         ?string $riskLevel = null,
-        int $perPage = 15
+        int $perPage = 50
     ): LengthAwarePaginator {
         $query = ApprovalRequest::with(['agent'])
             ->pending()

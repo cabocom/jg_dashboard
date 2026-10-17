@@ -43,7 +43,7 @@ class AgentController extends Controller
             });
         }
 
-        $perPage = (int) ($validated['per_page'] ?? 15);
+        $perPage = (int) ($validated['per_page'] ?? 50);
         $paginator = $query->orderByDesc('created_at')->paginate($perPage);
 
         // Aggregated summary metrics

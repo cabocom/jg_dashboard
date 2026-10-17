@@ -46,5 +46,11 @@ class AppServiceProvider extends ServiceProvider
         ) {
             URL::forceScheme('https');
         }
+
+        \Filament\Tables\Table::configureUsing(function (\Filament\Tables\Table $table): void {
+            $table
+                ->defaultPaginationPageOption(50)
+                ->paginationPageOptions([10, 25, 50, 100]);
+        });
     }
 }
