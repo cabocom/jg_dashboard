@@ -47,7 +47,7 @@ services:
       DB_PASSWORD: "${DB_PASSWORD:?Error: DB_PASSWORD es obligatoria. Defínala en su archivo .env}"
       JG_AGENTE_API_URL: ${JG_AGENTE_API_URL:-http://jg_agente:8000}
       JG_AGENTE_SECRET: ${JG_AGENTE_SECRET:-}
-      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@devops60k.local}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@javiergalvez.test.local}
       ADMIN_DEFAULT_PASSWORD: "${ADMIN_DEFAULT_PASSWORD:?Error: ADMIN_DEFAULT_PASSWORD es obligatoria. Defínala en su archivo .env}"
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
     volumes:

@@ -43,7 +43,7 @@ class InitAdminCommand extends Command
     {
         $email = $this->option('email') 
             ?? env('ADMIN_EMAIL') 
-            ?? 'admin@devops60k.local';
+            ?? 'admin@javiergalvez.test.local';
 
         $name = $this->option('name') 
             ?? env('ADMIN_NAME') 

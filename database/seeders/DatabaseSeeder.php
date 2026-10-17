@@ -32,7 +32,7 @@ class DatabaseSeeder extends Seeder
             );
         }
 
-        $adminEmail = env('ADMIN_EMAIL') ?: 'admin@devops60k.local';
+        $adminEmail = env('ADMIN_EMAIL') ?: 'admin@javiergalvez.test.local';
         $adminName = env('ADMIN_NAME') ?: 'SRE Admin';
 
         User::updateOrCreate(

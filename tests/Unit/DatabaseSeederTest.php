@@ -51,7 +51,7 @@ class DatabaseSeederTest extends TestCase
         $seeder = new DatabaseSeeder();
         $seeder->run();
 
-        $user = User::where('email', 'admin@devops60k.local')->first();
+        $user = User::where('email', 'admin@javiergalvez.test.local')->first();
         $this->assertNotNull($user);
         $this->assertEquals('SRE Admin', $user->name);
         $this->assertEquals('admin', $user->role);
@@ -66,7 +66,7 @@ class DatabaseSeederTest extends TestCase
         $seeder = new DatabaseSeeder();
         $seeder->run();
 
-        $user1 = User::where('email', 'admin@devops60k.local')->first();
+        $user1 = User::where('email', 'admin@javiergalvez.test.local')->first();
         $this->assertTrue(Hash::check('PrimeraPassword2026!', $user1->password));
 
         // Rotación de contraseña
@@ -74,7 +74,7 @@ class DatabaseSeederTest extends TestCase
         $_ENV['ADMIN_DEFAULT_PASSWORD'] = 'SegundaPasswordRotada2026#';
         $seeder->run();
 
-        $user2 = User::where('email', 'admin@devops60k.local')->first();
+        $user2 = User::where('email', 'admin@javiergalvez.test.local')->first();
         $this->assertEquals($user1->id, $user2->id);
         $this->assertTrue(Hash::check('SegundaPasswordRotada2026#', $user2->password));
         $this->assertFalse(Hash::check('PrimeraPassword2026!', $user2->password));

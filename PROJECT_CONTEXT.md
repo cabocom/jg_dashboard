@@ -1,10 +1,11 @@
 # CONTEXTO DE PROYECTO: jg_dashboard
 
-**Versión del documento:** 3.31.0  
-**Fecha de consolidación:** 6 de octubre de 2026  
+**Versión del documento:** 3.32.0  
+**Fecha de consolidación:** 17 de octubre de 2026  
 **Componente:** Control Plane (Plano de Control, Gestión, Gobernanza y HITL)  
 **Stack Tecnológico:** Laravel 11, Filament PHP v3, Livewire 3, Tailwind CSS, PostgreSQL, Pest PHP  
 **Estado:** Fases 01 a 08 y Fase 09 completadas al 100%. Soporte multi-agente, pasarela completa de adaptadores externos (Webhooks, CI/CD, Chatbots y Mock Asterisk), servicio criptográfico JWT estándar con rotación y blacklist, webhook de actualización asíncrona HMAC, y compatibilidad multiplataforma Linux/macOS en scripts operativos.  
+- Actualización de Identidad de Administrador por Defecto (DASH-AUTH-01): Migración del dominio de aprovisionamiento administrativo inicial de `devops60k.local` a `javiergalvez.test.local` (`admin@javiergalvez.test.local`) en el comando CLI `dashboard:init-admin`, `DatabaseSeeder`, `docker-compose.yml` y tests unitarios de persistencia.  
 - Compatibilidad Multiplataforma Linux/macOS en Scripts (DASH-OPS-01 / GitLab jg_dashboard#55): Implementada función auxiliar portable `run_sed_i` en `scripts/core/restart_services.sh` e `install_prod.sh`, solventando la incompatibilidad entre la sintaxis de edición in-place BSD sed (`macOS: sed -i ''`) y GNU sed (`Linux: sed -i`) para ejecuciones fiables en entornos CI/CD y servidores Linux.  
 - Webhooks de Actualización Asíncrona HMAC (DASH-CODE-02 / GitLab jg_dashboard#53): Implementado endpoint `POST /api/v1/internal/executions/{execution_id}/status-update` autenticado mediante `agent.hmac` (firmas HMAC-SHA256 con protección anti-replay 300s); permite a `jg_agente` notificar en tiempo real transiciones de estado, pasos cognitivos, pausas HITL y finalizaciones, superando la dependencia exclusiva de polling continuo. `ExecutionController@trigger` inyecta automáticamente `status_callback_url` y `callback_url` en modo asíncrono (`async=true`).  
 - Criptografía JWT Estándar, Rotación de Claves y Blacklist (DASH-CODE-01 / GitLab jg_dashboard#52): Sustitución de la codificación y firma manual de JWT por la biblioteca estándar de la industria `firebase/php-jwt` (^7.2.1); incorporación de soporte de rotación de claves (`kid`) vía `config/auth.php` y `JwtService`; generación de identificadores únicos por token (`jti` UUIDv4); e implementación de blacklist/revocación en doble nivel (Caché L1 en memoria y tabla PostgreSQL `dashboard_jwt_revocations` L2) con invalidación inmediata al invocar `POST /api/v1/auth/logout`.  
@@ -18,7 +19,7 @@
 - Post-Auditoría Codex (GLOBAL-003 / ISSUE-DASH-003): Transaccionalidad, bloqueo pesimista `lockForUpdate` y control de concurrencia en HITL con estado `PROCESSING` y reconciliación automática ante fallos de red.  
 - Consola Web Unificada: `/console` operativa con panel reactivo de agentes, métricas de salud en tiempo real, gestión de aprobaciones HITL con visualización de planes de remediación y visor de ejecuciones en vivo.  
 - Aislamiento Total de Persistencia: PostgreSQL propio `jg_dashboard_postgres` (puerto 5434), sin acceso directo a la base de datos de los agentes (`jg_agente_postgres`:5433).  
-- Suite de Pruebas: Suite de pruebas completa pasando al 100% (325 tests Pest / PHPUnit con 1513 assertions en 5.5s).
+- Suite de Pruebas: Suite de pruebas completa pasando al 100% (336 tests Pest / PHPUnit con 1560 assertions en 5.9s).
 
 ---
 
