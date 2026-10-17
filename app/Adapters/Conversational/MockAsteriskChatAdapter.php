@@ -45,8 +45,8 @@ class MockAsteriskChatAdapter
         $callId = $payload['call_id'] ?? null;
         $chatId = $payload['chat_id'] ?? $payload['conversation_id'] ?? null;
         $threadId = (string) ($callId ?? $chatId ?? ($payload['thread_id'] ?? Str::uuid()));
-        $callerId = $payload['caller_id'] ?? $payload['from'] ?? 'SIP/1001';
-        $callerName = $payload['caller_name'] ?? $payload['sender'] ?? 'Usuario Simulado';
+        $callerId = $payload['caller_id'] ?? $payload['from'] ?? $payload['phone'] ?? ($isAsterisk ? 'SIP/1001' : 'user');
+        $callerName = $payload['caller_name'] ?? $payload['caller_id'] ?? $payload['from'] ?? $payload['phone'] ?? $payload['sender'] ?? 'Llamante';
         $channel = $payload['channel'] ?? ($isAsterisk ? 'SIP/trunk-simulated-01' : 'web_chat');
 
         $executionId = !empty($payload['execution_id']) ? (string) $payload['execution_id'] : (string) Str::uuid();
@@ -91,6 +91,7 @@ class MockAsteriskChatAdapter
             'execution_id' => $executionId,
             'thread_id' => $threadId,
             'correlation_id' => $correlationId,
+            'agent_id' => $resolvedAgentId,
             'prompt' => $prompt,
             'user_prompt' => $prompt,
             'parameters' => (object) array_merge(
@@ -110,6 +111,7 @@ class MockAsteriskChatAdapter
                 'permissions' => ['agent:execute'],
             ],
             'metadata' => (object) [
+                'agent_id' => $resolvedAgentId,
                 'adapter' => 'mock_conversational',
                 'simulation_type' => $simulationType,
                 'channel' => $channel,
@@ -120,7 +122,6 @@ class MockAsteriskChatAdapter
                 'client_ip' => $clientIp,
                 'user_agent' => $userAgent,
                 'received_at' => now()->toIso8601String(),
-                'agent_id' => $resolvedAgentId,
             ],
         ];
 
@@ -160,8 +161,9 @@ class MockAsteriskChatAdapter
                     ['task_id' => $executionId],
                     [
                         'thread_id' => $threadId,
+                        'agent_id' => $resolvedAgentId,
                         'status' => 'FAILED',
-                        'payload_json' => $agentInput,
+                        'payload_json' => array_merge((array) $agentInput, ['agent_id' => $resolvedAgentId]),
                         'result_json' => [
                             'error' => $response['error'] ?? 'Fallo al comunicar con agente conversacional',
                             'upstream_status' => $response['status_code'],
@@ -197,8 +199,9 @@ class MockAsteriskChatAdapter
                 ['task_id' => $executionId],
                 [
                     'thread_id' => $threadId,
+                    'agent_id' => $resolvedAgentId,
                     'status' => 'COMPLETED',
-                    'payload_json' => $agentInput,
+                    'payload_json' => array_merge((array) $agentInput, ['agent_id' => $resolvedAgentId]),
                     'result_json' => $responseData,
                     'created_at' => now(),
                     'started_at' => now(),

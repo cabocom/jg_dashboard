@@ -305,38 +305,72 @@ class ExecutionController extends Controller
             ], 400);
         }
 
-        $client = AgentHttpClient::forAgent($agent);
-        $response = $client->getExecutionStatus($threadId);
+        $localTask = AgentTask::where('thread_id', $threadId)
+            ->orWhere('task_id', $threadId)
+            ->latest()
+            ->first();
 
-        if (!$response['success']) {
-            if ($response['status_code'] === 404) {
-                return response()->json([
-                    'error' => 'Execution Not Found',
-                    'message' => "No se encontró la ejecución con thread_id '{$threadId}' en el agente.",
-                    'agent_id' => $agentId,
-                    'thread_id' => $threadId,
-                ], 404);
-            }
-
-            $httpCode = match ($response['status_code']) {
-                503 => 503,
-                504 => 504,
-                default => 502,
-            };
-
-            return response()->json([
-                'error' => 'Agent Gateway Error',
-                'message' => $response['error'] ?? 'Error al consultar estado de la ejecución en jg_agente',
-                'agent_id' => $agentId,
-                'thread_id' => $threadId,
-                'upstream_status' => $response['status_code'],
-            ], $httpCode);
-        }
-
-        $data = $response['data'] ?? [];
+        $resolvedAgentId = $agent->agent_id;
         $localApproval = ApprovalRequest::with('resolver')->where('thread_id', $threadId)->latest()->first();
 
-        // Sincronizar / actualizar el registro local en agent_tasks si existe
+        $hasLocalResult = $localTask && (
+            in_array($localTask->status, ['COMPLETED', 'FAILED', 'CANCELLED'])
+            || !empty($localTask->result_json)
+        );
+
+        $data = [];
+        $latencyMs = null;
+
+        if ($hasLocalResult) {
+            $data = is_array($localTask->result_json) ? $localTask->result_json : [];
+            if (!empty($data['response_data']) && is_array($data['response_data'])) {
+                $data = array_merge($data['response_data'], $data);
+            }
+        } else {
+            if ($agent && !$agent->isPending()) {
+                $client = AgentHttpClient::forAgent($agent);
+                $response = $client->getExecutionStatus($threadId);
+
+                if ($response['success']) {
+                    $data = $response['data'] ?? [];
+                    $latencyMs = $response['latency_ms'] ?? null;
+                } elseif ($localTask) {
+                    $data = is_array($localTask->result_json) ? $localTask->result_json : [];
+                } else {
+                    if ($response['status_code'] === 404) {
+                        return response()->json([
+                            'error' => 'Execution Not Found',
+                            'message' => "No se encontró la ejecución con thread_id '{$threadId}' en el agente.",
+                            'agent_id' => $resolvedAgentId,
+                            'thread_id' => $threadId,
+                        ], 404);
+                    }
+
+                    $httpCode = match ($response['status_code']) {
+                        503 => 503,
+                        504 => 504,
+                        default => 502,
+                    };
+
+                    return response()->json([
+                        'error' => 'Agent Gateway Error',
+                        'message' => $response['error'] ?? 'Error al consultar estado de la ejecución en jg_agente',
+                        'agent_id' => $resolvedAgentId,
+                        'thread_id' => $threadId,
+                        'upstream_status' => $response['status_code'],
+                    ], $httpCode);
+                }
+            } elseif ($localTask) {
+                $data = is_array($localTask->result_json) ? $localTask->result_json : [];
+            } else {
+                return response()->json([
+                    'error' => 'Not Found',
+                    'message' => "La ejecución con thread_id '{$threadId}' no existe.",
+                ], 404);
+            }
+        }
+
+        // Sincronizar / actualizar el registro local en agent_tasks si procede
         try {
             $agentStatus = strtolower($data['status'] ?? '');
             $taskStatus = match ($agentStatus) {
@@ -348,56 +382,54 @@ class ExecutionController extends Controller
                 default => null,
             };
 
-            if ($taskStatus) {
-                $task = AgentTask::where('thread_id', $threadId)
-                    ->orWhere('task_id', $data['execution_id'] ?? $threadId)
-                    ->latest()
-                    ->first();
-
-                if ($task) {
-                    $updates = ['status' => $taskStatus];
-                    if (in_array($taskStatus, ['COMPLETED', 'FAILED', 'CANCELLED'])) {
-                        if (!$task->completed_at) {
-                            $updates['completed_at'] = !empty($data['completed_at'])
-                                ? \Carbon\Carbon::parse($data['completed_at'])
-                                : now();
-                        }
-                        if ($task->started_at && !$task->duration) {
-                            $endTime = $updates['completed_at'] ?? now();
-                            $updates['duration'] = round($endTime->diffInMilliseconds($task->started_at) / 1000, 2);
-                        }
+            if ($taskStatus && $localTask) {
+                $updates = ['status' => $taskStatus];
+                if (in_array($taskStatus, ['COMPLETED', 'FAILED', 'CANCELLED'])) {
+                    if (!$localTask->completed_at) {
+                        $updates['completed_at'] = !empty($data['completed_at'])
+                            ? \Carbon\Carbon::parse($data['completed_at'])
+                            : now();
                     }
-                    if (!empty($data['output']) || !empty($data['response']) || !empty($data['final_output'])) {
-                        $currentResult = $task->result_json ?? [];
-                        $updates['result_json'] = array_merge(
-                            is_array($currentResult) ? $currentResult : [],
-                            $data
-                        );
-                    }
-                    $task->update($updates);
                 }
+                if (!empty($data['output']) || !empty($data['response']) || !empty($data['final_output'])) {
+                    $currentResult = $localTask->result_json ?? [];
+                    $updates['result_json'] = array_merge(
+                        is_array($currentResult) ? $currentResult : [],
+                        $data
+                    );
+                }
+                $localTask->update($updates);
             }
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning("[ExecutionController@show] Error sincronizando AgentTask: " . $e->getMessage());
         }
 
+        $cognitiveSteps = $data['cognitive_steps']
+            ?? $data['data']['cognitive_steps']
+            ?? $data['steps']
+            ?? $data['data']['steps']
+            ?? $data['trace_logs']
+            ?? $localTask?->trace_history_json
+            ?? [];
+
         $unified = [
-            'agent_id' => $agentId,
-            'agent_name' => $agent->name,
+            'agent_id' => $resolvedAgentId,
+            'agent_name' => $agent?->name ?? 'Agente Conversacional',
             'thread_id' => $threadId,
-            'execution_id' => $data['execution_id'] ?? null,
-            'correlation_id' => $data['correlation_id'] ?? null,
-            'status' => $data['status'] ?? 'unknown',
-            'prompt' => $data['prompt'] ?? null,
-            'output' => $data['response'] ?? $data['final_output'] ?? $data['output'] ?? null,
-            'current_step' => $data['current_step'] ?? 0,
+            'execution_id' => $data['execution_id'] ?? $localTask?->task_id ?? $threadId,
+            'correlation_id' => $data['correlation_id'] ?? $localTask?->payload_json['correlation_id'] ?? null,
+            'status' => $localTask?->status ?? ($data['status'] ?? 'COMPLETED'),
+            'prompt' => $localTask?->prompt ?? ($data['prompt'] ?? ($data['data']['prompt'] ?? null)),
+            'output' => $data['output'] ?? $data['response'] ?? $data['final_output'] ?? null,
+            'user' => $localTask?->user_name ?? 'Sistema',
+            'current_step' => $data['current_step'] ?? count($cognitiveSteps),
             'next_nodes' => $data['next_nodes'] ?? [],
             'requires_approval' => $data['requires_approval'] ?? false,
             'approval_status' => $data['approval_status'] ?? ($localApproval?->status ?? null),
             'pending_approval_id' => $data['pending_approval_id'] ?? null,
             'plan' => $data['plan'] ?? null,
-            'steps' => $data['steps'] ?? [],
-            'cognitive_steps' => $data['cognitive_steps'] ?? $data['steps'] ?? [],
+            'steps' => $cognitiveSteps,
+            'cognitive_steps' => $cognitiveSteps,
             'hitl_governance' => $localApproval ? [
                 'approval_id' => $localApproval->id,
                 'status' => $localApproval->status,
@@ -411,7 +443,8 @@ class ExecutionController extends Controller
                 ] : null,
             ] : null,
             'data' => $data,
-            'latency_ms' => $response['latency_ms'],
+            'latency_ms' => $latencyMs,
+            'duration' => $localTask?->duration,
         ];
 
         $jsonResponse = response()->json($unified, 200);

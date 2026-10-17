@@ -128,17 +128,28 @@ class AgentTask extends Model
         $payload = $this->payload_json ?? [];
         return $payload['username']
             ?? $payload['user_context']['name']
+            ?? $payload['user_context']['username']
             ?? $payload['user_context']['email']
+            ?? $payload['metadata']['caller_id']
+            ?? $payload['parameters']['caller_id']
+            ?? $payload['caller_id']
+            ?? $payload['from']
             ?? null;
     }
 
     /**
-     * Helper to retrieve agent_id from payload.
+     * Helper to retrieve agent_id from payload or metadata.
      */
     public function getAgentIdAttribute(): ?string
     {
         $payload = $this->payload_json ?? [];
-        return $payload['agent_id'] ?? null;
+        return $this->attributes['agent_id']
+            ?? $payload['agent_id']
+            ?? $payload['metadata']['agent_id']
+            ?? $payload['parameters']['agent_id']
+            ?? $this->result_json['agent_id']
+            ?? (isset($payload['metadata']['adapter']) && str_contains($payload['metadata']['adapter'], 'conversational') ? 'a0000000-0000-0000-0000-000000000001' : null)
+            ?? null;
     }
 
     /**
