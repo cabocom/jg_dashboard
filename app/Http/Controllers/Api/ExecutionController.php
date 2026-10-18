@@ -83,7 +83,8 @@ class ExecutionController extends Controller
         $client->withCorrelationId($correlationId);
 
         $parameters = (array) ($validated['parameters'] ?? []);
-        $statusCallbackUrl = url("/api/v1/internal/executions/{$executionId}/status-update");
+        $internalBaseUrl = env('DASHBOARD_INTERNAL_URL', config('services.dashboard.internal_url', 'http://jg_dashboard:8080'));
+        $statusCallbackUrl = rtrim($internalBaseUrl, '/') . "/api/v1/internal/executions/{$executionId}/status-update";
         if ($isAsync) {
             $parameters['async'] = true;
             $parameters['status_callback_url'] = $statusCallbackUrl;
@@ -96,6 +97,7 @@ class ExecutionController extends Controller
             'correlation_id' => $correlationId,
             'prompt' => $prompt,
             'user_prompt' => $prompt,
+            'callback_url' => $isAsync ? $statusCallbackUrl : null,
             'parameters' => (object) $parameters,
             'user_context' => [
                 'user_id' => (string) $user->id,
@@ -313,20 +315,23 @@ class ExecutionController extends Controller
         $resolvedAgentId = $agent->agent_id;
         $localApproval = ApprovalRequest::with('resolver')->where('thread_id', $threadId)->latest()->first();
 
-        $hasLocalResult = $localTask && (
-            in_array($localTask->status, ['COMPLETED', 'FAILED', 'CANCELLED'])
-            || !empty($localTask->result_json)
-        );
+        $localResult = is_array($localTask?->result_json) ? $localTask->result_json : [];
+        $hasTerminalOutput = !empty($localResult['final_output'])
+            || (!empty($localResult['output']) && $localResult['output'] !== 'Ejecución aceptada y encolada en segundo plano.')
+            || (!empty($localResult['response']) && $localResult['response'] !== 'Ejecución aceptada y encolada en segundo plano.');
+
+        $isTerminalLocal = $localTask && in_array($localTask->status, ['COMPLETED', 'FAILED', 'CANCELLED']) && $hasTerminalOutput;
 
         $data = [];
         $latencyMs = null;
 
-        if ($hasLocalResult) {
-            $data = is_array($localTask->result_json) ? $localTask->result_json : [];
+        if ($isTerminalLocal) {
+            $data = $localResult;
             if (!empty($data['response_data']) && is_array($data['response_data'])) {
                 $data = array_merge($data['response_data'], $data);
             }
         } else {
+            // Si la tarea sigue en cola, en proceso o no tiene output final persistido, consultar el agente directamente
             if ($agent && !$agent->isPending()) {
                 $client = AgentHttpClient::forAgent($agent);
                 $response = $client->getExecutionStatus($threadId);
@@ -335,7 +340,7 @@ class ExecutionController extends Controller
                     $data = $response['data'] ?? [];
                     $latencyMs = $response['latency_ms'] ?? null;
                 } elseif ($localTask) {
-                    $data = is_array($localTask->result_json) ? $localTask->result_json : [];
+                    $data = $localResult;
                 } else {
                     if ($response['status_code'] === 404) {
                         return response()->json([
@@ -361,7 +366,7 @@ class ExecutionController extends Controller
                     ], $httpCode);
                 }
             } elseif ($localTask) {
-                $data = is_array($localTask->result_json) ? $localTask->result_json : [];
+                $data = $localResult;
             } else {
                 return response()->json([
                     'error' => 'Not Found',
@@ -371,6 +376,7 @@ class ExecutionController extends Controller
         }
 
         // Sincronizar / actualizar el registro local en agent_tasks si procede
+        $taskStatus = null;
         try {
             $agentStatus = strtolower($data['status'] ?? '');
             $taskStatus = match ($agentStatus) {
@@ -412,15 +418,24 @@ class ExecutionController extends Controller
             ?? $localTask?->trace_history_json
             ?? [];
 
+        $resolvedOutput = $data['final_output'] ?? $data['output'] ?? $data['response'] ?? null;
+        if (($taskStatus === 'COMPLETED' || in_array($localTask?->status, ['COMPLETED', 'FAILED'])) && !empty($data['final_output'])) {
+            $resolvedOutput = $data['final_output'];
+        } elseif (($taskStatus === 'COMPLETED' || in_array($localTask?->status, ['COMPLETED', 'FAILED'])) && $resolvedOutput === 'Ejecución aceptada y encolada en segundo plano.') {
+            $resolvedOutput = $data['final_output'] ?? $data['output'] ?? $data['data']['output'] ?? null;
+        }
+
+        $effectiveStatus = $localTask?->status ?? ($data['status'] ?? 'COMPLETED');
+
         $unified = [
             'agent_id' => $resolvedAgentId,
             'agent_name' => $agent?->name ?? 'Agente Conversacional',
             'thread_id' => $threadId,
             'execution_id' => $data['execution_id'] ?? $localTask?->task_id ?? $threadId,
             'correlation_id' => $data['correlation_id'] ?? $localTask?->payload_json['correlation_id'] ?? null,
-            'status' => $localTask?->status ?? ($data['status'] ?? 'COMPLETED'),
+            'status' => $effectiveStatus,
             'prompt' => $localTask?->prompt ?? ($data['prompt'] ?? ($data['data']['prompt'] ?? null)),
-            'output' => $data['output'] ?? $data['response'] ?? $data['final_output'] ?? null,
+            'output' => $resolvedOutput,
             'user' => $localTask?->user_name ?? 'Sistema',
             'current_step' => $data['current_step'] ?? count($cognitiveSteps),
             'next_nodes' => $data['next_nodes'] ?? [],

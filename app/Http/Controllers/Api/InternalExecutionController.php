@@ -88,12 +88,19 @@ class InternalExecutionController extends Controller
                 ->first();
 
             if ($task) {
+                $mergedResult = array_merge(
+                    is_array($task->result_json) ? $task->result_json : [],
+                    $responseData
+                );
+                $finalText = $responseData['final_output'] ?? $responseData['output'] ?? $responseData['response'] ?? null;
+                if ($finalText && $finalText !== 'Ejecución aceptada y encolada en segundo plano.') {
+                    $mergedResult['output'] = $finalText;
+                    $mergedResult['response'] = $finalText;
+                    $mergedResult['final_output'] = $finalText;
+                }
                 $updates = [
                     'status' => $taskStatus,
-                    'result_json' => array_merge(
-                        is_array($task->result_json) ? $task->result_json : [],
-                        $responseData
-                    ),
+                    'result_json' => $mergedResult,
                 ];
 
                 if ($completedAt) {
@@ -231,6 +238,12 @@ class InternalExecutionController extends Controller
             if ($task) {
                 $existingResult = is_array($task->result_json) ? $task->result_json : [];
                 $mergedResult = array_merge($existingResult, $responseData);
+                $finalText = $responseData['final_output'] ?? $responseData['output'] ?? $responseData['response'] ?? null;
+                if ($finalText && $finalText !== 'Ejecución aceptada y encolada en segundo plano.') {
+                    $mergedResult['output'] = $finalText;
+                    $mergedResult['response'] = $finalText;
+                    $mergedResult['final_output'] = $finalText;
+                }
 
                 // Preserve cognitive steps accumulation if provided
                 if (!empty($responseData['cognitive_steps']) && is_array($responseData['cognitive_steps'])) {

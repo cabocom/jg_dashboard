@@ -30,7 +30,7 @@ beforeEach(function () {
     ]);
 
     $this->agent = Agent::create([
-        'agent_id' => 'agent-exec-web-01',
+        'agent_id' => (string) Str::uuid(),
         'name' => 'Agent DevOps Pipeline',
         'status' => 'ACTIVE',
         'metadata_json' => ['api_url' => 'http://test-agent:8000'],

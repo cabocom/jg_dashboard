@@ -1195,6 +1195,13 @@ document.addEventListener('DOMContentLoaded', () => {
         this.showToast(successMsg, 'success');
         this.closeAllModals();
         this.fetchApprovals();
+        this.fetchExecutions();
+
+        const threadId = data.data?.approval?.thread_id || data.thread_id || this.state.currentExecution?.thread_id;
+        const agentId = data.data?.approval?.agent_id || data.agent_id || this.state.currentExecution?.agent_id || document.getElementById('trigger-agent-id')?.value;
+        if (threadId && agentId) {
+          await this.loadExecutionTrace(agentId, threadId);
+        }
       } catch (err) {
         this.showToast(`Error: ${err.message}`, 'error');
       }
@@ -1226,6 +1233,13 @@ document.addEventListener('DOMContentLoaded', () => {
         this.showToast(successMsg, 'success');
         this.closeAllModals();
         this.fetchApprovals();
+        this.fetchExecutions();
+
+        const threadId = data.data?.approval?.thread_id || data.thread_id || this.state.currentExecution?.thread_id;
+        const agentId = data.data?.approval?.agent_id || data.agent_id || this.state.currentExecution?.agent_id || document.getElementById('trigger-agent-id')?.value;
+        if (threadId && agentId) {
+          await this.loadExecutionTrace(agentId, threadId);
+        }
       } catch (err) {
         this.showToast(`Error: ${err.message}`, 'error');
       }
@@ -1547,7 +1561,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const outputBox = document.getElementById('execution-output-box');
       if (outputBox) {
         const out = data.output || data.response || data.final_output || data.data?.output || data.data?.response;
-        if (out !== undefined && out !== null && String(out).trim() !== '' && String(out).trim() !== 'null') {
+        const isQueuedMsg = out === 'Ejecución aceptada y encolada en segundo plano.';
+        if (out !== undefined && out !== null && String(out).trim() !== '' && String(out).trim() !== 'null' && (!isProgress || !isQueuedMsg)) {
           outputBox.textContent = typeof out === 'string' ? out : JSON.stringify(out, null, 2);
         } else if (isProgress) {
           outputBox.textContent = `⏳ Ejecución en curso en el agente [Fase: ${(data.status || 'PROCESANDO').toUpperCase()}]...`;

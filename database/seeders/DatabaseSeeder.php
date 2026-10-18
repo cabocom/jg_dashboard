@@ -79,11 +79,11 @@ class DatabaseSeeder extends Seeder
         $devopsSecret = \Illuminate\Support\Facades\Config::get('agent.devops_secret')
             ?: env('JG_DEVOPS_SECRET', env('JG_DEVOPS_AGENT_SECRET', env('DEVOPS60K_SECRET')));
 
-        if (!empty($devopsSecret) && env('ENABLE_DEVOPS_AGENT') === 'true') {
+        if (!empty($devopsSecret)) {
             \App\Models\Agent::updateOrCreate(
                 ['agent_id' => 'a0000000-0000-0000-0000-000000000002'],
                 [
-                    'name' => 'Agente DevOps',
+                    'name' => 'Agente Devops Docker Raw',
                     'version' => '0.1.0',
                     'status' => 'ACTIVE',
                     'permanent_secret_hash' => hash('sha256', $devopsSecret),
@@ -94,9 +94,8 @@ class DatabaseSeeder extends Seeder
                     ],
                     'capabilities_json' => [
                         'tools' => [
-                            ['name' => 'docker_list_containers', 'description' => 'Lista de contenedores Docker'],
-                            ['name' => 'docker_inspect_container', 'description' => 'Inspección de contenedor Docker'],
-                            ['name' => 'docker_restart', 'description' => 'Reinicio seguro de contenedor con compensación'],
+                            ['name' => 'docker_read', 'description' => 'Ejecución segura de comandos Docker de solo lectura (ps, stats, inspect, logs, top, images, info, version)'],
+                            ['name' => 'docker_mutate', 'description' => 'Ejecución de operaciones Docker de mutación de estado con HITL y rollback Saga (restart, stop, start, pause, unpause, rm)'],
                         ],
                         'engines' => ['dag_planner', 'infra_discovery', 'devops_verifier'],
                     ],

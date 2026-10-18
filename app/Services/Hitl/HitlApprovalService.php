@@ -433,7 +433,15 @@ class HitlApprovalService
         // 3. Marcar solicitud como aprobada
         $approval->approve($resolver, $justification);
         $freshApproval = $approval->fresh(['agent', 'resolver']);
-        $this->syncAssociatedTask($approval, 'PROCESSING');
+        $respData = $agentResponse['data'] ?? [];
+        $respStatus = strtolower($respData['status'] ?? '');
+        $finalStatus = match ($respStatus) {
+            'completed', 'success', 'resolved' => 'COMPLETED',
+            'failed', 'error' => 'FAILED',
+            'cancelled' => 'CANCELLED',
+            default => 'PROCESSING',
+        };
+        $this->syncAssociatedTask($approval, $finalStatus, null, $respData);
 
         // Registrar evento de auditoría
         AuditEvent::record(
@@ -679,7 +687,7 @@ class HitlApprovalService
     /**
      * Sincroniza el estado de la tarea AgentTask asociada tras una resolución HITL.
      */
-    protected function syncAssociatedTask(ApprovalRequest $approval, string $targetStatus, ?string $reason = null): void
+    protected function syncAssociatedTask(ApprovalRequest $approval, string $targetStatus, ?string $reason = null, ?array $data = null): void
     {
         try {
             $task = AgentTask::where(function ($q) use ($approval) {
@@ -695,7 +703,25 @@ class HitlApprovalService
                 return;
             }
 
-            if ($targetStatus === 'CANCELLED') {
+            if ($targetStatus === 'COMPLETED' || $targetStatus === 'FAILED') {
+                $updates = [
+                    'status' => $targetStatus,
+                    'completed_at' => now(),
+                ];
+                if (! empty($data)) {
+                    $res = is_array($task->result_json) ? $task->result_json : [];
+                    $merged = array_merge($res, $data);
+                    $finalText = $data['final_output'] ?? $data['output'] ?? $data['response'] ?? null;
+                    if ($finalText) {
+                        $merged['output'] = $finalText;
+                        $merged['response'] = $finalText;
+                        $merged['final_output'] = $finalText;
+                    }
+                    $updates['result_json'] = $merged;
+                }
+                $task->update($updates);
+                Log::info("[HitlApprovalService] AgentTask '{$task->task_id}' sincronizada a {$targetStatus} tras resolución HITL");
+            } elseif ($targetStatus === 'CANCELLED') {
                 $updates = [
                     'status' => 'CANCELLED',
                     'completed_at' => now(),
