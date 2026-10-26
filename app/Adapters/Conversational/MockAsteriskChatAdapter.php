@@ -343,6 +343,7 @@ class MockAsteriskChatAdapter
             'channel_id' => $channel,
             'caller_id' => $callerId,
             'tts_text' => $outputText,
+            'response' => $outputText,
             'playback_action' => 'PLAY_TTS',
             'hangup' => false,
             'execution_id' => $executionId,

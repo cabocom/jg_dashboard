@@ -1,10 +1,11 @@
 # CONTEXTO DE PROYECTO: jg_dashboard
 
-**Versión del documento:** 3.34.0  
-**Fecha de consolidación:** 17 de octubre de 2026  
+**Versión del documento:** 3.35.0  
+**Fecha de consolidación:** 26 de octubre de 2026  
 **Componente:** Control Plane (Plano de Control, Gestión, Gobernanza y HITL)  
 **Stack Tecnológico:** Laravel 11, Filament PHP v3, Livewire 3, Tailwind CSS, PostgreSQL, Pest PHP  
-**Estado:** Fases 01 a 08 y Fase 09 completadas al 100%. Soporte multi-agente, pasarela completa de adaptadores externos (Webhooks, CI/CD, Chatbots y Asterisk Telephony Adapter), servicio criptográfico JWT estándar con rotación y blacklist, webhook de actualización asíncrona HMAC, paginación homogénea de 50 elementos por defecto, y compatibilidad multiplataforma Linux/macOS en scripts operativos.  
+**Estado:** Fases 01 a 08 y Fase 09 completadas al 100%. Soporte multi-agente, pasarela completa de adaptadores externos (Webhooks, CI/CD, Chatbots y Asterisk Telephony Adapter con soporte bidireccional 'response' y 'tts_text'), servicio criptográfico JWT estándar con rotación y blacklist, webhook de actualización asíncrona HMAC, paginación homogénea de 50 elementos por defecto, y compatibilidad multiplataforma Linux/macOS en scripts operativos.  
+- Compatibilidad de Telefonía Asterisk (DASH-AST-02): Incorporación de la clave canónica `'response'` junto a `'tts_text'` en el payload generado por `MockAsteriskChatAdapter` para asegurar la integración transparente e interoperable con gateways de voz ARI/Asterisk.
 - Paginación Homogénea de 50 Elementos por Defecto (DASH-PAG-01): Configuración transversal de 50 elementos por página en todas las tablas y recursos administrativos de Filament mediante `Table::configureUsing(...)` en `AppServiceProvider::boot()`, y actualización del valor por defecto en los endpoints de listado de `AgentController@index` (`$perPage = 50`) y `HitlApprovalService@getPendingApprovals` (`$perPage = 50`).
 - Adaptador de Telefonía Asterisk y Trazabilidad de Llamadas (DASH-AST-01): Normalización del caller ID en `MockAsteriskChatAdapter`, asociando correctamente el número del llamante como identidad de usuario (`user_context.username` y `metadata.caller_id`).
 - Resiliencia en Visor de Trazas (`ExecutionController@show` y `AgentTask`): Capacidad de servir la traza y saltos cognitivos directamente desde la persistencia local de `AgentTask` para tareas concluidas o adapters asíncronos/telefónicos, evitando dependencias forzadas con el upstream una vez completada la ejecución. Fallbacks automáticos en `AgentTask` para `user_name` y `agent_id`.
