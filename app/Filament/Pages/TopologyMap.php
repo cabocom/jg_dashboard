@@ -94,7 +94,7 @@ class TopologyMap extends Page
             }
 
             $baseNodes = [
-                ['id' => 'host', 'label' => 'Host SRE System', 'type' => 'host', 'status' => 'healthy', 'metadata' => ['os' => 'Linux / Docker']],
+                ['id' => 'host', 'label' => 'Host del Sistema', 'type' => 'host', 'status' => 'healthy', 'metadata' => ['os' => 'Linux / Docker']],
                 ['id' => 'jg_dashboard', 'label' => 'jg_dashboard', 'type' => 'container', 'status' => 'healthy', 'metadata' => ['image' => 'jg_dashboard:latest', 'state' => 'running']],
                 ['id' => 'jg_dashboard_postgres', 'label' => 'jg_dashboard_postgres', 'type' => 'database', 'status' => 'healthy', 'metadata' => ['image' => 'postgres:16-alpine', 'state' => 'running']],
                 ['id' => 'jg_agente_postgres', 'label' => 'jg_agente_postgres', 'type' => 'database', 'status' => 'healthy', 'metadata' => ['image' => 'postgres:16-alpine', 'state' => 'running']],

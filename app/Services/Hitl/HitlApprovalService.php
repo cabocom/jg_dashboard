@@ -69,11 +69,17 @@ class HitlApprovalService
             $plan['cognitive_steps'] = $data['cognitive_steps'];
         }
 
-        // Evitar duplicidades: si ya existe una solicitud PENDING para este hilo, la actualizamos
+        // Evitar duplicidades: si ya existe una solicitud para este hilo, reutilizarla o no recrear si ya está en proceso/resuelta
         /** @var ApprovalRequest|null $approval */
         $approval = ApprovalRequest::where('thread_id', $threadId)
-            ->where('status', 'PENDING')
+            ->orderByDesc('id')
             ->first();
+
+        if ($approval && in_array($approval->status, ['PROCESSING', 'APPROVED', 'REJECTED', 'CANCELLED'], true)) {
+            Log::info("[HitlApprovalService] Omitiendo recreación de solicitud HITL para thread '{$threadId}' (ID: {$approval->id}, Estado actual: {$approval->status})");
+
+            return $approval;
+        }
 
         $attributes = [
             'agent_id' => $agentId,
@@ -228,6 +234,76 @@ class HitlApprovalService
         }
 
         $tools = $plan['tools_involved'] ?? ($plan['tools'] ?? []);
+        $planSteps = is_array($plan['steps'] ?? null) ? $plan['steps'] : [];
+
+        // Si plan.steps está vacío, extraer los pasos de risk_assessment.plan_steps o tool_calls en cognitive_steps
+        if (empty($planSteps) && is_array($cognitiveSteps)) {
+            foreach ($cognitiveSteps as $cs) {
+                $raSteps = $cs['details']['risk_assessment']['plan_steps'] ?? null;
+                if (is_array($raSteps) && ! empty($raSteps)) {
+                    $planSteps = $raSteps;
+                    break;
+                }
+            }
+        }
+        if (empty($planSteps) && is_array($cognitiveSteps)) {
+            foreach ($cognitiveSteps as $cs) {
+                $tcs = $cs['details']['tool_calls'] ?? null;
+                if (is_array($tcs) && ! empty($tcs)) {
+                    foreach ($tcs as $idx => $tc) {
+                        $tName = (string) ($tc['name'] ?? ($tc['tool_name'] ?? 'tool'));
+                        $tArgs = is_array($tc['args'] ?? null) ? $tc['args'] : [];
+                        $cmd = $tArgs['command'] ?? ($tArgs['target_url'] ?? ($tArgs['url'] ?? ($tArgs['target'] ?? null)));
+                        $isMut = preg_match('/(mutate|restart|stop|rm|delete|destroy|create|run|kill|write|update)/i', $tName.' '.(string) $cmd) === 1;
+                        $planSteps[] = [
+                            'index' => $idx + 1,
+                            'step_id' => $tc['id'] ?? 'step_'.($idx + 1),
+                            'tool_name' => $tName,
+                            'tool' => $tName,
+                            'command' => $cmd,
+                            'action' => $cmd ? "Ejecutar {$tName}: {$cmd}" : "Ejecutar {$tName}",
+                            'description' => $cmd ? "Ejecutar {$tName}: {$cmd}" : "Ejecutar {$tName}",
+                            'risk_level' => $isMut ? 'HIGH' : 'LOW',
+                            'mutative' => $isMut,
+                            'read_only' => ! $isMut,
+                        ];
+                    }
+                    break;
+                }
+            }
+        }
+
+        if (! empty($planSteps)) {
+            $plan['steps'] = array_values($planSteps);
+            if (empty($tools)) {
+                $tools = array_values(array_unique(array_filter(array_map(
+                    fn ($s) => is_array($s) ? ($s['tool_name'] ?? ($s['tool'] ?? null)) : null,
+                    $planSteps
+                ))));
+            }
+        }
+
+        $mutativeCount = 0;
+        foreach ($plan['steps'] ?? [] as $s) {
+            if (is_array($s)) {
+                $isMut = ($s['mutative'] ?? null) === true
+                    || ($s['read_only'] ?? null) === false
+                    || in_array(strtoupper((string) ($s['risk_level'] ?? '')), ['HIGH', 'CRITICAL', 'MEDIUM'], true);
+                if ($isMut) {
+                    $mutativeCount++;
+                }
+            }
+        }
+        $totalStepsCount = count($plan['steps'] ?? []);
+        $warningMessage = $plan['warning_message'] ?? (
+            $totalStepsCount > 0
+                ? "AVISO DE GOBERNANZA HITL: Con una única aprobación se autorizan todas las acciones de este plan ({$totalStepsCount} etapa(s) en total, de las cuales {$mutativeCount} son ETAPAS MUTATIVAS marcadas en rojo). Revisa el plan completo antes de aprobar."
+                : 'AVISO DE GOBERNANZA HITL: Al aprobar esta solicitud se autorizan todas las acciones mutativas asociadas al plan.'
+        );
+        $plan['mutative_steps_count'] = $mutativeCount;
+        $plan['total_steps_count'] = $totalStepsCount;
+        $plan['warning_message'] = $warningMessage;
+
         $now = now();
 
         return [
@@ -242,6 +318,9 @@ class HitlApprovalService
             'prompt' => $prompt,
             'tools_involved' => is_array($tools) ? array_values($tools) : [],
             'proposed_plan' => $plan,
+            'mutative_steps_count' => $mutativeCount,
+            'total_steps_count' => $totalStepsCount,
+            'warning_message' => $warningMessage,
             'cognitive_steps' => is_array($cognitiveSteps) ? array_values($cognitiveSteps) : [],
             'compensation_commands' => $approval->compensation_commands_json ?? [],
             'created_at' => $approval->created_at?->toIso8601String(),
@@ -320,6 +399,16 @@ class HitlApprovalService
                 'status' => 'PROCESSING',
                 'processing_started_at' => now(),
             ]);
+
+            // Sincronizar inmediatamente la tarea asociada a PROCESSING para evitar que el polling concurrente la vea en WAITING_APPROVAL
+            AgentTask::where(function ($q) use ($record) {
+                if (! empty($record->task_id)) {
+                    $q->where('task_id', $record->task_id);
+                }
+                if (! empty($record->thread_id)) {
+                    $q->orWhere('thread_id', $record->thread_id);
+                }
+            })->where('status', 'WAITING_APPROVAL')->update(['status' => 'PROCESSING']);
 
             return ['status_code' => 200, 'record' => $record];
         });
@@ -535,6 +624,15 @@ class HitlApprovalService
                 'processing_started_at' => now(),
             ]);
 
+            AgentTask::where(function ($q) use ($record) {
+                if (! empty($record->task_id)) {
+                    $q->where('task_id', $record->task_id);
+                }
+                if (! empty($record->thread_id)) {
+                    $q->orWhere('thread_id', $record->thread_id);
+                }
+            })->where('status', 'WAITING_APPROVAL')->update(['status' => 'PROCESSING']);
+
             return ['status_code' => 200, 'record' => $record];
         });
 
@@ -690,6 +788,19 @@ class HitlApprovalService
     protected function syncAssociatedTask(ApprovalRequest $approval, string $targetStatus, ?string $reason = null, ?array $data = null): void
     {
         try {
+            // Reconciliar cualquier otra solicitud duplicada huérfana para el mismo thread_id
+            if (! empty($approval->thread_id) && in_array($approval->status, ['APPROVED', 'REJECTED', 'CANCELLED'], true)) {
+                ApprovalRequest::where('thread_id', $approval->thread_id)
+                    ->where('id', '!=', $approval->id)
+                    ->whereIn('status', ['PENDING', 'PROCESSING'])
+                    ->update([
+                        'status' => $approval->status,
+                        'user_id' => $approval->user_id,
+                        'resolved_at' => $approval->resolved_at ?? now(),
+                        'justification' => $approval->justification,
+                    ]);
+            }
+
             $task = AgentTask::where(function ($q) use ($approval) {
                 if (! empty($approval->task_id)) {
                     $q->where('task_id', $approval->task_id);
@@ -708,6 +819,14 @@ class HitlApprovalService
                     'status' => $targetStatus,
                     'completed_at' => now(),
                 ];
+                if (! empty($approval->justification) && preg_match('/(Operador_[A-Za-z0-9_]+)/', $approval->justification, $matches)) {
+                    $payloadJson = is_array($task->payload_json) ? $task->payload_json : [];
+                    $baseUser = $payloadJson['username'] ?? ($task->user_name ?? 'Demo HITL');
+                    if (! str_contains((string) $baseUser, $matches[1])) {
+                        $payloadJson['username'] = "{$baseUser} ({$matches[1]})";
+                        $updates['payload_json'] = $payloadJson;
+                    }
+                }
                 if (! empty($data)) {
                     $res = is_array($task->result_json) ? $task->result_json : [];
                     $merged = array_merge($res, $data);
@@ -716,6 +835,27 @@ class HitlApprovalService
                         $merged['output'] = $finalText;
                         $merged['response'] = $finalText;
                         $merged['final_output'] = $finalText;
+                    }
+                    $freshSteps = $data['data']['cognitive_steps']
+                        ?? $data['cognitive_steps']
+                        ?? $data['data']['steps']
+                        ?? $data['steps']
+                        ?? null;
+                    if (is_array($freshSteps) && ! empty($freshSteps)) {
+                        $normalizedSteps = array_map(function ($step) {
+                            if (is_array($step) && ($step['status'] ?? '') === 'waiting_approval') {
+                                $step['status'] = 'completed';
+                            }
+
+                            return $step;
+                        }, $freshSteps);
+                        $merged['cognitive_steps'] = $normalizedSteps;
+                        $merged['steps'] = $normalizedSteps;
+                        if (isset($merged['data']) && is_array($merged['data'])) {
+                            $merged['data']['cognitive_steps'] = $normalizedSteps;
+                            $merged['data']['steps'] = $normalizedSteps;
+                        }
+                        $updates['trace_history_json'] = $normalizedSteps;
                     }
                     $updates['result_json'] = $merged;
                 }

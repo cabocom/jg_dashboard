@@ -59,7 +59,9 @@ class JwtService
         $this->currentKeyId = $currentKeyId ?? (string) (config('auth.jwt.key_id') ?: 'v1');
 
         // Register default key
-        $this->keys[$this->currentKeyId] = new Key($this->secret, $this->algo);
+        $this->keys[$this->currentKeyId] = class_exists(Key::class)
+            ? new Key($this->secret, $this->algo)
+            : $this->secret;
 
         // Register additional rotation keys from config and constructor
         $configKeys = config('auth.jwt.keys', []);
@@ -109,7 +111,9 @@ class JwtService
     public function registerKey(string $keyId, string $secret): self
     {
         $normalized = $this->normalizeSecret($secret);
-        $this->keys[$keyId] = new Key($normalized, $this->algo);
+        $this->keys[$keyId] = class_exists(Key::class)
+            ? new Key($normalized, $this->algo)
+            : $normalized;
 
         return $this;
     }
@@ -156,12 +160,29 @@ class JwtService
             'exp' => $now + ($ttl * 60),
         ], $customClaims);
 
-        return JWT::encode(
-            $payload,
-            $this->secret,
-            $this->algo,
-            $this->currentKeyId
-        );
+        if (class_exists(JWT::class)) {
+            return JWT::encode(
+                $payload,
+                $this->secret,
+                $this->algo,
+                $this->currentKeyId
+            );
+        }
+
+        $header = [
+            'typ' => 'JWT',
+            'alg' => $this->algo,
+            'kid' => $this->currentKeyId,
+        ];
+        $segments = [
+            $this->base64UrlEncode((string) json_encode($header)),
+            $this->base64UrlEncode((string) json_encode($payload)),
+        ];
+        $signingInput = implode('.', $segments);
+        $signature = hash_hmac('sha256', $signingInput, $this->secret, true);
+        $segments[] = $this->base64UrlEncode($signature);
+
+        return implode('.', $segments);
     }
 
     /**
@@ -190,14 +211,35 @@ class JwtService
         }
 
         try {
-            // If token provides a kid and we have configured keys, supply keys map for rotation lookup
-            // Otherwise fallback to active primary key
-            $keyOrKeys = (!empty($header['kid']) && count($this->keys) > 0)
-                ? $this->keys
-                : ($this->keys[$this->currentKeyId] ?? new Key($this->secret, $this->algo));
+            if (class_exists(JWT::class)) {
+                $keyOrKeys = (!empty($header['kid']) && count($this->keys) > 0)
+                    ? $this->keys
+                    : ($this->keys[$this->currentKeyId] ?? new Key($this->secret, $this->algo));
 
-            $decoded = JWT::decode($token, $keyOrKeys);
-            $payload = json_decode((string) json_encode($decoded), true);
+                $decoded = JWT::decode($token, $keyOrKeys);
+                $payload = json_decode((string) json_encode($decoded), true);
+            } else {
+                $kid = $header['kid'] ?? $this->currentKeyId;
+                $rawKey = $this->keys[$kid] ?? $this->secret;
+                $secretStr = is_string($rawKey) ? $rawKey : $this->secret;
+                $expectedSig = hash_hmac('sha256', $parts[0] . '.' . $parts[1], $secretStr, true);
+                $providedSig = $this->base64UrlDecode($parts[2]);
+                if ($providedSig === null || !hash_equals($expectedSig, $providedSig)) {
+                    return null;
+                }
+                $payloadJson = $this->base64UrlDecode($parts[1]);
+                $payload = $payloadJson ? json_decode($payloadJson, true) : null;
+                if (!is_array($payload)) {
+                    return null;
+                }
+                $now = time();
+                if (isset($payload['nbf']) && (int) $payload['nbf'] > $now) {
+                    return null;
+                }
+                if (isset($payload['exp']) && (int) $payload['exp'] < $now) {
+                    return null;
+                }
+            }
 
             if (!is_array($payload)) {
                 return null;
@@ -361,7 +403,11 @@ class JwtService
      */
     public function base64UrlEncode(string $data): string
     {
-        return JWT::urlsafeB64Encode($data);
+        if (class_exists(JWT::class)) {
+            return JWT::urlsafeB64Encode($data);
+        }
+
+        return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
     }
 
     /**
@@ -370,7 +416,16 @@ class JwtService
     public function base64UrlDecode(string $data): ?string
     {
         try {
-            return JWT::urlsafeB64Decode($data);
+            if (class_exists(JWT::class)) {
+                return JWT::urlsafeB64Decode($data);
+            }
+            $remainder = strlen($data) % 4;
+            if ($remainder) {
+                $data .= str_repeat('=', 4 - $remainder);
+            }
+            $decoded = base64_decode(strtr($data, '-_', '+/'), true);
+
+            return $decoded === false ? null : $decoded;
         } catch (Throwable) {
             return null;
         }

@@ -33,7 +33,7 @@ class CreateAgent extends CreateRecord
                     Forms\Components\TextInput::make('name')
                         ->label('Nombre del Agente')
                         ->required()
-                        ->placeholder('Ej: Agente SRE Infraestructura')
+                        ->placeholder('Ej: Agente Cognitivo Principal')
                         ->maxLength(255),
 
                     Forms\Components\TextInput::make('version')

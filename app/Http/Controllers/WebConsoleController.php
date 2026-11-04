@@ -160,8 +160,12 @@ class WebConsoleController extends Controller
 
             foreach ($orphanWaitingTasks as $waitingTask) {
                 // Verificar si ya existe una solicitud de aprobación previa para este thread o tarea
-                $existingApproval = ApprovalRequest::where('thread_id', $waitingTask->thread_id)
-                    ->orWhere('task_id', $waitingTask->task_id)
+                $existingApproval = ApprovalRequest::where(function ($q) use ($waitingTask) {
+                    $q->where('thread_id', $waitingTask->thread_id);
+                    if (! empty($waitingTask->task_id)) {
+                        $q->orWhere('task_id', $waitingTask->task_id);
+                    }
+                })
                     ->latest()
                     ->first();
 
@@ -175,8 +179,8 @@ class WebConsoleController extends Controller
                         continue;
                     }
 
-                    if ($existingApproval->status === 'APPROVED') {
-                        // Si la solicitud previa ya fue concedida, sincronizar tarea a PROCESSING y no recrear
+                    if (in_array($existingApproval->status, ['APPROVED', 'PROCESSING'])) {
+                        // Si la solicitud previa ya fue concedida o está en procesamiento activo, sincronizar tarea a PROCESSING y no recrear
                         $waitingTask->update(['status' => 'PROCESSING']);
                         continue;
                     }
@@ -502,7 +506,7 @@ class WebConsoleController extends Controller
                 'prompt' => $prompt,
                 'prompt_truncated' => $promptTruncated,
                 'created_at' => $task->created_at?->toIso8601String(),
-                'created_at_formatted' => $task->created_at?->format('d/m/Y H:i:s') ?? '-',
+                'created_at_formatted' => $task->created_at?->copy()->timezone(config('app.display_timezone', 'Europe/Madrid'))->format('d/m/Y H:i:s') ?? '-',
                 'started_at' => $task->started_at?->toIso8601String(),
                 'completed_at' => $task->completed_at?->toIso8601String(),
                 'duration' => $task->duration,

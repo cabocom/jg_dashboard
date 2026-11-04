@@ -53,7 +53,7 @@ class DatabaseSeederTest extends TestCase
 
         $user = User::where('email', 'admin@javiergalvez.test.local')->first();
         $this->assertNotNull($user);
-        $this->assertEquals('SRE Admin', $user->name);
+        $this->assertEquals('Administrador', $user->name);
         $this->assertEquals('admin', $user->role);
         $this->assertTrue(Hash::check('MiContrasenaSegura2026!', $user->password));
     }

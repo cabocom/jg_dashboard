@@ -1385,6 +1385,112 @@ textarea.form-control {
   overflow-x: auto;
 }
 
+/* Mutative Step Highlighting & HITL Governance Warning (Red Alert Styling) */
+.hitl-mutative-warning {
+  background: rgba(244, 63, 94, 0.12);
+  border: 1px solid rgba(244, 63, 94, 0.45);
+  border-left: 4px solid var(--accent-rose);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  color: #fecdd3;
+  font-size: 12px;
+  line-height: 1.45;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.step-item.step-mutative {
+  background: rgba(244, 63, 94, 0.12);
+  border: 1px solid rgba(244, 63, 94, 0.5);
+  border-left: 4px solid var(--accent-rose);
+}
+
+.step-item.step-mutative:hover {
+  background: rgba(244, 63, 94, 0.18);
+  border-color: rgba(244, 63, 94, 0.7);
+}
+
+.step-item.step-mutative .step-badge {
+  border-color: var(--accent-rose);
+  color: #fecdd3;
+  background: rgba(244, 63, 94, 0.28);
+  box-shadow: 0 0 8px rgba(244, 63, 94, 0.5);
+}
+
+.step-item.step-mutative .step-action-text {
+  color: #ffe4e6;
+  font-weight: 700;
+}
+
+.step-item.step-mutative .step-command-box {
+  color: #fecdd3;
+  background: rgba(136, 19, 55, 0.4);
+  border-color: rgba(244, 63, 94, 0.45);
+}
+
+.step-mutative-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: rgba(244, 63, 94, 0.25);
+  color: #fecdd3;
+  border: 1px solid rgba(244, 63, 94, 0.55);
+  white-space: nowrap;
+}
+
+.step-readonly-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--accent-emerald);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  white-space: nowrap;
+}
+
+[data-theme="light"] .hitl-mutative-warning {
+  background: #fff1f2;
+  border-color: #fda4af;
+  border-left-color: #e11d48;
+  color: #9f1239;
+}
+
+[data-theme="light"] .step-item.step-mutative {
+  background: #fff1f2;
+  border-color: #fda4af;
+  border-left-color: #e11d48;
+}
+
+[data-theme="light"] .step-item.step-mutative .step-action-text {
+  color: #881337;
+}
+
+[data-theme="light"] .step-item.step-mutative .step-command-box {
+  background: #ffe4e6;
+  color: #9f1239;
+  border-color: #fda4af;
+}
+
+[data-theme="light"] .step-mutative-badge {
+  background: #ffe4e6;
+  color: #be123c;
+  border-color: #fb7185;
+}
+
 /* Compensation / Rollback Container */
 .compensation-box {
   background: rgba(245, 158, 11, 0.08);

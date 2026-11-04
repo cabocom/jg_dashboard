@@ -98,6 +98,15 @@ class InternalExecutionController extends Controller
                     $mergedResult['response'] = $finalText;
                     $mergedResult['final_output'] = $finalText;
                 }
+                $freshSteps = $responseData['data']['cognitive_steps']
+                    ?? $responseData['cognitive_steps']
+                    ?? $responseData['data']['steps']
+                    ?? $responseData['steps']
+                    ?? null;
+                if (is_array($freshSteps) && count($freshSteps) >= count($mergedResult['cognitive_steps'] ?? [])) {
+                    $mergedResult['cognitive_steps'] = $freshSteps;
+                    $mergedResult['steps'] = $freshSteps;
+                }
                 $updates = [
                     'status' => $taskStatus,
                     'result_json' => $mergedResult,

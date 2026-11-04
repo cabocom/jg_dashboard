@@ -59,7 +59,7 @@ class AgentTaskResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->poll('3s') // Auto-refresh reactivo para monitorización SRE
+            ->poll('3s') // Auto-refresh reactivo para monitorización en tiempo real
             ->columns([
                 Tables\Columns\TextColumn::make('prompt')
                     ->label('Prompt / Instrucción')
@@ -156,16 +156,15 @@ class AgentTaskResource extends Resource
                     ->form([
                         Forms\Components\TextInput::make('notes')
                             ->label('Notas de Aprobación')
-                            ->default('Aprobado por operador SRE vía panel web')
+                            ->default('Aprobado por operador vía panel web')
                             ->required(),
                     ])
                     ->visible(fn (AgentTask $record): bool => in_array($record->status, ['WAITING_APPROVAL', 'PAUSED']) && in_array(auth()->user()?->role, ['admin', 'operator']))
                     ->action(function (AgentTask $record, array $data, AgentHttpClient $apiClient): void {
                         try {
-                            $user = auth()->user()?->name ?? 'sre_operator';
+                            $user = auth()->user()?->name ?? 'operator';
                             $targetAgent = \App\Models\ApprovalRequest::where('thread_id', $record->thread_id)->first()?->agent
                                 ?? Agent::where('agent_id', $record->payload_json['agent_id'] ?? null)->first()
-                                ?? Agent::where('name', 'like', '%devops%')->first()
                                 ?? Agent::active()->first();
                             $client = $targetAgent ? AgentHttpClient::forAgent($targetAgent) : $apiClient;
 
@@ -213,10 +212,9 @@ class AgentTaskResource extends Resource
                     ->visible(fn (AgentTask $record): bool => in_array($record->status, ['WAITING_APPROVAL', 'PAUSED']) && in_array(auth()->user()?->role, ['admin', 'operator']))
                     ->action(function (AgentTask $record, array $data, AgentHttpClient $apiClient): void {
                         try {
-                            $user = auth()->user()?->name ?? 'sre_operator';
+                            $user = auth()->user()?->name ?? 'operator';
                             $targetAgent = \App\Models\ApprovalRequest::where('thread_id', $record->thread_id)->first()?->agent
                                 ?? Agent::where('agent_id', $record->payload_json['agent_id'] ?? null)->first()
-                                ?? Agent::where('name', 'like', '%devops%')->first()
                                 ?? Agent::active()->first();
                             $client = $targetAgent ? AgentHttpClient::forAgent($targetAgent) : $apiClient;
 

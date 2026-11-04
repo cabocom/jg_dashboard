@@ -47,7 +47,7 @@ class InitAdminCommand extends Command
 
         $name = $this->option('name') 
             ?? env('ADMIN_NAME') 
-            ?? 'SRE Admin';
+            ?? 'Administrador';
 
         $password = $this->option('password') 
             ?? env('ADMIN_DEFAULT_PASSWORD');

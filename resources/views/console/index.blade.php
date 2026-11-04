@@ -260,7 +260,7 @@
                 <div class="kpi-icon" style="color: var(--accent-amber);">⚠️</div>
               </div>
               <div id="kpi-hitl-high" class="kpi-value" style="color: var(--accent-amber);">0</div>
-              <div class="kpi-footer">Modificación de infraestructura o red</div>
+              <div class="kpi-footer">Operaciones con mutación de estado</div>
             </div>
           </div>
 
@@ -336,7 +336,7 @@
 
                   <div class="form-group">
                     <label class="form-label" for="trigger-prompt">Prompt / Estímulo Inicial (AgentInput)</label>
-                    <textarea id="trigger-prompt" class="form-control" placeholder="Ej: Analiza los contenedores con reinicios recientes y reinicia el servicio Nginx de forma segura."></textarea>
+                    <textarea id="trigger-prompt" class="form-control" placeholder="Ej: Analiza el estado actual del entorno y ejecuta el plan solicitado de forma segura."></textarea>
                   </div>
 
                   <div class="form-group" style="display: flex; align-items: center; gap: 8px; margin-top: -8px;">
@@ -570,25 +570,26 @@
 
   <!-- Modal Approve -->
   <div id="modal-approve" class="modal-backdrop">
-    <div class="modal-dialog">
+    <div class="modal-dialog" style="max-width: 640px;">
       <div class="modal-header">
         <h3>✓ Aprobar Plan de Ejecución</h3>
         <button class="modal-close">&times;</button>
       </div>
       <form id="form-confirm-approve">
         @csrf
-        <div class="modal-body">
-          <p style="font-size: 13px; color: var(--text-secondary);">
-            ¿Confirmas la autorización para reanudar el grafo del hilo <strong id="approve-modal-thread-id" style="color: var(--text-primary); font-family: var(--font-mono);"></strong>?
+        <div class="modal-body" style="max-height: 75vh; overflow-y: auto;">
+          <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">
+            ¿Confirmas la autorización para ejecutar el plan de acción del hilo <strong id="approve-modal-thread-id" style="color: var(--text-primary); font-family: var(--font-mono);"></strong>?
           </p>
+          <div id="approve-modal-plan-preview" style="margin-bottom: 14px;"></div>
           <div class="form-group">
             <label class="form-label" for="approve-justification">Justificación u Observaciones (Opcional):</label>
-            <textarea id="approve-justification" class="form-control" placeholder="Ej: Plan validado y mitigación comprobada por el equipo SRE."></textarea>
+            <textarea id="approve-justification" class="form-control" placeholder="Ej: Plan validado y autorizado por el operador de gobernanza."></textarea>
           </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-modal-dismiss>Cancelar</button>
-          <button type="submit" class="btn btn-primary">Conceder Aprobación</button>
+          <button type="submit" id="btn-submit-approve" class="btn btn-primary">Conceder Aprobación</button>
         </div>
       </form>
     </div>
@@ -611,12 +612,12 @@
             <label class="form-label" for="reject-justification">
               Motivo del Rechazo <span style="color: var(--accent-rose);">* (Obligatorio, mín. 5 caracteres)</span>:
             </label>
-            <textarea id="reject-justification" class="form-control" required placeholder="Ej: Riesgo destructivo inasumible en horario comercial según política SRE." style="border-color: rgba(244, 63, 94, 0.4);"></textarea>
+            <textarea id="reject-justification" class="form-control" required placeholder="Ej: Operación denegada según política de gobernanza activa." style="border-color: rgba(244, 63, 94, 0.4);"></textarea>
           </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-modal-dismiss>Cancelar</button>
-          <button type="submit" class="btn btn-danger">Confirmar Rechazo</button>
+          <button type="submit" id="btn-submit-reject" class="btn btn-danger">Confirmar Rechazo</button>
         </div>
       </form>
     </div>
@@ -637,7 +638,7 @@
           </p>
           <div class="form-group">
             <label class="form-label" for="create-agent-name">Nombre del Agente <span style="color: var(--accent-rose);">*</span></label>
-            <input type="text" id="create-agent-name" class="form-control" required placeholder="Ej: Agente SRE Producción">
+            <input type="text" id="create-agent-name" class="form-control" required placeholder="Ej: Agente Cognitivo Producción">
           </div>
           <div class="form-group">
             <label class="form-label" for="create-agent-version">Versión Inicial</label>
@@ -646,7 +647,7 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-modal-dismiss>Cancelar</button>
-          <button type="submit" class="btn btn-primary">Generar Bootstrap Token</button>
+          <button type="submit" id="btn-submit-create-agent" class="btn btn-primary">Generar Bootstrap Token</button>
         </div>
       </form>
 
@@ -701,6 +702,9 @@
           </div>
           <div id="inspect-modal-prompt-box" style="font-size: 13px; color: var(--text-primary); line-height: 1.5; white-space: pre-wrap;">-</div>
         </div>
+
+        <!-- Full Action Plan & Mutative Stages Warning -->
+        <div id="inspect-modal-action-plan-box"></div>
 
         <!-- Mode Toggle Tabs -->
         <div class="tabs-nav" style="border-bottom: 1px solid var(--border-color); margin-bottom: 4px;">

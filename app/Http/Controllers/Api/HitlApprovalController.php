@@ -83,6 +83,7 @@ class HitlApprovalController extends Controller
     {
         $validated = $request->validate([
             'justification' => 'nullable|string|max:1000',
+            'notes' => 'nullable|string|max:1000',
         ]);
 
         $user = $request->user();
@@ -93,10 +94,18 @@ class HitlApprovalController extends Controller
             ], 401);
         }
 
+        $operatorHeader = $request->header('X-Operator');
+        $justification = $validated['justification']
+            ?? $validated['notes']
+            ?? ($operatorHeader ? "Aprobado por {$operatorHeader}" : null);
+        if ($operatorHeader && $justification && !str_contains($justification, $operatorHeader)) {
+            $justification = "[{$operatorHeader}] {$justification}";
+        }
+
         $result = $this->hitlService->approveApproval(
             approvalId: $approvalId,
             resolver: $user,
-            justification: $validated['justification'] ?? null,
+            justification: $justification,
             ipAddress: $request->ip(),
             userAgent: $request->userAgent()
         );

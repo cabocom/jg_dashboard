@@ -58,7 +58,7 @@ class UserResource extends Resource
                         ->label('Rol en el Sistema')
                         ->options([
                             'admin' => 'Administrador (admin)',
-                            'operator' => 'Operador SRE (operator)',
+                            'operator' => 'Operador de Consola (operator)',
                             'viewer' => 'Observador de Métricas (viewer)',
                         ])
                         ->default('operator')

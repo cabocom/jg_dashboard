@@ -28,12 +28,12 @@ class DatabaseSeeder extends Seeder
         if (empty($adminPassword)) {
             throw new RuntimeException(
                 "Seguridad (CWE-521): La variable de entorno ADMIN_DEFAULT_PASSWORD es obligatoria para inicializar " .
-                "el usuario administrador SRE. Configure ADMIN_DEFAULT_PASSWORD en su entorno o archivo .env."
+                "el usuario administrador. Configure ADMIN_DEFAULT_PASSWORD en su entorno o archivo .env."
             );
         }
 
         $adminEmail = env('ADMIN_EMAIL') ?: 'admin@javiergalvez.test.local';
-        $adminName = env('ADMIN_NAME') ?: 'SRE Admin';
+        $adminName = env('ADMIN_NAME') ?: 'Administrador';
 
         User::updateOrCreate(
             ['email' => $adminEmail],

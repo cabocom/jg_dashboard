@@ -83,3 +83,11 @@ Route::prefix('v1')->group(function () {
     });
 });
 
+// Alias route for direct HITL approval compatibility (/api/hitl/approvals/{approval_id}/approve)
+Route::prefix('hitl')->middleware(['jwt.auth', 'role:operator'])->group(function () {
+    Route::get('/approvals/pending', [HitlApprovalController::class, 'pending'])->name('api.hitl.approvals.pending');
+    Route::post('/approvals/{approval_id}/approve', [HitlApprovalController::class, 'approve'])->name('api.hitl.approvals.approve');
+    Route::post('/approvals/{approval_id}/reject', [HitlApprovalController::class, 'reject'])->name('api.hitl.approvals.reject');
+});
+
+

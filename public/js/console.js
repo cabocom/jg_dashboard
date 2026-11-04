@@ -33,6 +33,11 @@ document.addEventListener('DOMContentLoaded', () => {
       executionFilterDateFrom: '',
       executionFilterDateTo: '',
       isTriggeringExecution: false,
+      isSubmittingApproval: false,
+      isSubmittingRejection: false,
+      isCreatingAgent: false,
+      isSavingProfile: false,
+      isRefreshingExecutions: false,
     },
 
     init() {
@@ -50,6 +55,22 @@ document.addEventListener('DOMContentLoaded', () => {
     },
 
     bindEvents() {
+      // Protección global anti-doble clic en botones de acción
+      document.addEventListener('click', (e) => {
+        const btn = e.target.closest('button');
+        if (!btn || btn.disabled) return;
+        if (btn.type === 'submit') return; // Gestionado por los handlers de submit
+        if (btn.classList.contains('tab-btn') || btn.classList.contains('view-btn') || btn.classList.contains('hitl-pill-btn') || btn.classList.contains('theme-option-btn') || btn.id === 'btn-toggle-theme') {
+          return;
+        }
+        btn.disabled = true;
+        setTimeout(() => {
+          if (document.body.contains(btn)) {
+            btn.disabled = false;
+          }
+        }, 600);
+      });
+
       // Tab Navigation
       document.querySelectorAll('.nav-link[data-tab]').forEach((link) => {
         link.addEventListener('click', (e) => {
@@ -290,9 +311,17 @@ document.addEventListener('DOMContentLoaded', () => {
       // Refresh Executions History List Button
       const btnRefreshExecList = document.getElementById('btn-refresh-executions-list');
       if (btnRefreshExecList) {
-        btnRefreshExecList.addEventListener('click', () => {
-          this.fetchExecutions();
-          this.showToast('Historial de ejecuciones sincronizado', 'info');
+        btnRefreshExecList.addEventListener('click', async () => {
+          if (this.state.isRefreshingExecutions) return;
+          this.state.isRefreshingExecutions = true;
+          btnRefreshExecList.disabled = true;
+          try {
+            await this.fetchExecutions();
+            this.showToast('Historial de ejecuciones sincronizado', 'info');
+          } finally {
+            this.state.isRefreshingExecutions = false;
+            btnRefreshExecList.disabled = false;
+          }
         });
       }
 
@@ -807,48 +836,132 @@ document.addEventListener('DOMContentLoaded', () => {
 
     extractPlanSteps(app) {
       const plan = app.proposed_plan || {};
-      let steps = [];
+      let rawSteps = [];
 
       if (Array.isArray(plan.steps) && plan.steps.length > 0) {
-        steps = plan.steps.map((s, idx) => {
-          if (typeof s === 'string') {
-            return { index: idx + 1, action: s, command: null, tool: null };
+        rawSteps = plan.steps;
+      } else if (Array.isArray(plan.actions) && plan.actions.length > 0) {
+        rawSteps = plan.actions;
+      } else {
+        const cogList = Array.isArray(app.cognitive_steps) && app.cognitive_steps.length > 0
+          ? app.cognitive_steps
+          : (Array.isArray(plan.cognitive_steps) ? plan.cognitive_steps : []);
+
+        for (const cs of cogList) {
+          const raPlanSteps = cs?.details?.risk_assessment?.plan_steps || cs?.details?.plan?.steps || cs?.details?.plan_steps;
+          if (Array.isArray(raPlanSteps) && raPlanSteps.length > 0) {
+            rawSteps = raPlanSteps;
+            break;
           }
+        }
+
+        if (rawSteps.length === 0) {
+          for (const cs of cogList) {
+            const tcs = cs?.details?.tool_calls;
+            if (Array.isArray(tcs) && tcs.length > 0) {
+              rawSteps = tcs.map((tc, idx) => {
+                const tName = tc.name || tc.tool_name || `tool_${idx + 1}`;
+                const tArgs = tc.args || tc.tool_args || {};
+                const cmd = tArgs.command || tArgs.target_url || tArgs.url || tArgs.target || null;
+                return {
+                  index: idx + 1,
+                  tool: tName,
+                  command: cmd,
+                  action: cmd ? `Ejecutar ${tName}: ${cmd}` : `Ejecutar ${tName}`,
+                };
+              });
+              break;
+            }
+          }
+        }
+      }
+
+      if (rawSteps.length > 0) {
+        return rawSteps.map((s, idx) => {
+          if (typeof s === 'string') {
+            const isMut = /(mutate|restart|stop|rm|delete|destroy|create|run|kill|write|update)/i.test(s);
+            return {
+              index: idx + 1,
+              action: s,
+              command: null,
+              tool: null,
+              riskLevel: isMut ? 'HIGH' : 'LOW',
+              isMutative: isMut,
+            };
+          }
+          const tool = s.tool || s.tool_name || null;
+          const argsObj = s.tool_args || s.args || {};
+          const command = s.command || s.cmd || argsObj.command || argsObj.target_url || argsObj.url || argsObj.target || null;
+          const action = s.action || s.description || s.name || s.step || (command ? `Ejecutar ${tool || 'comando'}: ${command}` : `Etapa ${idx + 1}`);
+          const riskLevel = String(s.risk_level || (s.mutative ? 'HIGH' : (app.risk_level || 'HIGH'))).toUpperCase();
+          const isMutative =
+            s.mutative === true ||
+            s.read_only === false ||
+            ['HIGH', 'CRITICAL', 'MEDIUM'].includes(riskLevel) ||
+            /(mutate|restart|stop|rm|delete|destroy|create|run|kill|write|update)/i.test(`${tool || ''} ${command || ''}`);
+
           return {
             index: idx + 1,
-            action: s.action || s.name || s.step || s.description || `Paso ${idx + 1}`,
-            command: s.command || s.cmd || null,
-            tool: s.tool || s.tool_name || null,
+            action,
+            command,
+            tool,
+            riskLevel: isMutative ? (riskLevel === 'LOW' ? 'HIGH' : riskLevel) : 'LOW',
+            isMutative,
           };
         });
-      } else if (Array.isArray(plan.actions) && plan.actions.length > 0) {
-        steps = plan.actions.map((a, idx) => ({
-          index: idx + 1,
-          action: typeof a === 'string' ? a : (a.action || a.name || `Acción ${idx + 1}`),
-          command: a.command || null,
-          tool: a.tool || null,
-        }));
-      } else if (Array.isArray(app.cognitive_steps) && app.cognitive_steps.length > 0) {
-        steps = app.cognitive_steps.map((s, idx) => ({
-          index: idx + 1,
-          action: s.title || s.action || s.name || (s.node ? `Nodo: ${s.node}` : `Paso ${idx + 1}`),
-          command: s.command || null,
-          tool: s.tool || s.tool_name || (s.details?.tool || s.details?.tool_name || null),
-        }));
-      } else if (Array.isArray(plan.cognitive_steps) && plan.cognitive_steps.length > 0) {
-        steps = plan.cognitive_steps.map((s, idx) => ({
-          index: idx + 1,
-          action: s.title || s.action || s.name || (s.node ? `Nodo: ${s.node}` : `Paso ${idx + 1}`),
-          command: s.command || null,
-          tool: s.tool || s.tool_name || (s.details?.tool || s.details?.tool_name || null),
-        }));
-      } else {
-        const action = plan.action || plan.description || plan.summary || 'Ejecución de plan cognitivo';
-        const command = plan.command || plan.cmd || null;
-        const tool = (app.tools_involved && app.tools_involved.length > 0) ? app.tools_involved.join(', ') : null;
-        steps = [{ index: 1, action, command, tool }];
       }
-      return steps;
+
+      const action = plan.action || plan.description || plan.summary || app.action_summary || 'Ejecución de plan cognitivo';
+      const command = plan.command || plan.cmd || null;
+      const tool = (app.tools_involved && app.tools_involved.length > 0) ? app.tools_involved.join(', ') : null;
+      return [{
+        index: 1,
+        action,
+        command,
+        tool,
+        riskLevel: String(app.risk_level || 'HIGH').toUpperCase(),
+        isMutative: true,
+      }];
+    },
+
+    renderActionPlanStepsHtml(steps) {
+      return steps
+        .map(
+          (s) => `
+          <div class="step-item ${s.isMutative ? 'step-mutative' : ''}">
+            <span class="step-badge">${s.index}</span>
+            <div class="step-header" style="flex-wrap: wrap;">
+              <span class="step-action-text">${this.escapeHtml(s.action)}</span>
+              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                ${
+                  s.isMutative
+                    ? `<span class="step-mutative-badge">🔴 ETAPA MUTATIVA · ${this.escapeHtml(s.riskLevel || 'HIGH')}</span>`
+                    : `<span class="step-readonly-badge">🟢 SOLO LECTURA</span>`
+                }
+                ${s.tool ? `<span class="tool-tag">${this.escapeHtml(s.tool)}</span>` : ''}
+              </div>
+            </div>
+            ${s.command ? `<div class="step-command-box"><code>$ ${this.escapeHtml(s.command)}</code></div>` : ''}
+          </div>
+        `
+        )
+        .join('');
+    },
+
+    renderMutativeWarningBannerHtml(steps) {
+      const mutativeCount = steps.filter((s) => s.isMutative).length;
+      const totalCount = steps.length;
+      return `
+        <div class="hitl-mutative-warning">
+          <span style="font-size: 16px; line-height: 1;">⚠️</span>
+          <div>
+            <strong>AVISO DE GOBERNANZA HITL:</strong> Con una única aprobación se autorizan todas las etapas de este plan de acción
+            (<strong>${totalCount} etapa${totalCount === 1 ? '' : 's'}</strong> en total, de las cuales
+            <strong>${mutativeCount} ${mutativeCount === 1 ? 'es ETAPA MUTATIVA marcada' : 'son ETAPAS MUTATIVAS marcadas'} en rojo</strong>).
+            Revisa detalladamente las acciones rojas antes de conceder autorización.
+          </div>
+        </div>
+      `;
     },
 
     togglePrompt(approvalId) {
@@ -914,20 +1027,9 @@ document.addEventListener('DOMContentLoaded', () => {
             : (app.action_summary || 'Plan de Alto Riesgo');
 
           const steps = this.extractPlanSteps(app);
-          const stepsHtml = steps
-            .map(
-              (s) => `
-              <div class="step-item">
-                <span class="step-badge">${s.index}</span>
-                <div class="step-header">
-                  <span class="step-action-text">${this.escapeHtml(s.action)}</span>
-                  ${s.tool ? `<span class="tool-tag">${this.escapeHtml(s.tool)}</span>` : ''}
-                </div>
-                ${s.command ? `<div class="step-command-box"><code>$ ${this.escapeHtml(s.command)}</code></div>` : ''}
-              </div>
-            `
-            )
-            .join('');
+          const mutativeCount = steps.filter((s) => s.isMutative).length;
+          const warningBannerHtml = this.renderMutativeWarningBannerHtml(steps);
+          const stepsHtml = this.renderActionPlanStepsHtml(steps);
 
           const compensations = app.compensation_commands || app.proposed_plan?.compensation || [];
           let compensationHtml = '';
@@ -964,10 +1066,12 @@ document.addEventListener('DOMContentLoaded', () => {
               <!-- Prompt Banner -->
               ${promptBannerHtml}
 
-              <!-- Steps Breakdown Timeline -->
+              <!-- Mutative Warning & Full Action Plan Breakdown -->
               <div class="hitl-steps-container">
-                <div class="hitl-steps-title">
-                  <span>📋 Desglose de Pasos (${steps.length})</span>
+                ${warningBannerHtml}
+                <div class="hitl-steps-title" style="display: flex; align-items: center; justify-content: space-between;">
+                  <span>📋 Plan de Acción Propuesto (${steps.length} etapa${steps.length === 1 ? '' : 's'})</span>
+                  <span class="step-mutative-badge">🔴 ${mutativeCount} mutativa${mutativeCount === 1 ? '' : 's'}</span>
                 </div>
                 <div class="hitl-steps-timeline">
                   ${stepsHtml}
@@ -1023,12 +1127,22 @@ document.addEventListener('DOMContentLoaded', () => {
     },
 
     async submitCreateAgent() {
+      if (this.state.isCreatingAgent) return;
+
       const name = document.getElementById('create-agent-name')?.value?.trim();
       const version = document.getElementById('create-agent-version')?.value?.trim() || '1.0.0';
 
       if (!name) {
         this.showToast('El nombre del agente es obligatorio', 'error');
         return;
+      }
+
+      const btnSubmit = document.getElementById('btn-submit-create-agent') || document.querySelector('#form-create-agent button[type="submit"]');
+      const originalHtml = btnSubmit ? btnSubmit.innerHTML : 'Generar Bootstrap Token';
+      this.state.isCreatingAgent = true;
+      if (btnSubmit) {
+        btnSubmit.disabled = true;
+        btnSubmit.textContent = 'Generando token...';
       }
 
       try {
@@ -1058,6 +1172,12 @@ document.addEventListener('DOMContentLoaded', () => {
         this.fetchAgents();
       } catch (err) {
         this.showToast(`Error: ${err.message}`, 'error');
+      } finally {
+        this.state.isCreatingAgent = false;
+        if (btnSubmit) {
+          btnSubmit.disabled = false;
+          btnSubmit.innerHTML = originalHtml;
+        }
       }
     },
 
@@ -1066,6 +1186,30 @@ document.addEventListener('DOMContentLoaded', () => {
       this.setTextContent('approve-modal-thread-id', threadId);
       const input = document.getElementById('approve-justification');
       if (input) input.value = '';
+
+      const previewEl = document.getElementById('approve-modal-plan-preview');
+      if (previewEl) {
+        const app = this.state.pendingApprovals.find((a) => a.id === id);
+        if (app) {
+          const steps = this.extractPlanSteps(app);
+          const mutativeCount = steps.filter((s) => s.isMutative).length;
+          previewEl.innerHTML = `
+            ${this.renderMutativeWarningBannerHtml(steps)}
+            <div class="hitl-steps-container" style="margin-top: 8px;">
+              <div class="hitl-steps-title" style="display: flex; align-items: center; justify-content: space-between;">
+                <span>📋 Plan de Acción que se ejecutará (${steps.length} etapa${steps.length === 1 ? '' : 's'})</span>
+                <span class="step-mutative-badge">🔴 ${mutativeCount} mutativa${mutativeCount === 1 ? '' : 's'}</span>
+              </div>
+              <div class="hitl-steps-timeline">
+                ${this.renderActionPlanStepsHtml(steps)}
+              </div>
+            </div>
+          `;
+        } else {
+          previewEl.innerHTML = '';
+        }
+      }
+
       const modal = document.getElementById('modal-approve');
       if (modal) modal.classList.add('open');
     },
@@ -1115,6 +1259,24 @@ document.addEventListener('DOMContentLoaded', () => {
       const promptBox = document.getElementById('inspect-modal-prompt-box');
       if (promptBox) {
         promptBox.textContent = app.prompt || app.proposed_plan?.prompt || 'Sin prompt registrado para esta ejecución.';
+      }
+
+      const actionPlanBox = document.getElementById('inspect-modal-action-plan-box');
+      if (actionPlanBox) {
+        const planSteps = this.extractPlanSteps(app);
+        const mutativeCount = planSteps.filter((s) => s.isMutative).length;
+        actionPlanBox.innerHTML = `
+          ${this.renderMutativeWarningBannerHtml(planSteps)}
+          <div class="hitl-steps-container">
+            <div class="hitl-steps-title" style="display: flex; align-items: center; justify-content: space-between;">
+              <span>📋 Plan de Acción Propuesto (${planSteps.length} etapa${planSteps.length === 1 ? '' : 's'})</span>
+              <span class="step-mutative-badge">🔴 ${mutativeCount} mutativa${mutativeCount === 1 ? '' : 's'}</span>
+            </div>
+            <div class="hitl-steps-timeline">
+              ${this.renderActionPlanStepsHtml(planSteps)}
+            </div>
+          </div>
+        `;
       }
 
       // Raw Technical JSON
@@ -1175,8 +1337,17 @@ document.addEventListener('DOMContentLoaded', () => {
     },
 
     async submitApproval() {
+      if (this.state.isSubmittingApproval) return;
       const id = this.state.currentApprovalId;
       if (!id) return;
+
+      const btnSubmit = document.getElementById('btn-submit-approve') || document.querySelector('#form-confirm-approve button[type="submit"]');
+      const originalHtml = btnSubmit ? btnSubmit.innerHTML : 'Conceder Aprobación';
+      this.state.isSubmittingApproval = true;
+      if (btnSubmit) {
+        btnSubmit.disabled = true;
+        btnSubmit.textContent = 'Aprobando...';
+      }
 
       const justification = document.getElementById('approve-justification')?.value || '';
       try {
@@ -1204,10 +1375,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       } catch (err) {
         this.showToast(`Error: ${err.message}`, 'error');
+      } finally {
+        this.state.isSubmittingApproval = false;
+        if (btnSubmit) {
+          btnSubmit.disabled = false;
+          btnSubmit.innerHTML = originalHtml;
+        }
       }
     },
 
     async submitRejection() {
+      if (this.state.isSubmittingRejection) return;
       const id = this.state.currentApprovalId;
       if (!id) return;
 
@@ -1215,6 +1393,14 @@ document.addEventListener('DOMContentLoaded', () => {
       if (justification.trim().length < 5) {
         this.showToast('El motivo de rechazo debe contener al menos 5 caracteres', 'error');
         return;
+      }
+
+      const btnSubmit = document.getElementById('btn-submit-reject') || document.querySelector('#form-confirm-reject button[type="submit"]');
+      const originalHtml = btnSubmit ? btnSubmit.innerHTML : 'Confirmar Rechazo';
+      this.state.isSubmittingRejection = true;
+      if (btnSubmit) {
+        btnSubmit.disabled = true;
+        btnSubmit.textContent = 'Rechazando...';
       }
 
       try {
@@ -1242,6 +1428,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       } catch (err) {
         this.showToast(`Error: ${err.message}`, 'error');
+      } finally {
+        this.state.isSubmittingRejection = false;
+        if (btnSubmit) {
+          btnSubmit.disabled = false;
+          btnSubmit.innerHTML = originalHtml;
+        }
       }
     },
 
@@ -2060,10 +2252,10 @@ ${this.escapeHtml(det.steps.map((st, i) => `${i + 1}. [${st.tool_name || st.name
 
           const agentType = exec.agent_type || 'General';
           let agentTypeBadgeClass = 'badge-info';
-          if (agentType.toLowerCase() === 'devops') {
-            agentTypeBadgeClass = 'badge-pending';
-          } else if (agentType.toLowerCase() === 'conversacional') {
+          if (agentType.toLowerCase() === 'conversacional') {
             agentTypeBadgeClass = 'badge-success';
+          } else if (agentType.toLowerCase() !== 'general') {
+            agentTypeBadgeClass = 'badge-pending';
           }
 
           const promptFull = exec.prompt || '';
@@ -2265,8 +2457,13 @@ ${this.escapeHtml(det.steps.map((st, i) => `${i + 1}. [${st.tool_name || st.name
 
     viewAgentHistory(agentId) {
       if (!agentId) return;
-      this.switchTab('executions');
       this.state.executionFilterAgentId = agentId;
+      this.state.executionSearchQuery = '';
+      const searchInput = document.getElementById('executions-search');
+      if (searchInput) {
+        searchInput.value = '';
+      }
+      this.switchTab('executions');
       this.updateExecutionFilterOptions(this.state.executionsList);
       const selectAgent = document.getElementById('executions-filter-agent-id');
       if (selectAgent) {
@@ -2279,11 +2476,6 @@ ${this.escapeHtml(det.steps.map((st, i) => `${i + 1}. [${st.tool_name || st.name
         }
         selectAgent.value = agentId;
       }
-      const searchInput = document.getElementById('executions-search');
-      if (searchInput) {
-        searchInput.value = '';
-      }
-      this.state.executionSearchQuery = '';
       this.renderFilteredExecutions();
       this.showToast(`Historial filtrado para el agente ${agentId}`, 'info');
     },
@@ -2358,7 +2550,10 @@ ${this.escapeHtml(det.steps.map((st, i) => `${i + 1}. [${st.tool_name || st.name
       if (this.state.pollingInterval) clearInterval(this.state.pollingInterval);
       this.state.pollingInterval = setInterval(() => {
         this.loadTab(this.state.activeTab);
-      }, 15000);
+        if (this.state.activeTab !== 'approvals') {
+          this.fetchApprovals();
+        }
+      }, 5000);
     },
 
     getAuthHeaders() {

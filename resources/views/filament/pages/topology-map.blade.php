@@ -24,7 +24,7 @@
                         <x-heroicon-o-bolt class="w-4 h-4" />
                         <span x-text="physicsEnabled ? 'Física ON' : 'Física OFF'"></span>
                     </button>
-                    <button type="button" wire:click="refreshTopology(true)" title="Sincronizar datos ahora" class="p-1.5 text-gray-300 hover:text-white bg-gray-800/80 hover:bg-gray-700 border border-gray-700 rounded-lg transition-colors shadow-sm">
+                    <button type="button" wire:click="refreshTopology(true)" wire:loading.attr="disabled" title="Sincronizar datos ahora" class="p-1.5 text-gray-300 hover:text-white bg-gray-800/80 hover:bg-gray-700 border border-gray-700 rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
                         <x-heroicon-o-arrow-path class="w-4 h-4" wire:loading.class="animate-spin text-emerald-400" />
                     </button>
                 </div>
@@ -46,7 +46,7 @@
                 </div>
                 <div class="flex items-center gap-1.5">
                     <span class="w-2.5 h-2.5 rounded-full bg-blue-500 ring-2 ring-blue-400/20"></span>
-                    <span class="text-gray-300 font-medium">Host SRE</span>
+                    <span class="text-gray-300 font-medium">Host del Sistema</span>
                 </div>
             </div>
 

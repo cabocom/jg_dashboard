@@ -91,6 +91,9 @@ class ExecutionController extends Controller
             $parameters['callback_url'] = $statusCallbackUrl;
         }
 
+        $operatorHeader = $request->header('X-Operator');
+        $displayUsername = $operatorHeader ?: ($user->name ?? $user->email);
+
         $agentInput = [
             'execution_id' => $executionId,
             'thread_id' => $threadId,
@@ -101,17 +104,18 @@ class ExecutionController extends Controller
             'parameters' => (object) $parameters,
             'user_context' => [
                 'user_id' => (string) $user->id,
-                'username' => $user->name ?? $user->email,
+                'username' => $displayUsername,
                 'email' => $user->email,
                 'role' => $user->role,
                 'permissions' => method_exists($user, 'getPermissions')
                     ? $user->getPermissions()
-                    : ($user->role === 'admin' ? ['*', 'docker:restart', 'docker:inspect', 'docker:list', 'admin'] : []),
+                    : ($user->role === 'admin' ? ['*', 'admin'] : []),
             ],
             'metadata' => (object) array_merge((array) ($validated['metadata'] ?? []), [
                 'correlation_id' => $correlationId,
                 'status_callback_url' => $isAsync ? $statusCallbackUrl : null,
                 'triggered_by' => $user->email,
+                'operator_label' => $displayUsername,
                 'user_role' => $user->role,
                 'client_ip' => $request->ip(),
                 'agent_id' => $targetAgentId,
@@ -158,10 +162,10 @@ class ExecutionController extends Controller
                             'agent_id' => $targetAgentId,
                             'prompt' => $prompt,
                             'user_prompt' => $prompt,
-                            'username' => $user?->name ?? 'operator',
+                            'username' => $displayUsername ?? ($user?->name ?? 'operator'),
                             'user_context' => [
                                 'user_id' => $user?->id,
-                                'name' => $user?->name,
+                                'name' => $displayUsername ?? $user?->name,
                                 'email' => $user?->email,
                             ],
                         ],
@@ -249,10 +253,10 @@ class ExecutionController extends Controller
                         'agent_id' => $targetAgentId,
                         'prompt' => $prompt,
                         'user_prompt' => $prompt,
-                        'username' => $user?->name ?? 'operator',
+                        'username' => $displayUsername ?? ($user?->name ?? 'operator'),
                         'user_context' => [
                             'user_id' => $user?->id,
-                            'name' => $user?->name,
+                            'name' => $displayUsername ?? $user?->name,
                             'email' => $user?->email,
                         ],
                     ],
@@ -399,10 +403,16 @@ class ExecutionController extends Controller
                 }
                 if (!empty($data['output']) || !empty($data['response']) || !empty($data['final_output'])) {
                     $currentResult = $localTask->result_json ?? [];
-                    $updates['result_json'] = array_merge(
+                    $mergedResult = array_merge(
                         is_array($currentResult) ? $currentResult : [],
                         $data
                     );
+                    $nestedSteps = $data['data']['cognitive_steps'] ?? $data['cognitive_steps'] ?? $data['data']['steps'] ?? $data['steps'] ?? null;
+                    if (is_array($nestedSteps) && count($nestedSteps) >= count($mergedResult['cognitive_steps'] ?? [])) {
+                        $mergedResult['cognitive_steps'] = $nestedSteps;
+                        $mergedResult['steps'] = $nestedSteps;
+                    }
+                    $updates['result_json'] = $mergedResult;
                 }
                 $localTask->update($updates);
             }
@@ -410,13 +420,32 @@ class ExecutionController extends Controller
             \Illuminate\Support\Facades\Log::warning("[ExecutionController@show] Error sincronizando AgentTask: " . $e->getMessage());
         }
 
-        $cognitiveSteps = $data['cognitive_steps']
-            ?? $data['data']['cognitive_steps']
-            ?? $data['steps']
-            ?? $data['data']['steps']
-            ?? $data['trace_logs']
-            ?? $localTask?->trace_history_json
-            ?? [];
+        $stepCandidates = [
+            $data['data']['cognitive_steps'] ?? null,
+            $data['cognitive_steps'] ?? null,
+            $data['data']['steps'] ?? null,
+            $data['steps'] ?? null,
+            $data['trace_logs'] ?? null,
+            $localTask?->trace_history_json ?? null,
+        ];
+        $cognitiveSteps = [];
+        foreach ($stepCandidates as $candidate) {
+            if (is_array($candidate) && count($candidate) > count($cognitiveSteps)) {
+                $cognitiveSteps = $candidate;
+            }
+        }
+
+        $effectiveStatus = $localTask?->status ?? ($data['status'] ?? 'COMPLETED');
+        if (strtoupper((string) $effectiveStatus) !== 'WAITING_APPROVAL' && !empty($cognitiveSteps)) {
+            $isCancelled = strtoupper((string) $effectiveStatus) === 'CANCELLED';
+            $cognitiveSteps = array_map(function ($step) use ($isCancelled) {
+                if (is_array($step) && ($step['status'] ?? '') === 'waiting_approval') {
+                    $step['status'] = $isCancelled ? 'failed' : 'completed';
+                }
+
+                return $step;
+            }, $cognitiveSteps);
+        }
 
         $resolvedOutput = $data['final_output'] ?? $data['output'] ?? $data['response'] ?? null;
         if (($taskStatus === 'COMPLETED' || in_array($localTask?->status, ['COMPLETED', 'FAILED'])) && !empty($data['final_output'])) {
@@ -424,8 +453,6 @@ class ExecutionController extends Controller
         } elseif (($taskStatus === 'COMPLETED' || in_array($localTask?->status, ['COMPLETED', 'FAILED'])) && $resolvedOutput === 'Ejecución aceptada y encolada en segundo plano.') {
             $resolvedOutput = $data['final_output'] ?? $data['output'] ?? $data['data']['output'] ?? null;
         }
-
-        $effectiveStatus = $localTask?->status ?? ($data['status'] ?? 'COMPLETED');
 
         $unified = [
             'agent_id' => $resolvedAgentId,
