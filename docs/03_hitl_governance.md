@@ -99,6 +99,24 @@ Al solicitar el listado de ejecuciones, para cualquier tarea local que figure en
 
 ## 5. Parámetro `modified_arguments` y Alcance Actual
 
+El modelo `ApprovalRequest` y la interfaz de usuario contemplan el paso opcional de parámetros corregidos por el operador humano (`modified_arguments`).
+
+---
+
+## 6. Desglose Visual de Etapas del Plan y Alertas Rojas de Mutación
+
+Para asegurar que ninguna mutación de infraestructura se ejecute de forma encubierta o desatendida:
+
+1. **Desglose Exhaustivo de Etapas (`plan_steps`):**
+   El modal de aprobación e inspección en `/console` (`renderApprovalsCards`, `openApproveModal`, `openInspectPlanModal`) extrae y visualiza la secuencia ordenada de todas las fases del plan de acción formulado por el agente.
+2. **Badges Visuales Diferenciados por Nivel de Riesgo:**
+   - **Etapas Mutativas (Rojo):** Marcadas con `.step-item.step-mutative` y badge rojo `.step-mutative-badge` indicando la acción que altera el entorno (`docker_mutate`, creación de red, volumen o contenedor).
+   - **Etapas de Solo Lectura (Verde):** Marcadas con `.step-readonly-badge` para inspecciones previas o comprobaciones no intrusivas (`docker_read`, `network ls`, `ps`).
+3. **Banner de Advertencia de Gobernanza:**
+   Si el plan incluye acciones mutativas, se presenta un banner prominente `.hitl-mutative-warning` informando el número exacto de mutaciones y advirtiendo al operador humano de que la autorización ejecutará consecutivamente todas las fases planificadas.
+4. **Prevención Universal de Doble Clic:**
+   Los botones de confirmación de aprobación y rechazo en la consola web deshabilitan su interactividad de forma inmediata al recibir el primer clic, previniendo condiciones de carrera involuntarias generadas por clics duplicados del usuario.
+
 > [!IMPORTANT]
 > **Aclaración de Paridad Técnica de Auditoría:**
 > En la base de código actual de `jg_dashboard` y `jg_agente`, el endpoint de aprobación (`POST /api/v1/approvals/{id}/approve` y `POST /console/approvals/{id}/approve`) **no admite modificación de argumentos en caliente** (`modified_arguments`).
