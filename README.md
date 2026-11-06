@@ -12,14 +12,15 @@
 Es el **único componente del ecosistema expuesto hacia el exterior**, actuando como escudo perimetral para asegurar que los motores de ejecución (`jg_agente`) permanezcan completamente aislados en redes internas privadas sin acceso directo no autenticado.
 
 ### Documentación Técnica Modular
-Para profundizar en la arquitectura y gobernanza del Control Plane:
-- [01. Arquitectura del Control Plane](docs/01_control_plane.md) — Separación de planos, pipeline de servicios y PostgreSQL aislado.
-- [02. Control de Acceso y Roles (RBAC)](docs/02_rbac_tenancy.md) — Modelo de roles `admin`, `operator` y `viewer`, JwtService y auditoría inmutable.
-- [03. Gobernanza Human-In-The-Loop (HITL)](docs/03_hitl_governance.md) — Lock pesimista, reconciliación ante fallos 404/409 y rescate de solicitudes huérfanas.
-- [04. Protocolo Criptográfico Inter-Servicio](docs/04_hmac_handshake.md) — Firmas HMAC-SHA256, dualidad de almacenamiento de secretos y resiliencia HTTP.
-- [05. Esquema de Base de Datos](docs/05_database_schema.md) — Diccionario de datos de las 9 entidades relacionales de `jg_dashboard`.
-- [06. Observabilidad y Resiliencia](docs/06_observability_resilience.md) — Circuit Breakers, Mapa Topológico, Deduplicación de Incidentes y CLI SRE.
-- [07. Pasarela de Adaptadores y Webhooks](docs/07_adapters_webhooks.md) — Normalizador de estímulos externos (`InputNormalizer`), formateo adaptativo (`ClientOutputFormatter`) y controlador webhook.
+Estructurada en múltiples idiomas bajo [`docs/`](docs/README.md):
+- 🇪🇸 **Español (SSOT):**
+  - [01. Arquitectura del Control Plane](docs/es/01_control_plane.md) — Separación de planos, pipeline de servicios y PostgreSQL aislado.
+  - [02. Control de Acceso y Roles (RBAC)](docs/es/02_rbac_tenancy.md) — Modelo de roles `admin`, `operator` y `viewer`, JwtService y auditoría inmutable.
+  - [03. Gobernanza Human-In-The-Loop (HITL)](docs/es/03_hitl_governance.md) — Lock pesimista, reconciliación ante fallos 404/409 y rescate de solicitudes huérfanas.
+  - [04. Protocolo Criptográfico Inter-Servicio](docs/es/04_hmac_handshake.md) — Firmas HMAC-SHA256, dualidad de almacenamiento de secretos y resiliencia HTTP.
+  - [05. Esquema de Base de Datos](docs/es/05_database_schema.md) — Diccionario de datos de las 9 entidades relacionales de `jg_dashboard`.
+  - [06. Observabilidad y Resiliencia](docs/es/06_observability_resilience.md) — Circuit Breakers, Mapa Topológico, Deduplicación de Incidentes y CLI SRE.
+  - [07. Pasarela de Adaptadores y Webhooks](docs/es/07_adapters_webhooks.md) — Normalizador de estímulos externos (`InputNormalizer`), formateo adaptativo (`ClientOutputFormatter`) y controlador webhook.
 
 ---
 
