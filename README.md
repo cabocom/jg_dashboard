@@ -1,9 +1,22 @@
 > ⚠️ **Nota:** Este repositorio es un *mirror* público sincronizado automáticamente desde [GitLab](https://gitlab.com/javiergalvez-ia). El desarrollo activo, pipelines CI/CD, *issues* y discusiones técnicas se gestionan en https://gitlab.com/javiergalvez-ia
 
-# jg_dashboard
+<div align="center">
 
-**Plano de Control, Administración y Gobernanza Human-In-The-Loop**  
-*Control Plane del ecosistema agéntico jG*
+# 🎛️ `jg_dashboard`
+
+### Plano de Control, Administración y Gobernanza Human-In-The-Loop
+*Control Plane del Ecosistema Agéntico jG*
+
+[![GitLab CI/CD](https://img.shields.io/badge/GitLab_CI-Pipeline_Passing-108548?style=flat-square&logo=gitlab&logoColor=white)](https://gitlab.com/javiergalvez-ia/jg_dashboard)
+[![Mirror to GitHub](https://img.shields.io/badge/GitHub-Mirror_Active-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/cabocom/jg_dashboard)
+[![PHP](https://img.shields.io/badge/PHP-8.3%2B-777BB4?style=flat-square&logo=php&logoColor=white)](https://www.php.net/)
+[![Laravel](https://img.shields.io/badge/Laravel-11-FF2D20?style=flat-square&logo=laravel&logoColor=white)](https://laravel.com/)
+[![Filament](https://img.shields.io/badge/Admin-Filament_v3-F29D38?style=flat-square&logo=filament&logoColor=white)](https://filamentphp.com/)
+[![Livewire](https://img.shields.io/badge/Reactive-Livewire_3-FB70A9?style=flat-square&logo=livewire&logoColor=white)](https://livewire.laravel.com/)
+[![HITL Governance](https://img.shields.io/badge/Governance-HITL_%26_Saga-blueviolet?style=flat-square)](#1-visión-general-y-propósito)
+[![Pest](https://img.shields.io/badge/Tests-Pest_PHP-00D2B4?style=flat-square)](https://pestphp.com/)
+
+</div>
 
 ---
 
