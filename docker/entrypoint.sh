@@ -24,7 +24,7 @@ mkdir -p /var/lib/nginx/tmp/client_body \
          /var/lib/nginx/tmp/uwsgi \
          /var/log/nginx
 chown -R www-data:www-data /var/lib/nginx /var/log/nginx
-chmod -R 775 /var/lib/nginx /var/log/nginx
+chmod -R 777 /var/lib/nginx /var/log/nginx
 
 # Limpiar cualquier manifest o cache residual de bootstrap
 rm -f /var/www/html/bootstrap/cache/*.php
