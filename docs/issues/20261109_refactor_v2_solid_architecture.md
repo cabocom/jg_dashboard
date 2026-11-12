@@ -25,8 +25,16 @@ De los 95 ficheros de `jg_dashboard` (12.652 LOC), 82 ya están por debajo de 30
 
 ## 3. Plan de Refactorización Estructural (Cero Roturas)
 
-- **Fase 1 (Descomposición de `HitlApprovalService.php`):**
-  - Extraer casos de uso a `app/Actions/Hitl/` (`ApproveHitlRequestAction`, `RejectHitlRequestAction`, `CompensateSagaAction`) y servicios enfocados (`HitlTokenValidator`, `HitlStateTransitioner`), manteniendo `HitlApprovalService` como fachada compatible.
+- **Fase 1 (Descomposición de `HitlApprovalService.php`) [COMPLETADA]:**
+  - `HitlApprovalService.php` reducido de **949 LOC a 160 LOC** como fachada delgada y retrocompatible.
+  - Casos de uso y servicios enfocados extraídos:
+    * `app/Actions/Hitl/RegisterHitlApprovalAction.php` (125 LOC)
+    * `app/Actions/Hitl/ApproveHitlRequestAction.php` (225 LOC)
+    * `app/Actions/Hitl/RejectHitlRequestAction.php` (220 LOC)
+    * `app/Actions/Hitl/ReconcileHitlApprovalsAction.php` (65 LOC)
+    * `app/Services/Hitl/HitlApprovalFormatter.php` (175 LOC)
+    * `app/Services/Hitl/HitlTaskSynchronizer.php` (115 LOC)
+  - 100% de tests pasando en verde (336 tests Pest) sin rotura de contratos.
 - **Fase 2 (Adelgazamiento de Controladores HTTP):**
   - Extraer la lógica de negocio de `ExecutionController.php` y `WebConsoleController.php` hacia clases `Action` y `DTOs` inmutables (`readonly class`), dejando los controladores en `<200 LOC`.
 - **Fase 3 (Vistas y Clientes):**

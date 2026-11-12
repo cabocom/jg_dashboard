@@ -1,10 +1,18 @@
 # CONTEXTO DE PROYECTO: jg_dashboard
 
-**Versión del documento:** 3.35.1  
-**Fecha de consolidación:** 9 de noviembre de 2026  
+**Versión del documento:** 3.36.0  
+**Fecha de consolidación:** 12 de noviembre de 2026  
 **Componente:** Control Plane (Plano de Control, Gestión, Gobernanza y HITL)  
 **Stack Tecnológico:** Laravel 11, Filament PHP v3, Livewire 3, Tailwind CSS, PostgreSQL, Pest PHP  
-**Estado:** Fases 01 a 08 y Fase 09 completadas al 100%. Soporte multi-agente, pasarela completa de adaptadores externos (Webhooks, CI/CD, Chatbots y Asterisk Telephony Adapter con soporte bidireccional 'response' y 'tts_text'), servicio criptográfico JWT estándar con rotación y blacklist, webhook de actualización asíncrona HMAC, paginación homogénea de 50 elementos por defecto, compatibilidad multiplataforma Linux/macOS en scripts operativos y sincronización automática de *mirror* público hacia `https://github.com/cabocom/jg_dashboard` (`workspace#8`).  
+**Estado:** Fases 01 a 09 completadas al 100%. Refactorización Estructural v2.0 SOLID en progreso (jg_dashboard#58): Fase 1 completada (Descomposición de `HitlApprovalService.php` de 949 LOC a fachada de 160 LOC mediante `app/Actions/Hitl/` y `app/Services/Hitl/`). Soporte multi-agente, pasarela completa de adaptadores externos (Webhooks, CI/CD, Chatbots y Asterisk Telephony Adapter con soporte bidireccional 'response' y 'tts_text'), servicio criptográfico JWT estándar con rotación y blacklist, webhook de actualización asíncrona HMAC, paginación homogénea de 50 elementos por defecto, compatibilidad multiplataforma Linux/macOS en scripts operativos y sincronización automática de *mirror* público hacia `https://github.com/cabocom/jg_dashboard` (`workspace#8`).  
+- Refactorización Estructural SOLID v2.0 (jg_dashboard#58 - Fase 1): Descomposición modular de `HitlApprovalService.php` (de 949 LOC a 160 LOC) preservando al 100% las firmas y compatibilidad hacia atrás mediante inyección y delegación en:
+  * `App\Actions\Hitl\RegisterHitlApprovalAction`: Registro y deduplicación atómica de solicitudes HITL entrantes con auditoría.
+  * `App\Actions\Hitl\ApproveHitlRequestAction`: Bloqueo pesimista `lockForUpdate`, transición a `PROCESSING`, delegación HTTP al agente con HMAC y reconciliación transaccional.
+  * `App\Actions\Hitl\RejectHitlRequestAction`: Rechazo seguro, transición pesimista, delegación upstream y marcado de auditoría.
+  * `App\Actions\Hitl\ReconcileHitlApprovalsAction`: Reconciliación atómica de aprobaciones bloqueadas en `PROCESSING` que superaron el umbral TTL hacia `PENDING`.
+  * `App\Services\Hitl\HitlApprovalFormatter`: Extracción de resúmenes de acción e interpolación enriquecida de esquemas para la API y la consola web.
+  * `App\Services\Hitl\HitlTaskSynchronizer`: Sincronización desacoplada del ciclo de vida y resultados de `AgentTask`.
+  * Todas las clases de la fase respetan el límite estricto de <300 LOC y métodos <40 LOC, con 336/336 tests Pest pasando sin regresiones.  
 - Compatibilidad de Telefonía Asterisk (DASH-AST-02): Incorporación de la clave canónica `'response'` junto a `'tts_text'` en el payload generado por `MockAsteriskChatAdapter` para asegurar la integración transparente e interoperable con gateways de voz ARI/Asterisk.
 - Paginación Homogénea de 50 Elementos por Defecto (DASH-PAG-01): Configuración transversal de 50 elementos por página en todas las tablas y recursos administrativos de Filament mediante `Table::configureUsing(...)` en `AppServiceProvider::boot()`, y actualización del valor por defecto en los endpoints de listado de `AgentController@index` (`$perPage = 50`) y `HitlApprovalService@getPendingApprovals` (`$perPage = 50`).
 - Adaptador de Telefonía Asterisk y Trazabilidad de Llamadas (DASH-AST-01): Normalización del caller ID en `MockAsteriskChatAdapter`, asociando correctamente el número del llamante como identidad de usuario (`user_context.username` y `metadata.caller_id`).
