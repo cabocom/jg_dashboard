@@ -35,8 +35,14 @@ De los 95 ficheros de `jg_dashboard` (12.652 LOC), 82 ya están por debajo de 30
     * `app/Services/Hitl/HitlApprovalFormatter.php` (175 LOC)
     * `app/Services/Hitl/HitlTaskSynchronizer.php` (115 LOC)
   - 100% de tests pasando en verde (336 tests Pest) sin rotura de contratos.
-- **Fase 2 (Adelgazamiento de Controladores HTTP):**
-  - Extraer la lógica de negocio de `ExecutionController.php` y `WebConsoleController.php` hacia clases `Action` y `DTOs` inmutables (`readonly class`), dejando los controladores en `<200 LOC`.
+- **Fase 2 (Adelgazamiento de Controladores HTTP) [COMPLETADA]:**
+  - `ExecutionController.php` reducido de **508 LOC a 51 LOC** delegando en `TriggerAgentExecutionAction.php` (264 LOC), `FetchExecutionTraceAction.php` (269 LOC) y `ExecutionTaskSynchronizer.php` (106 LOC) usando los DTOs inmutables `TriggerExecutionInput` y `TriggerExecutionResult`.
+  - `WebConsoleController.php` reducido de **599 LOC a 289 LOC** delegando en casos de uso atómicos:
+    * `app/Actions/Console/ListConsoleAgentsAction.php` (64 LOC)
+    * `app/Actions/Console/GetConsolePendingApprovalsAction.php` (124 LOC)
+    * `app/Actions/Console/ListConsoleExecutionsAction.php` (218 LOC)
+    * `app/Actions/Console/UpdateConsoleProfileAction.php` (70 LOC)
+  - 100% de tests Pest (336 tests, 1.560 assertions) y pruebas E2E Selenium (Firefox) pasando al 100%.
 - **Fase 3 (Vistas y Clientes):**
   - Modularizar parciales de `console/index.blade.php` y separar responsabilidades en `AgentHttpClient.php` y `JwtService.php`.
 
