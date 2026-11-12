@@ -11,147 +11,69 @@
 
 namespace App\Services\Auth;
 
-use App\Models\JwtRevocation;
 use App\Models\User;
-use Carbon\Carbon;
+use DateTimeInterface;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
-use InvalidArgumentException;
-use RuntimeException;
 use Throwable;
 
 class JwtService
 {
-    protected string $secret;
     protected int $defaultTtlMinutes;
-    protected string $algo;
-    protected string $currentKeyId;
+
+    protected JwtKeyManager $keyManager;
+
+    protected JwtBlacklistService $blacklist;
 
     /**
-     * @var array<string, Key>
-     */
-    protected array $keys = [];
-
-    /**
-     * @param array<string, string> $additionalKeys Associative map of 'kid' => 'secret'
+     * @param  array<string, string>  $additionalKeys  Associative map of 'kid' => 'secret'
      */
     public function __construct(
         ?string $secret = null,
         ?int $defaultTtlMinutes = null,
         array $additionalKeys = [],
-        ?string $currentKeyId = null
+        ?string $currentKeyId = null,
+        ?JwtBlacklistService $blacklist = null,
+        ?JwtKeyManager $keyManager = null
     ) {
-        $resolvedSecret = $secret 
-            ?? config('auth.jwt.secret') 
-            ?? config('app.key');
-
-        if (empty($resolvedSecret) || !is_string($resolvedSecret) || trim($resolvedSecret) === '' || $resolvedSecret === 'default_jg_dashboard_jwt_secret_32_bytes_long') {
-            throw new RuntimeException(
-                'JWT secret is not configured or uses an insecure default. Please set JWT_SECRET or APP_KEY in your environment configuration.'
-            );
-        }
-
-        $this->secret = $this->normalizeSecret($resolvedSecret);
+        $this->blacklist = $blacklist ?? new JwtBlacklistService;
+        $this->keyManager = $keyManager ?? new JwtKeyManager($secret, $additionalKeys, $currentKeyId);
         $this->defaultTtlMinutes = $defaultTtlMinutes ?? (int) config('auth.jwt.ttl', 60);
-        $this->algo = 'HS256';
-        $this->currentKeyId = $currentKeyId ?? (string) (config('auth.jwt.key_id') ?: 'v1');
-
-        // Register default key
-        $this->keys[$this->currentKeyId] = class_exists(Key::class)
-            ? new Key($this->secret, $this->algo)
-            : $this->secret;
-
-        // Register additional rotation keys from config and constructor
-        $configKeys = config('auth.jwt.keys', []);
-        $mergedKeys = array_merge(is_array($configKeys) ? $configKeys : [], $additionalKeys);
-
-        foreach ($mergedKeys as $kid => $keySecret) {
-            if (is_string($kid) && is_string($keySecret) && trim($keySecret) !== '') {
-                $this->registerKey($kid, $keySecret);
-            }
-        }
     }
 
-    /**
-     * Normalize secret stripping base64: prefix if present.
-     */
-    protected function normalizeSecret(string $secret): string
-    {
-        if (str_starts_with($secret, 'base64:')) {
-            $rawBase64 = substr($secret, 7);
-            $decoded = base64_decode($rawBase64, true);
-            if ($decoded === false || trim($decoded) === '') {
-                throw new RuntimeException(
-                    'Resolved JWT secret is empty or contains an invalid base64 encoding.'
-                );
-            }
-            return $decoded;
-        }
-
-        if (trim($secret) === '') {
-            throw new RuntimeException(
-                'Resolved JWT secret is empty. Please provide a valid cryptographic key.'
-            );
-        }
-
-        if (strlen($secret) < 32) {
-            throw new RuntimeException(
-                'Resolved JWT secret is too short. HMAC-SHA256 requires a key of at least 256 bits (32 bytes).'
-            );
-        }
-
-        return $secret;
-    }
-
-    /**
-     * Register a rotation key indexed by key identifier (kid).
-     */
     public function registerKey(string $keyId, string $secret): self
     {
-        $normalized = $this->normalizeSecret($secret);
-        $this->keys[$keyId] = class_exists(Key::class)
-            ? new Key($normalized, $this->algo)
-            : $normalized;
+        $this->keyManager->registerKey($keyId, $secret);
 
         return $this;
     }
 
-    /**
-     * Set the active signing key ID.
-     */
     public function setCurrentKeyId(string $keyId): self
     {
-        $this->currentKeyId = $keyId;
+        $this->keyManager->setCurrentKeyId($keyId);
 
         return $this;
     }
 
-    /**
-     * Get active signing key ID.
-     */
     public function getCurrentKeyId(): string
     {
-        return $this->currentKeyId;
+        return $this->keyManager->getCurrentKeyId();
     }
 
     /**
      * Generate a signed JWT token for a given User using firebase/php-jwt.
-     * Incorporates unique token identifier (jti) and key rotation header (kid).
      *
-     * @param array<string, mixed> $customClaims
+     * @param  array<string, mixed>  $customClaims
      */
     public function generateToken(User $user, ?int $ttlMinutes = null, array $customClaims = []): string
     {
         $ttl = $ttlMinutes ?? $this->defaultTtlMinutes;
         $now = time();
-        $jti = (string) Str::uuid();
-
         $payload = array_merge([
             'iss' => config('app.url', 'http://localhost:8080'),
             'sub' => (string) $user->id,
-            'jti' => $jti,
+            'jti' => (string) Str::uuid(),
             'name' => $user->name,
             'email' => $user->email,
             'role' => $user->role,
@@ -163,23 +85,26 @@ class JwtService
         if (class_exists(JWT::class)) {
             return JWT::encode(
                 $payload,
-                $this->secret,
-                $this->algo,
-                $this->currentKeyId
+                $this->keyManager->getSecret(),
+                $this->keyManager->getAlgo(),
+                $this->keyManager->getCurrentKeyId()
             );
         }
 
-        $header = [
-            'typ' => 'JWT',
-            'alg' => $this->algo,
-            'kid' => $this->currentKeyId,
-        ];
+        return $this->encodeManually($payload);
+    }
+
+    /**
+     * Manual fallback JWT encoder when library is unavailable.
+     */
+    protected function encodeManually(array $payload): string
+    {
+        $header = ['typ' => 'JWT', 'alg' => $this->keyManager->getAlgo(), 'kid' => $this->keyManager->getCurrentKeyId()];
         $segments = [
             $this->base64UrlEncode((string) json_encode($header)),
             $this->base64UrlEncode((string) json_encode($payload)),
         ];
-        $signingInput = implode('.', $segments);
-        $signature = hash_hmac('sha256', $signingInput, $this->secret, true);
+        $signature = hash_hmac('sha256', implode('.', $segments), $this->keyManager->getSecret(), true);
         $segments[] = $this->base64UrlEncode($signature);
 
         return implode('.', $segments);
@@ -187,66 +112,27 @@ class JwtService
 
     /**
      * Verify and decode a JWT token string.
-     * Checks signature, algorithm, expiration, and token blacklist/revocation.
-     * Returns decoded payload array if valid, or null if invalid/tampered/expired/revoked.
      *
      * @return array<string, mixed>|null
      */
     public function verifyToken(string $token): ?array
     {
-        $token = trim($token);
-        $parts = explode('.', $token);
+        $parts = explode('.', trim($token));
         if (count($parts) !== 3) {
             return null;
         }
 
-        $headerJson = $this->base64UrlDecode($parts[0]);
-        if (!$headerJson) {
-            return null;
-        }
-
-        $header = json_decode($headerJson, true);
-        if (!is_array($header) || ($header['alg'] ?? null) !== $this->algo || ($header['typ'] ?? null) !== 'JWT') {
+        $header = $this->parseTokenHeader($parts[0]);
+        if (! $header) {
             return null;
         }
 
         try {
-            if (class_exists(JWT::class)) {
-                $keyOrKeys = (!empty($header['kid']) && count($this->keys) > 0)
-                    ? $this->keys
-                    : ($this->keys[$this->currentKeyId] ?? new Key($this->secret, $this->algo));
+            $payload = class_exists(JWT::class)
+                ? $this->decodeWithFirebaseJwt($token, $header)
+                : $this->decodeManually($parts, $header);
 
-                $decoded = JWT::decode($token, $keyOrKeys);
-                $payload = json_decode((string) json_encode($decoded), true);
-            } else {
-                $kid = $header['kid'] ?? $this->currentKeyId;
-                $rawKey = $this->keys[$kid] ?? $this->secret;
-                $secretStr = is_string($rawKey) ? $rawKey : $this->secret;
-                $expectedSig = hash_hmac('sha256', $parts[0] . '.' . $parts[1], $secretStr, true);
-                $providedSig = $this->base64UrlDecode($parts[2]);
-                if ($providedSig === null || !hash_equals($expectedSig, $providedSig)) {
-                    return null;
-                }
-                $payloadJson = $this->base64UrlDecode($parts[1]);
-                $payload = $payloadJson ? json_decode($payloadJson, true) : null;
-                if (!is_array($payload)) {
-                    return null;
-                }
-                $now = time();
-                if (isset($payload['nbf']) && (int) $payload['nbf'] > $now) {
-                    return null;
-                }
-                if (isset($payload['exp']) && (int) $payload['exp'] < $now) {
-                    return null;
-                }
-            }
-
-            if (!is_array($payload)) {
-                return null;
-            }
-
-            // Check if token jti is revoked
-            if (isset($payload['jti']) && $this->isRevoked((string) $payload['jti'])) {
+            if (! is_array($payload) || (isset($payload['jti']) && $this->isRevoked((string) $payload['jti']))) {
                 return null;
             }
 
@@ -257,8 +143,66 @@ class JwtService
     }
 
     /**
-     * Check if a token is expired specifically.
+     * Parse and validate token header segment.
      */
+    protected function parseTokenHeader(string $headerSegment): ?array
+    {
+        $headerJson = $this->base64UrlDecode($headerSegment);
+        if (! $headerJson) {
+            return null;
+        }
+
+        $header = json_decode($headerJson, true);
+        if (! is_array($header) || ($header['alg'] ?? null) !== $this->keyManager->getAlgo() || ($header['typ'] ?? null) !== 'JWT') {
+            return null;
+        }
+
+        return $header;
+    }
+
+    /**
+     * Decode token using Firebase JWT library.
+     */
+    protected function decodeWithFirebaseJwt(string $token, array $header): ?array
+    {
+        $allKeys = $this->keyManager->getKeys();
+        $keyOrKeys = (! empty($header['kid']) && count($allKeys) > 0)
+            ? $allKeys
+            : $this->keyManager->resolveKeyForVerification($header['kid'] ?? null);
+
+        $decoded = JWT::decode($token, $keyOrKeys);
+
+        return json_decode((string) json_encode($decoded), true);
+    }
+
+    /**
+     * Manual fallback token decoder and signature verification.
+     */
+    protected function decodeManually(array $parts, array $header): ?array
+    {
+        $rawKey = $this->keyManager->resolveKeyForVerification($header['kid'] ?? null);
+        $secretStr = is_string($rawKey) ? $rawKey : ($rawKey instanceof Key ? $this->keyManager->getSecret() : $this->keyManager->getSecret());
+
+        $expectedSig = hash_hmac('sha256', $parts[0].'.'.$parts[1], $secretStr, true);
+        $providedSig = $this->base64UrlDecode($parts[2]);
+        if ($providedSig === null || ! hash_equals($expectedSig, $providedSig)) {
+            return null;
+        }
+
+        $payloadJson = $this->base64UrlDecode($parts[1]);
+        $payload = $payloadJson ? json_decode($payloadJson, true) : null;
+        if (! is_array($payload)) {
+            return null;
+        }
+
+        $now = time();
+        if ((isset($payload['nbf']) && (int) $payload['nbf'] > $now) || (isset($payload['exp']) && (int) $payload['exp'] < $now)) {
+            return null;
+        }
+
+        return $payload;
+    }
+
     public function isExpired(string $token): bool
     {
         $parts = explode('.', trim($token));
@@ -267,140 +211,47 @@ class JwtService
         }
 
         $payloadJson = $this->base64UrlDecode($parts[1]);
-        if (!$payloadJson) {
+        if (! $payloadJson) {
             return true;
         }
 
         $payload = json_decode($payloadJson, true);
-        if (!is_array($payload) || !isset($payload['exp'])) {
+        if (! is_array($payload) || ! isset($payload['exp'])) {
             return true;
         }
 
         return (int) $payload['exp'] < time();
     }
 
-    /**
-     * Extract User model from valid JWT token.
-     */
     public function getUserFromToken(string $token): ?User
     {
         $payload = $this->verifyToken($token);
-        if (!$payload || !isset($payload['sub'])) {
+        if (! $payload || ! isset($payload['sub'])) {
             return null;
         }
 
         return User::find($payload['sub']);
     }
 
-    /**
-     * Invalidate/revoke an issued token immediately by placing its jti on the blacklist.
-     */
     public function revokeToken(string $token, ?string $reason = null): bool
     {
-        $parts = explode('.', trim($token));
-        if (count($parts) !== 3) {
-            return false;
-        }
-
-        $payloadJson = $this->base64UrlDecode($parts[1]);
-        if (!$payloadJson) {
-            return false;
-        }
-
-        $payload = json_decode($payloadJson, true);
-        if (!is_array($payload) || empty($payload['jti'])) {
-            return false;
-        }
-
-        $userId = isset($payload['sub']) && is_numeric($payload['sub']) ? (int) $payload['sub'] : null;
-        $expiresAt = isset($payload['exp']) && is_numeric($payload['exp'])
-            ? Carbon::createFromTimestamp((int) $payload['exp'])
-            : null;
-
-        return $this->revokeJti((string) $payload['jti'], $userId, $expiresAt, $reason);
+        return $this->blacklist->revokeToken($token, $reason, fn (string $seg) => $this->base64UrlDecode($seg));
     }
 
-    /**
-     * Register a jti into blacklist storage (Cache + Database).
-     */
     public function revokeJti(
         string $jti,
         ?int $userId = null,
-        ?\DateTimeInterface $expiresAt = null,
+        ?DateTimeInterface $expiresAt = null,
         ?string $reason = null
     ): bool {
-        if (empty($jti)) {
-            return false;
-        }
-
-        $cacheKey = "jwt:revoked:{$jti}";
-        $ttlSeconds = (int) config('auth.jwt.blacklist_cache_ttl', 3600);
-
-        try {
-            Cache::put($cacheKey, true, $ttlSeconds);
-        } catch (Throwable) {
-            // Ignore cache failure and continue
-        }
-
-        try {
-            JwtRevocation::updateOrCreate(
-                ['jti' => $jti],
-                [
-                    'user_id' => $userId,
-                    'revoked_at' => Carbon::now(),
-                    'expires_at' => $expiresAt,
-                    'reason' => $reason ?? 'manual_revocation',
-                ]
-            );
-
-            return true;
-        } catch (Throwable) {
-            return false;
-        }
+        return $this->blacklist->revokeJti($jti, $userId, $expiresAt, $reason);
     }
 
-    /**
-     * Check if a token jti is currently revoked in Cache or Database.
-     */
     public function isRevoked(string $jti): bool
     {
-        if (empty($jti)) {
-            return false;
-        }
-
-        if (!config('auth.jwt.blacklist_enabled', true)) {
-            return false;
-        }
-
-        $cacheKey = "jwt:revoked:{$jti}";
-
-        try {
-            if (Cache::has($cacheKey)) {
-                return (bool) Cache::get($cacheKey);
-            }
-        } catch (Throwable) {
-            // Cache issue, fallback to DB
-        }
-
-        try {
-            $revoked = JwtRevocation::where('jti', $jti)->exists();
-            if ($revoked) {
-                try {
-                    Cache::put($cacheKey, true, (int) config('auth.jwt.blacklist_cache_ttl', 3600));
-                } catch (Throwable) {
-                    // Ignore cache put failure
-                }
-            }
-
-            return $revoked;
-        } catch (Throwable) {
-            return false;
-        }
+        return $this->blacklist->isRevoked($jti);
     }
 
-    /**
-     * Base64URL encode string (RFC 7515 compliant wrapper).
-     */
     public function base64UrlEncode(string $data): string
     {
         if (class_exists(JWT::class)) {
@@ -410,9 +261,6 @@ class JwtService
         return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
     }
 
-    /**
-     * Base64URL decode string (RFC 7515 compliant wrapper).
-     */
     public function base64UrlDecode(string $data): ?string
     {
         try {
