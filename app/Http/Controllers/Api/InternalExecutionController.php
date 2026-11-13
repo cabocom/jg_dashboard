@@ -13,25 +13,24 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Agent;
-use App\Models\AgentTask;
 use App\Models\AuditEvent;
-use App\Services\Hitl\HitlApprovalService;
+use App\Services\Executions\InternalExecutionWebhookProcessor;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 
 class InternalExecutionController extends Controller
 {
+    public function __construct(
+        protected InternalExecutionWebhookProcessor $processor = new InternalExecutionWebhookProcessor()
+    ) {}
+
     /**
      * Process asynchronous execution completion webhook sent by jg_agente.
      */
     public function complete(Request $request, string $executionId): JsonResponse
     {
-        // 1. Extract Agent ID (Header X-Agent-ID or body agent_id)
         $agentId = $request->header('X-Agent-ID') ?: $request->input('agent_id');
-
-        // 2. Extract Permanent Secret (Bearer token, X-Agent-Secret header, or body permanent_secret)
         $secret = $request->bearerToken()
             ?: ($request->header('X-Agent-Secret') ?: $request->input('permanent_secret'));
 
@@ -42,131 +41,39 @@ class InternalExecutionController extends Controller
             ], 401);
         }
 
-        $agent = Agent::find(trim($agentId));
-        if (!$agent) {
+        $agent = Agent::find(trim((string) $agentId));
+        if (! $agent) {
             return response()->json([
                 'error' => 'Not Found',
                 'message' => "Agente con ID '{$agentId}' no encontrado.",
             ], 404);
         }
 
-        if (!$agent->verifyPermanentSecret(trim($secret))) {
+        if (! $agent->verifyPermanentSecret(trim((string) $secret))) {
             return response()->json([
                 'error' => 'Unauthorized',
                 'message' => 'Credencial de agente inválida.',
             ], 401);
         }
 
-        // 3. Process execution payload
-        $threadId = $request->input('thread_id') ?? $executionId;
-        $statusRaw = strtolower((string) $request->input('status', 'completed'));
+        $threadId = (string) ($request->input('thread_id') ?? $executionId);
+        $taskStatus = $this->processor->resolveTaskStatus((string) $request->input('status', 'completed'), 'COMPLETED');
         $responseData = $request->all();
-
-        $taskStatus = match ($statusRaw) {
-            'completed', 'success', 'resolved' => 'COMPLETED',
-            'waiting_approval', 'awaiting_approval' => 'WAITING_APPROVAL',
-            'cancelled', 'rejected' => 'CANCELLED',
-            'failed', 'error' => 'FAILED',
-            default => 'COMPLETED',
-        };
 
         $requiresApproval = (bool) (
             $request->boolean('requires_approval')
             || $taskStatus === 'WAITING_APPROVAL'
-            || !empty($request->input('pending_approval_id'))
+            || ! empty($request->input('pending_approval_id'))
         );
 
         $completedAt = in_array($taskStatus, ['COMPLETED', 'FAILED', 'CANCELLED'])
-            ? (!empty($responseData['completed_at']) ? Carbon::parse($responseData['completed_at']) : now())
+            ? (! empty($responseData['completed_at']) ? Carbon::parse($responseData['completed_at']) : now())
             : null;
 
-        // 4. Update or create AgentTask
-        try {
-            $task = AgentTask::where('task_id', $executionId)
-                ->orWhere('thread_id', $threadId)
-                ->latest()
-                ->first();
+        $prompt = $request->input('prompt') ?? $request->input('response');
+        $this->processor->upsertAgentTask($executionId, $threadId, $agent, $taskStatus, $responseData, $completedAt, $prompt);
+        $this->processor->handlePendingHitlApproval($requiresApproval, $executionId, $threadId, $agent, $responseData, $prompt, $request->ip(), $request->userAgent());
 
-            if ($task) {
-                $mergedResult = array_merge(
-                    is_array($task->result_json) ? $task->result_json : [],
-                    $responseData
-                );
-                $finalText = $responseData['final_output'] ?? $responseData['output'] ?? $responseData['response'] ?? null;
-                if ($finalText && $finalText !== 'Ejecución aceptada y encolada en segundo plano.') {
-                    $mergedResult['output'] = $finalText;
-                    $mergedResult['response'] = $finalText;
-                    $mergedResult['final_output'] = $finalText;
-                }
-                $freshSteps = $responseData['data']['cognitive_steps']
-                    ?? $responseData['cognitive_steps']
-                    ?? $responseData['data']['steps']
-                    ?? $responseData['steps']
-                    ?? null;
-                if (is_array($freshSteps) && count($freshSteps) >= count($mergedResult['cognitive_steps'] ?? [])) {
-                    $mergedResult['cognitive_steps'] = $freshSteps;
-                    $mergedResult['steps'] = $freshSteps;
-                }
-                $updates = [
-                    'status' => $taskStatus,
-                    'result_json' => $mergedResult,
-                ];
-
-                if ($completedAt) {
-                    $updates['completed_at'] = $completedAt;
-                    if ($task->started_at) {
-                        $updates['duration'] = round($completedAt->diffInMilliseconds($task->started_at) / 1000, 2);
-                    }
-                }
-
-                $task->update($updates);
-            } else {
-                $task = AgentTask::create([
-                    'task_id' => $executionId,
-                    'thread_id' => $threadId,
-                    'agent_id' => $agent->agent_id,
-                    'status' => $taskStatus,
-                    'payload_json' => [
-                        'agent_id' => $agent->agent_id,
-                        'prompt' => $request->input('prompt') ?? $request->input('response') ?? '',
-                    ],
-                    'result_json' => $responseData,
-                    'created_at' => now(),
-                    'started_at' => now(),
-                    'completed_at' => $completedAt,
-                ]);
-            }
-        } catch (\Throwable $e) {
-            Log::warning("[InternalExecutionController] Error actualizando AgentTask '{$executionId}': " . $e->getMessage());
-        }
-
-        // 5. If HITL approval is required, register approval request
-        if ($requiresApproval) {
-            try {
-                $cognitiveSteps = $responseData['cognitive_steps']
-                    ?? $responseData['data']['cognitive_steps']
-                    ?? $responseData['data']['steps']
-                    ?? [];
-
-                $planData = $responseData['data']['plan'] ?? $responseData['plan'] ?? [];
-
-                app(HitlApprovalService::class)->registerPendingApproval([
-                    'thread_id' => $threadId,
-                    'agent_id' => $agent->agent_id,
-                    'task_id' => $executionId,
-                    'prompt' => $request->input('prompt') ?? 'Operación en espera de autorización humana',
-                    'risk_level' => $responseData['data']['risk_assessment']['risk_level'] ?? $responseData['risk_level'] ?? 'HIGH',
-                    'proposed_plan' => $planData,
-                    'cognitive_steps' => $cognitiveSteps,
-                    'compensation_commands' => $responseData['data']['compensation_commands'] ?? $responseData['compensation_commands'] ?? [],
-                    'tools' => $responseData['tools'] ?? null,
-                ], null, $request->ip(), $request->userAgent());
-            } catch (\Throwable $e) {
-                Log::warning("[InternalExecutionController] Error registrando solicitud HITL para '{$executionId}': " . $e->getMessage());
-            }
-        }
-
-        // 6. Record Audit Event
         AuditEvent::record(
             eventType: 'execution.webhook_completed',
             actionSummary: "Notificación de finalización asíncrona procesada para tarea: {$executionId} ({$taskStatus})",
@@ -196,129 +103,40 @@ class InternalExecutionController extends Controller
      */
     public function statusUpdate(Request $request, string $executionId): JsonResponse
     {
-        // 1. Resolve authenticated agent (injected by VerifyHmacSignature middleware)
         $agent = $request->attributes->get('authenticated_agent');
 
-        if (!$agent) {
+        if (! $agent) {
             $agentId = $request->header('X-Agent-ID') ?: $request->input('agent_id');
             if ($agentId) {
                 $agent = Agent::find(trim((string) $agentId));
             }
         }
 
-        if (!$agent) {
+        if (! $agent) {
             return response()->json([
                 'error' => 'Unauthorized',
                 'message' => 'Agente autenticado no encontrado.',
             ], 401);
         }
 
-        // 2. Extract and normalize execution payload
-        $threadId = $request->input('thread_id') ?? $executionId;
-        $statusRaw = strtolower((string) $request->input('status', 'processing'));
+        $threadId = (string) ($request->input('thread_id') ?? $executionId);
+        $taskStatus = $this->processor->resolveTaskStatus((string) $request->input('status', 'processing'), 'PROCESSING');
         $responseData = $request->all();
-
-        $taskStatus = match ($statusRaw) {
-            'completed', 'success', 'resolved' => 'COMPLETED',
-            'waiting_approval', 'awaiting_approval' => 'WAITING_APPROVAL',
-            'cancelled', 'rejected', 'timeout' => 'CANCELLED',
-            'failed', 'error' => 'FAILED',
-            'processing', 'in_progress', 'observing', 'reasoning', 'planning', 'executing', 'verifying', 'diagnosing', 'rolling_back', 'queued' => 'PROCESSING',
-            default => 'PROCESSING',
-        };
 
         $requiresApproval = (bool) (
             $request->boolean('requires_approval')
             || $taskStatus === 'WAITING_APPROVAL'
-            || !empty($request->input('pending_approval_id'))
+            || ! empty($request->input('pending_approval_id'))
         );
 
         $completedAt = in_array($taskStatus, ['COMPLETED', 'FAILED', 'CANCELLED'])
-            ? (!empty($responseData['completed_at']) ? Carbon::parse($responseData['completed_at']) : now())
+            ? (! empty($responseData['completed_at']) ? Carbon::parse($responseData['completed_at']) : now())
             : null;
 
-        // 3. Update or create AgentTask
-        try {
-            $task = AgentTask::where('task_id', $executionId)
-                ->orWhere('thread_id', $threadId)
-                ->latest()
-                ->first();
+        $prompt = $request->input('prompt') ?? $request->input('response');
+        $this->processor->upsertAgentTask($executionId, $threadId, $agent, $taskStatus, $responseData, $completedAt, $prompt);
+        $this->processor->handlePendingHitlApproval($requiresApproval, $executionId, $threadId, $agent, $responseData, $prompt, $request->ip(), $request->userAgent());
 
-            if ($task) {
-                $existingResult = is_array($task->result_json) ? $task->result_json : [];
-                $mergedResult = array_merge($existingResult, $responseData);
-                $finalText = $responseData['final_output'] ?? $responseData['output'] ?? $responseData['response'] ?? null;
-                if ($finalText && $finalText !== 'Ejecución aceptada y encolada en segundo plano.') {
-                    $mergedResult['output'] = $finalText;
-                    $mergedResult['response'] = $finalText;
-                    $mergedResult['final_output'] = $finalText;
-                }
-
-                // Preserve cognitive steps accumulation if provided
-                if (!empty($responseData['cognitive_steps']) && is_array($responseData['cognitive_steps'])) {
-                    $mergedResult['cognitive_steps'] = $responseData['cognitive_steps'];
-                }
-
-                $updates = [
-                    'status' => $taskStatus,
-                    'result_json' => $mergedResult,
-                ];
-
-                if ($completedAt) {
-                    $updates['completed_at'] = $completedAt;
-                    if ($task->started_at) {
-                        $updates['duration'] = round($completedAt->diffInMilliseconds($task->started_at) / 1000, 2);
-                    }
-                }
-
-                $task->update($updates);
-            } else {
-                $task = AgentTask::create([
-                    'task_id' => $executionId,
-                    'thread_id' => $threadId,
-                    'agent_id' => $agent->agent_id,
-                    'status' => $taskStatus,
-                    'payload_json' => [
-                        'agent_id' => $agent->agent_id,
-                        'prompt' => $request->input('prompt') ?? $request->input('response') ?? '',
-                    ],
-                    'result_json' => $responseData,
-                    'created_at' => now(),
-                    'started_at' => now(),
-                    'completed_at' => $completedAt,
-                ]);
-            }
-        } catch (\Throwable $e) {
-            Log::warning("[InternalExecutionController@statusUpdate] Error actualizando AgentTask '{$executionId}': " . $e->getMessage());
-        }
-
-        // 4. If HITL approval is required, register approval request
-        if ($requiresApproval) {
-            try {
-                $cognitiveSteps = $responseData['cognitive_steps']
-                    ?? $responseData['data']['cognitive_steps']
-                    ?? $responseData['data']['steps']
-                    ?? [];
-
-                $planData = $responseData['data']['plan'] ?? $responseData['plan'] ?? [];
-
-                app(HitlApprovalService::class)->registerPendingApproval([
-                    'thread_id' => $threadId,
-                    'agent_id' => $agent->agent_id,
-                    'task_id' => $executionId,
-                    'prompt' => $request->input('prompt') ?? 'Operación en espera de autorización humana',
-                    'risk_level' => $responseData['data']['risk_assessment']['risk_level'] ?? $responseData['risk_level'] ?? 'HIGH',
-                    'proposed_plan' => $planData,
-                    'cognitive_steps' => $cognitiveSteps,
-                    'compensation_commands' => $responseData['data']['compensation_commands'] ?? $responseData['compensation_commands'] ?? [],
-                    'tools' => $responseData['tools'] ?? null,
-                ], null, $request->ip(), $request->userAgent());
-            } catch (\Throwable $e) {
-                Log::warning("[InternalExecutionController@statusUpdate] Error registrando solicitud HITL para '{$executionId}': " . $e->getMessage());
-            }
-        }
-
-        // 5. Record Audit Event
         AuditEvent::record(
             eventType: 'execution.status_update',
             actionSummary: "Actualización de estado asíncrona procesada para tarea: {$executionId} ({$taskStatus})",

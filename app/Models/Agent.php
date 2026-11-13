@@ -11,6 +11,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasAgentSecrets;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -19,6 +20,7 @@ use Illuminate\Support\Str;
 
 class Agent extends Model
 {
+    use HasAgentSecrets;
     use HasFactory;
 
     protected $table = 'dashboard_agents';
@@ -148,76 +150,6 @@ class Agent extends Model
     }
 
     /**
-     * Transition agent to ACTIVE with permanent credential.
-     */
-    public function markAsActive(string $secretHash, ?string $plainSecret = null): void
-    {
-        $payload = [
-            'status' => 'ACTIVE',
-            'permanent_secret_hash' => $secretHash,
-            'last_heartbeat_at' => now(),
-        ];
-
-        if ($plainSecret !== null) {
-            $payload['permanent_secret_encrypted'] = $plainSecret;
-        }
-
-        $this->update($payload);
-    }
-
-    /**
-     * Safely decrypts and retrieves the permanent secret for HMAC computation.
-     */
-    public function getDecryptedSecret(): ?string
-    {
-        if (empty($this->permanent_secret_encrypted)) {
-            return null;
-        }
-
-        try {
-            return $this->permanent_secret_encrypted;
-        } catch (\Throwable) {
-            try {
-                $raw = $this->getRawOriginal('permanent_secret_encrypted');
-                return $raw ? \Illuminate\Support\Facades\Crypt::decryptString($raw) : null;
-            } catch (\Throwable) {
-                return null;
-            }
-        }
-    }
-
-    /**
-     * Resolve cryptographic HMAC secret for this agent.
-     */
-    public function resolveHmacSecret(): ?string
-    {
-        $secret = $this->getDecryptedSecret();
-        if (!empty($secret)) {
-            return $secret;
-        }
-
-        if (is_array($this->metadata_json)) {
-            $metaSecret = $this->metadata_json['secret'] ?? $this->metadata_json['internal_secret'] ?? null;
-            if (!empty($metaSecret)) {
-                return (string) $metaSecret;
-            }
-        }
-
-        if ($this->agent_id === 'a0000000-0000-0000-0000-000000000002') {
-            return config('agent.devops_secret')
-                ?: env('JG_DEVOPS_SECRET', env('JG_DEVOPS_AGENT_SECRET', env('DEVOPS60K_SECRET', env('DEVOPS60K_API_KEY'))));
-        }
-
-        if ($this->agent_id === 'a0000000-0000-0000-0000-000000000001') {
-            return config('agent.internal_secret')
-                ?: env('JG_CONVERSATIONAL_SECRET', env('JG_AGENTE_SECRET'));
-        }
-
-        $envKey = 'AGENT_SECRET_' . strtoupper(str_replace(['-', ' '], '_', $this->agent_id));
-        return env($envKey) ?: config('agent.internal_secret');
-    }
-
-    /**
      * Transition agent to OFFLINE.
      */
     public function markAsOffline(): void
@@ -225,19 +157,6 @@ class Agent extends Model
         $this->update([
             'status' => 'OFFLINE',
         ]);
-    }
-
-    /**
-     * Verify a presented permanent secret against the stored hash.
-     */
-    public function verifyPermanentSecret(string $plainSecret): bool
-    {
-        if (empty($this->permanent_secret_hash)) {
-            return false;
-        }
-
-        $hash = hash('sha256', trim($plainSecret));
-        return hash_equals((string) $this->permanent_secret_hash, $hash);
     }
 
     /**

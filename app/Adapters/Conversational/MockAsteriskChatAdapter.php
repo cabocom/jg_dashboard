@@ -22,6 +22,10 @@ use Illuminate\Support\Str;
 
 class MockAsteriskChatAdapter
 {
+    public function __construct(
+        protected MockConversationalPayloadFormatter $formatter = new MockConversationalPayloadFormatter()
+    ) {}
+
     /**
      * Process a simulated conversational stimulus (Asterisk Voice Call or Web/Mobile Chat).
      *
@@ -87,43 +91,23 @@ class MockAsteriskChatAdapter
         $client->withCorrelationId($correlationId);
 
         // 4. Build canonical AgentInput
-        $agentInput = [
-            'execution_id' => $executionId,
-            'thread_id' => $threadId,
-            'correlation_id' => $correlationId,
-            'agent_id' => $resolvedAgentId,
-            'prompt' => $prompt,
-            'user_prompt' => $prompt,
-            'parameters' => (object) array_merge(
-                (array) ($payload['parameters'] ?? []),
-                [
-                    'simulation_type' => $simulationType,
-                    'channel' => $channel,
-                    'caller_id' => $callerId,
-                    'is_telephony' => $isAsterisk,
-                ]
-            ),
-            'user_context' => [
-                'user_id' => (string) $callerId,
-                'username' => (string) $callerName,
-                'email' => "{$callerId}@telephony.local",
-                'role' => 'caller',
-                'permissions' => ['agent:execute'],
-            ],
-            'metadata' => (object) [
-                'agent_id' => $resolvedAgentId,
-                'adapter' => 'mock_conversational',
-                'simulation_type' => $simulationType,
-                'channel' => $channel,
-                'call_id' => $callId,
-                'chat_id' => $chatId,
-                'caller_id' => $callerId,
-                'correlation_id' => $correlationId,
-                'client_ip' => $clientIp,
-                'user_agent' => $userAgent,
-                'received_at' => now()->toIso8601String(),
-            ],
-        ];
+        $agentInput = $this->formatter->buildAgentInput(
+            $executionId,
+            $threadId,
+            $correlationId,
+            $resolvedAgentId,
+            $prompt,
+            $simulationType,
+            $channel,
+            $callerId,
+            $callerName,
+            $isAsterisk,
+            $callId,
+            $chatId,
+            $clientIp,
+            $userAgent,
+            (array) ($payload['parameters'] ?? [])
+        );
 
         // 5. Audit incoming stimulus
         AuditEvent::record(
@@ -174,7 +158,7 @@ class MockAsteriskChatAdapter
                     ]
                 );
             } catch (\Throwable $e) {
-                Log::warning("[MockAsteriskChatAdapter] No se pudo persistir AgentTask fallida: " . $e->getMessage());
+                Log::warning('[MockAsteriskChatAdapter] No se pudo persistir AgentTask fallida: '.$e->getMessage());
             }
 
             return [
@@ -209,7 +193,7 @@ class MockAsteriskChatAdapter
                 ]
             );
         } catch (\Throwable $e) {
-            Log::warning("[MockAsteriskChatAdapter] No se pudo persistir AgentTask: " . $e->getMessage());
+            Log::warning('[MockAsteriskChatAdapter] No se pudo persistir AgentTask: '.$e->getMessage());
         }
 
         // 9. Audit completion
@@ -241,56 +225,22 @@ class MockAsteriskChatAdapter
         ];
     }
 
-    /**
-     * Check if the incoming payload resembles an Asterisk PBX / Voice event.
-     */
     protected function isAsteriskPayload(array $payload): bool
     {
-        return isset($payload['call_id'])
-            || isset($payload['caller_id'])
-            || isset($payload['transcript'])
-            || isset($payload['speech'])
-            || isset($payload['extension'])
-            || (isset($payload['channel']) && str_starts_with((string) $payload['channel'], 'SIP/'));
+        return $this->formatter->isAsteriskPayload($payload);
     }
 
-    /**
-     * Extract prompt text from conversational variations.
-     */
     protected function extractConversationalPrompt(array $payload, bool $isAsterisk): string
     {
-        if ($isAsterisk) {
-            foreach (['transcript', 'speech', 'text', 'prompt', 'message'] as $key) {
-                if (!empty($payload[$key]) && is_string($payload[$key])) {
-                    return trim($payload[$key]);
-                }
-            }
-            return "Llamada de voz Asterisk entrante sin transcripción de audio.";
-        }
-
-        foreach (['message', 'text', 'prompt', 'query', 'input'] as $key) {
-            if (!empty($payload[$key]) && is_string($payload[$key])) {
-                return trim($payload[$key]);
-            }
-        }
-
-        if (isset($payload['message']['text']) && is_string($payload['message']['text'])) {
-            return trim($payload['message']['text']);
-        }
-
-        return "Mensaje de chat conversacional recibido sin texto.";
+        return $this->formatter->extractConversationalPrompt($payload, $isAsterisk);
     }
 
-    /**
-     * Resolve target agent, prioritizing the conversational agent runtime.
-     */
     protected function resolveConversationalAgent(?string $targetAgentId): ?Agent
     {
         if (!empty($targetAgentId)) {
             return Agent::find($targetAgentId);
         }
 
-        // Prioritize conversational agent by known UUID or name
         $agent = Agent::where('agent_id', 'a0000000-0000-0000-0000-000000000001')->active()->first();
         if ($agent) {
             return $agent;
@@ -304,27 +254,11 @@ class MockAsteriskChatAdapter
         return Agent::active()->first();
     }
 
-    /**
-     * Extract primary string output from diverse agent payload patterns.
-     */
     protected function extractOutputText(array $data): string
     {
-        foreach (['output', 'result', 'response', 'answer', 'summary'] as $key) {
-            if (isset($data[$key]) && is_string($data[$key]) && trim($data[$key]) !== '') {
-                return trim($data[$key]);
-            }
-        }
-
-        if (isset($data['result_json']['output']) && is_string($data['result_json']['output'])) {
-            return trim($data['result_json']['output']);
-        }
-
-        return "Respuesta conversacional generada sin contenido de texto.";
+        return $this->formatter->extractOutputText($data);
     }
 
-    /**
-     * Serialize output for simulated Asterisk PBX / Voice client.
-     */
     protected function serializeAsteriskOutput(
         string $executionId,
         string $threadId,
@@ -336,32 +270,9 @@ class MockAsteriskChatAdapter
         float $latencyMs,
         array $rawData
     ): array {
-        return [
-            'status' => 'success',
-            'simulation_type' => 'asterisk_voice',
-            'call_id' => $callId ?? $threadId,
-            'channel_id' => $channel,
-            'caller_id' => $callerId,
-            'tts_text' => $outputText,
-            'response' => $outputText,
-            'playback_action' => 'PLAY_TTS',
-            'hangup' => false,
-            'execution_id' => $executionId,
-            'thread_id' => $threadId,
-            'latency_ms' => $latencyMs,
-            'transcript_turn' => [
-                'input' => $prompt,
-                'output' => $outputText,
-            ],
-            'debug' => [
-                'steps_count' => count($rawData['cognitive_steps'] ?? $rawData['steps'] ?? []),
-            ],
-        ];
+        return $this->formatter->serializeAsteriskOutput($executionId, $threadId, $callId, $channel, $callerId, $prompt, $outputText, $latencyMs, $rawData);
     }
 
-    /**
-     * Serialize output for simulated Web / Mobile Chat client.
-     */
     protected function serializeChatOutput(
         string $executionId,
         string $threadId,
@@ -373,22 +284,6 @@ class MockAsteriskChatAdapter
         float $latencyMs,
         array $rawData
     ): array {
-        return [
-            'status' => 'success',
-            'simulation_type' => 'chat',
-            'chat_id' => $chatId ?? $threadId,
-            'channel' => $channel,
-            'sender' => $sender,
-            'text' => $outputText,
-            'response' => $outputText,
-            'execution_id' => $executionId,
-            'thread_id' => $threadId,
-            'latency_ms' => $latencyMs,
-            'conversation' => [
-                'last_message' => $prompt,
-                'reply' => $outputText,
-                'is_final' => true,
-            ],
-        ];
+        return $this->formatter->serializeChatOutput($executionId, $threadId, $chatId, $channel, $sender, $prompt, $outputText, $latencyMs, $rawData);
     }
 }

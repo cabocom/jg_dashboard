@@ -1,10 +1,18 @@
 # CONTEXTO DE PROYECTO: jg_dashboard
 
-**Versión del documento:** 3.38.0  
-**Fecha de consolidación:** 12 de noviembre de 2026  
+**Versión del documento:** 3.39.0  
+**Fecha de consolidación:** 13 de noviembre de 2026  
 **Componente:** Control Plane (Plano de Control, Gestión, Gobernanza y HITL)  
 **Stack Tecnológico:** Laravel 11, Filament PHP v3, Livewire 3, Tailwind CSS, PostgreSQL, Pest PHP  
-**Estado:** Fases 01 a 09 completadas al 100%. Refactorización Estructural v2.0 SOLID CULMINADA (jg_dashboard#58 - Fases 1, 2 y 3 al 100%): 100% de ficheros y clases por debajo de 300 LOC y métodos <40 LOC. Descomposición de monolitos en servicios y acciones de responsabilidad única: `HitlApprovalService.php` (949 -> 181 LOC), `ExecutionController.php` (507 -> 51 LOC), `WebConsoleController.php` (598 -> 289 LOC), `AgentHttpClient.php` (434 -> 265 LOC), `JwtService.php` (433 -> 281 LOC), `console/index.blade.php` (864 -> 57 LOC) y `topology-map.blade.php` (455 -> 63 LOC). Soporte multi-agente, pasarela completa de adaptadores externos, servicio criptográfico JWT estándar con rotación y blacklist, webhook de actualización asíncrona HMAC y sincronización automática de *mirror* público (`workspace#8`).  
+**Estado:** Fases 01 a 09 completadas al 100%. Refactorización Estructural v2.0 SOLID CULMINADA (jg_dashboard#58 - 100% de ficheros y clases del backend <= 300 LOC y métodos <40 LOC): Modularización completa de los 6 últimos ficheros: `InputNormalizer.php` (234 LOC) vía `StimulusPromptExtractor`, `Agent.php` (240 LOC) vía `HasAgentSecrets`, `AgentRegistrationService.php` (238 LOC) vía `BootstrapTokenService`, `MockAsteriskChatAdapter.php` (289 LOC) vía `MockConversationalPayloadFormatter`, `AgentTaskResource.php` (90 LOC) vía `AgentTaskTable` y `AgentTaskInfolist`, e `InternalExecutionController.php` (166 LOC) vía `InternalExecutionWebhookProcessor`. Todos los 336 tests pasando (1.560 assertions) en 5.54s sin rotura de compatibilidad.
+- Refactorización Estructural SOLID v2.0 (jg_dashboard#58 - Fase 4: Clases de Adaptadores, Modelos, Recursos y Webhooks):
+  * `app/Adapters/Normalizers/InputNormalizer.php` (305 -> 234 LOC): Extraída la extracción y heurísticas de prompts de diversos proveedores (GitLab CI, Asterisk, Webhooks) a `StimulusPromptExtractor.php` (99 LOC).
+  * `app/Models/Agent.php` (321 -> 240 LOC): Extraída la lógica criptográfica de secretos permanentes, resolución de credenciales y descifrado AES a trait `HasAgentSecrets.php` (94 LOC).
+  * `app/Services/Agents/AgentRegistrationService.php` (323 -> 238 LOC): Extraída la validación, expiración, regeneración y revocación de tokens temporales a `BootstrapTokenService.php` (146 LOC).
+  * `app/Adapters/Conversational/MockAsteriskChatAdapter.php` (394 -> 289 LOC): Extraído el formateo de payload, detección Asterisk y serialización de salidas telefónicas/chat a `MockConversationalPayloadFormatter.php` (202 LOC).
+  * `app/Filament/Resources/AgentTaskResource.php` (352 -> 90 LOC): Extraída la tabla Filament y acciones HITL a `AgentTaskTable.php` (238 LOC) y el infolist a `AgentTaskInfolist.php` (83 LOC).
+  * `app/Http/Controllers/Api/InternalExecutionController.php` (348 -> 166 LOC): Extraída la resolución de estados, persistencia de `AgentTask` y registro de solicitudes HITL a `InternalExecutionWebhookProcessor.php` (145 LOC).
+  * Suite completa Pest (336 tests, 1.560 assertions) pasando al 100% en verde en 5.54s.
 - Refactorización Estructural SOLID v2.0 (jg_dashboard#58 - Fase 3: Vistas y Clientes HTTP/JWT):
   * `App\Services\Agents\AgentHttpClient` (434 -> 265 LOC): Cliente HTTP adelgazado y enfocado a la API de agentes, delegando firmas canónicas HMAC en `App\Services\Agents\AgentHmacSigner` (97 LOC), orquestación y retries en `App\Services\Agents\AgentHttpRequestDispatcher` (125 LOC) y tratamiento de excepciones en `App\Services\Agents\AgentHttpResponseHandler` (172 LOC).
   * `App\Services\Auth\JwtService` (433 -> 281 LOC): Servicio JWT desacoplado enfocado a emisión y validación RFC 7519, delegando la gestión y rotación de claves en `App\Services\Auth\JwtKeyManager` (136 LOC) y el blacklist con invalidación L1/L2 en `App\Services\Auth\JwtBlacklistService` (135 LOC).

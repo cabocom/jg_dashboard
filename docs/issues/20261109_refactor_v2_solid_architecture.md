@@ -59,6 +59,15 @@ Todos los 7 ficheros monolíticos detectados han sido descompuestos y reducidos 
     * `resources/views/console/index.blade.php` (864 -> 57 LOC): Descompuesto en 7 partials de vistas y 6 partials de modales en `resources/views/console/partials/`.
     * `resources/views/filament/pages/topology-map.blade.php` (455 -> 63 LOC): Descompuesto en partials para panel lateral, métricas y scripts Alpine/Vis.js en `resources/views/filament/pages/partials/`.
 
+- **Fase 4 (Adaptadores, Modelos, Recursos Filament y Webhooks) [COMPLETADA]:**
+  - `InputNormalizer.php` reducido de **305 LOC a 234 LOC** extrayendo `StimulusPromptExtractor.php` (99 LOC).
+  - `Agent.php` reducido de **321 LOC a 240 LOC** extrayendo la gestión criptográfica de secretos a trait `HasAgentSecrets.php` (94 LOC).
+  - `AgentRegistrationService.php` reducido de **323 LOC a 238 LOC** extrayendo tokens bootstrap a `BootstrapTokenService.php` (146 LOC).
+  - `MockAsteriskChatAdapter.php` reducido de **394 LOC a 289 LOC** extrayendo formateo y serializaciones a `MockConversationalPayloadFormatter.php` (202 LOC).
+  - `AgentTaskResource.php` reducido de **352 LOC a 90 LOC** extrayendo tabla Filament y acciones HITL a `AgentTaskTable.php` (238 LOC) y ficha a `AgentTaskInfolist.php` (83 LOC).
+  - `InternalExecutionController.php` reducido de **348 LOC a 166 LOC** extrayendo upsert de tareas, HITL y auditoría a `InternalExecutionWebhookProcessor.php` (145 LOC).
+  - Cero ficheros PHP > 300 LOC en todo el backend del proyecto.
+
 ## 4. Criterios de Aceptación y Verificación
 
 - [x] 100% de clases y módulos de la refactorización por debajo de 300 LOC.
