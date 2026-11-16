@@ -104,6 +104,7 @@ class MockConversationalPayloadFormatter
                     'simulation_type' => $simulationType,
                     'channel' => $channel,
                     'caller_id' => $callerId,
+                    'short_answer' => $isAsterisk,
                     'is_telephony' => $isAsterisk,
                 ]
             ),
@@ -144,7 +145,7 @@ class MockConversationalPayloadFormatter
         float $latencyMs,
         array $rawData
     ): array {
-        $cleanTts = $this->sanitizeForVoiceTts($outputText);
+        $cleanOutput = $this->sanitizeShortAnswer($outputText);
 
         return [
             'status' => 'success',
@@ -152,8 +153,8 @@ class MockConversationalPayloadFormatter
             'call_id' => $callId ?? $threadId,
             'channel_id' => $channel,
             'caller_id' => $callerId,
-            'tts_text' => $cleanTts,
-            'response' => $cleanTts,
+            'tts_text' => $cleanOutput,
+            'response' => $cleanOutput,
             'playback_action' => 'PLAY_TTS',
             'hangup' => false,
             'execution_id' => $executionId,
@@ -161,7 +162,7 @@ class MockConversationalPayloadFormatter
             'latency_ms' => $latencyMs,
             'transcript_turn' => [
                 'input' => $prompt,
-                'output' => $cleanTts,
+                'output' => $cleanOutput,
             ],
             'debug' => [
                 'steps_count' => count($rawData['cognitive_steps'] ?? $rawData['steps'] ?? []),
@@ -170,9 +171,9 @@ class MockConversationalPayloadFormatter
     }
 
     /**
-     * Adapta y limpia un texto para locución por sintetizador de voz (TTS telefónico).
+     * Limpia y formatea el texto en modalidad de respuesta corta (sin URLs, fuentes ni markdown).
      */
-    public function sanitizeForVoiceTts(string $text): string
+    public function sanitizeShortAnswer(string $text): string
     {
         if (trim($text) === '') {
             return '';
@@ -190,6 +191,14 @@ class MockConversationalPayloadFormatter
 
         // 5. Normalizar espacios en blanco
         return trim((string) preg_replace('/\s+/', ' ', $cleaned));
+    }
+
+    /**
+     * Alias retrocompatible para sanitizeShortAnswer.
+     */
+    public function sanitizeForVoiceTts(string $text): string
+    {
+        return $this->sanitizeShortAnswer($text);
     }
 
     /**
