@@ -41,6 +41,11 @@
                     shape = 'box';
                 } else if (type === 'database') {
                     shape = 'database';
+                } else if (type === 'mcp_server') {
+                    bgColor = '#312e81';
+                    borderColor = '#6366f1';
+                    fontColor = '#e0e7ff';
+                    shape = 'box';
                 }
 
                 if (['down', 'exited', 'dead'].includes(status)) {

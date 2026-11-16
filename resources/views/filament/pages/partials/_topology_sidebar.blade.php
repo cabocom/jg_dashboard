@@ -8,11 +8,14 @@
                     {{ in_array($selectedNode['status'] ?? '', ['down', 'exited', 'dead']) ? 'bg-rose-950/80 text-rose-400 border border-rose-800' : '' }}
                     {{ in_array($selectedNode['status'] ?? '', ['warning', 'restarting', 'paused']) ? 'bg-amber-950/80 text-amber-400 border border-amber-800' : '' }}
                     {{ ($selectedNode['type'] ?? '') === 'host' ? 'bg-blue-950/80 text-blue-400 border border-blue-800' : '' }}
+                    {{ ($selectedNode['type'] ?? '') === 'mcp_server' ? 'bg-indigo-950/80 text-indigo-400 border border-indigo-800' : '' }}
                 ">
                     @if(($selectedNode['type'] ?? '') === 'host')
                         <x-heroicon-o-server class="w-6 h-6" />
                     @elseif(($selectedNode['type'] ?? '') === 'database')
                         <x-heroicon-o-circle-stack class="w-6 h-6" />
+                    @elseif(($selectedNode['type'] ?? '') === 'mcp_server')
+                        <x-heroicon-o-puzzle-piece class="w-6 h-6" />
                     @else
                         <x-heroicon-o-cube class="w-6 h-6" />
                     @endif

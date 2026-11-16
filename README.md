@@ -98,6 +98,7 @@ La jerarquía de roles satisface la relación de orden transitiva: $\text{ADMIN}
 | **Aprovisionamiento de Agentes (`POST /api/v1/admin/agents`)** | Sí | No | No |
 | **Regenerar / Revocar Tokens (`/api/v1/admin/agents/{id}/*`)** | Sí | No | No |
 | **Listar Agentes y Estados (`GET /api/v1/agents`)** | Sí | Sí | Sí |
+| **Servidor MCP Streamable HTTP (`POST /api/v1/mcp`)** | Sí (Token con scope `mcp:read` o `mcp:tools`) | Sí | No |
 | **Inspección de Capacidades (`GET /api/v1/agents/{id}/capabilities`)** | Sí | Sí | Sí |
 | **Consulta de Estado de Ejecución (`GET /api/v1/executions/{id}/{th}`)**| Sí | Sí | Sí |
 | **Disparo de Ejecuciones (`POST /api/v1/executions/trigger`)** | Sí | Sí | No |
@@ -155,6 +156,20 @@ $$\text{Signature} = \text{hash\_hmac}('sha256', \text{CanonicalString}, \text{S
 | **`circuit_breaker_state`** | Control de corte de tráfico por servicio dependiente (`is_tripped`, motivo e historial JSON). |
 | **`infra_topology`** | Snapshots estructurados en grafo (`nodes_json`, `edges_json`) con contadores de salud. |
 | **`notified_incidents`** | Registro y deduplicación de incidentes de observabilidad para mitigar fatiga de alertas. |
+| **`dashboard_api_tokens`** | Tokens de autenticación API para clientes externos (Claude Desktop, Cursor, n8n) con hash SHA-256 y scopes (`mcp:read`, `mcp:tools`). |
+
+---
+
+## 7. Servidor MCP Nativo (Model Context Protocol)
+
+`jg_dashboard` actúa como servidor MCP Streamable HTTP conforme a la especificación estándar JSON-RPC 2.0:
+- **Endpoint:** `POST /api/v1/mcp`
+- **Transporte:** Streamable HTTP estándar sobre PHP-FPM y Nginx (sin SSE persistente).
+- **Autenticación:** Cabecera `Authorization: Bearer jgmcp_<hash>` gestionada mediante `dashboard_api_tokens`.
+- **Seguridad:** Protección activa Anti-DNS Rebinding verificando cabeceras `Host` y `Origin`.
+- **Convención de Nombres:** `{agent_slug}__{tool_name}` (ej. `devops__docker_inspect_container`).
+- **Política de Exposición v1:** Solo herramientas con `risk_level == LOW` y `read_only == true` son descubiertas y ejecutables desde clientes externos.
+- **Invocación Determinista:** Delegación directa con firma HMAC-SHA256 al endpoint `/tools/{tool_name}/execute` del agente correspondiente y registro en `dashboard_audit_events`.
 
 ---
 

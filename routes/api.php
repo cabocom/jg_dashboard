@@ -38,6 +38,11 @@ Route::prefix('v1')->group(function () {
     Route::post('/adapters/mock-asterisk', [MockConversationalAdapterController::class, 'handle'])->name('api.v1.adapters.mock_asterisk');
     Route::post('/adapters/mock-asterisk/{agent_id}', [MockConversationalAdapterController::class, 'handle'])->name('api.v1.adapters.mock_asterisk.agent');
 
+    // MCP Streamable HTTP Server Gateway (Fase MCP: ISSUE-08)
+    Route::post('/mcp', [\App\Http\Controllers\Api\Mcp\McpServerController::class, 'handle'])
+        ->middleware('auth.api_token')
+        ->name('api.v1.mcp');
+
     // Protected endpoints with JWT and RBAC
     Route::middleware('jwt.auth')->group(function () {
         Route::get('/auth/me', [AuthController::class, 'me'])->name('api.v1.auth.me');

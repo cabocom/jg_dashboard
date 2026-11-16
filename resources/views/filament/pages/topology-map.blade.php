@@ -48,6 +48,10 @@
                     <span class="w-2.5 h-2.5 rounded-full bg-blue-500 ring-2 ring-blue-400/20"></span>
                     <span class="text-gray-300 font-medium">Host del Sistema</span>
                 </div>
+                <div class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-indigo-500 ring-2 ring-indigo-400/20"></span>
+                    <span class="text-gray-300 font-medium">Sidecar MCP</span>
+                </div>
             </div>
 
             <!-- Canvas de Vis.js con espacio amplio de 720px -->

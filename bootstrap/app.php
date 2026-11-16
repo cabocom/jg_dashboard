@@ -34,6 +34,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \App\Http\Middleware\RequireRole::class,
             'permission' => \App\Http\Middleware\RequirePermission::class,
             'agent.hmac' => \App\Http\Middleware\VerifyHmacSignature::class,
+            'auth.api_token' => \App\Http\Middleware\AuthenticateApiToken::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

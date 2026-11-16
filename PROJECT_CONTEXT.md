@@ -1,10 +1,19 @@
 # CONTEXTO DE PROYECTO: jg_dashboard
 
-**Versión del documento:** 3.39.0  
-**Fecha de consolidación:** 13 de noviembre de 2026  
-**Componente:** Control Plane (Plano de Control, Gestión, Gobernanza y HITL)  
+**Versión del documento:** 3.40.0  
+**Fecha de consolidación:** 16 de noviembre de 2026  
+**Componente:** Control Plane (Plano de Control, Gestión, Gobernanza, Servidor MCP y HITL)  
 **Stack Tecnológico:** Laravel 11, Filament PHP v3, Livewire 3, Tailwind CSS, PostgreSQL, Pest PHP  
-**Estado:** Fases 01 a 09 completadas al 100%. Refactorización Estructural v2.0 SOLID CULMINADA (jg_dashboard#58 - 100% de ficheros y clases del backend <= 300 LOC y métodos <40 LOC): Modularización completa de los 6 últimos ficheros: `InputNormalizer.php` (234 LOC) vía `StimulusPromptExtractor`, `Agent.php` (240 LOC) vía `HasAgentSecrets`, `AgentRegistrationService.php` (238 LOC) vía `BootstrapTokenService`, `MockAsteriskChatAdapter.php` (289 LOC) vía `MockConversationalPayloadFormatter`, `AgentTaskResource.php` (90 LOC) vía `AgentTaskTable` y `AgentTaskInfolist`, e `InternalExecutionController.php` (166 LOC) vía `InternalExecutionWebhookProcessor`. Todos los 336 tests pasando (1.560 assertions) en 5.54s sin rotura de compatibilidad.
+**Estado:** Fases 01 a 09 completadas al 100%. Fase 3 MCP (Model Context Protocol) culminada con éxito:
+- **Servidor MCP Nativo Streamable HTTP & Gobernanza de Sidecars (jg_dashboard#59, #60, #61):**
+  * `app/Models/ApiToken.php` y migración `dashboard_api_tokens`: Tokens de API externos con hash criptográfico SHA-256 (`jgmcp_...`), scopes granulares (`mcp:read`, `mcp:tools`, `*`), expiración configurable y auditoría `last_used_at`.
+  * `app/Http/Middleware/AuthenticateApiToken.php`: Autenticación Bearer token para endpoints de integración externa sin sesión web.
+  * `app/Http/Controllers/Api/Mcp/McpServerController.php`: Servidor MCP nativo JSON-RPC 2.0 sobre Streamable HTTP (`POST /api/v1/mcp`) con PHP-FPM/Nginx estándar (sin SSE persistente). Protección Anti-DNS Rebinding verificando cabeceras `Host` y `Origin`. Métodos estándar implementados: `initialize`, `ping`, `notifications/initialized`, `tools/list`, `tools/call`. Cabecera `Mcp-Session-Id` en respuestas.
+  * `app/Actions/Mcp/ListMcpToolsAction.php`: Descubrimiento de herramientas con convención de nombres `{agent_slug}__{tool_name}`. Política estricta v1: solo se exponen herramientas con `risk_level == LOW` y `read_only == true`. Resolución de `inputSchema` JSON Schema Pydantic.
+  * `app/Actions/Mcp/CallMcpToolAction.php`: Ejecución determinista de herramientas invocando `POST /tools/{tool_name}/execute` en `jg_agente` con firma HMAC-SHA256 mediante `AgentHttpClient`. Registro completo en `AuditEvent`.
+  * `app/Filament/Pages/TopologyMap.php` y vistas asociadas: Detección y renderizado reactivo de sidecars MCP a partir de `$agent->metrics_json['mcp_sidecars']` y `$agent->capabilities_json['mcp_servers']`. Nodo tipo `mcp_server` (tema índigo, icono puzzle-piece, métricas de schema_hash y tools_count) y aristas `mcp_streamable_http`.
+  * Suite completa Pest (351 tests, 1.617 assertions) pasando al 100% en verde en 5.66s.
+- Refactorización Estructural v2.0 SOLID CULMINADA (jg_dashboard#58 - 100% de ficheros y clases del backend <= 300 LOC y métodos <40 LOC): Modularización completa de los 6 últimos ficheros: `InputNormalizer.php` (234 LOC) vía `StimulusPromptExtractor`, `Agent.php` (240 LOC) vía `HasAgentSecrets`, `AgentRegistrationService.php` (238 LOC) vía `BootstrapTokenService`, `MockAsteriskChatAdapter.php` (289 LOC) vía `MockConversationalPayloadFormatter`, `AgentTaskResource.php` (90 LOC) vía `AgentTaskTable` y `AgentTaskInfolist`, e `InternalExecutionController.php` (166 LOC) vía `InternalExecutionWebhookProcessor`. Todos los 336 tests pasando (1.560 assertions) en 5.54s sin rotura de compatibilidad.
 - Refactorización Estructural SOLID v2.0 (jg_dashboard#58 - Fase 4: Clases de Adaptadores, Modelos, Recursos y Webhooks):
   * `app/Adapters/Normalizers/InputNormalizer.php` (305 -> 234 LOC): Extraída la extracción y heurísticas de prompts de diversos proveedores (GitLab CI, Asterisk, Webhooks) a `StimulusPromptExtractor.php` (99 LOC).
   * `app/Models/Agent.php` (321 -> 240 LOC): Extraída la lógica criptográfica de secretos permanentes, resolución de credenciales y descifrado AES a trait `HasAgentSecrets.php` (94 LOC).
