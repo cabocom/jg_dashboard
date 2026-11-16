@@ -144,14 +144,16 @@ class MockConversationalPayloadFormatter
         float $latencyMs,
         array $rawData
     ): array {
+        $cleanTts = $this->sanitizeForVoiceTts($outputText);
+
         return [
             'status' => 'success',
             'simulation_type' => 'asterisk_voice',
             'call_id' => $callId ?? $threadId,
             'channel_id' => $channel,
             'caller_id' => $callerId,
-            'tts_text' => $outputText,
-            'response' => $outputText,
+            'tts_text' => $cleanTts,
+            'response' => $cleanTts,
             'playback_action' => 'PLAY_TTS',
             'hangup' => false,
             'execution_id' => $executionId,
@@ -159,12 +161,35 @@ class MockConversationalPayloadFormatter
             'latency_ms' => $latencyMs,
             'transcript_turn' => [
                 'input' => $prompt,
-                'output' => $outputText,
+                'output' => $cleanTts,
             ],
             'debug' => [
                 'steps_count' => count($rawData['cognitive_steps'] ?? $rawData['steps'] ?? []),
             ],
         ];
+    }
+
+    /**
+     * Adapta y limpia un texto para locución por sintetizador de voz (TTS telefónico).
+     */
+    public function sanitizeForVoiceTts(string $text): string
+    {
+        if (trim($text) === '') {
+            return '';
+        }
+
+        // 1. Eliminar URLs completas
+        $cleaned = (string) preg_replace('/https?:\/\/\S+/', '', $text);
+        // 2. Transformar enlaces markdown [texto](url) -> texto
+        $cleaned = (string) preg_replace('/\[([^\]]+)\]\([^\)]+\)/', '$1', $cleaned);
+        // 3. Eliminar menciones y citas de fuentes
+        $cleaned = (string) preg_replace('/(?i)\(?(?:fuente|fuentes|disponible en|según datos de)\s*:\s*[^\n.)]*\)?/', '', $cleaned);
+        // 4. Eliminar sintaxis markdown (negritas, encabezados, viñetas)
+        $cleaned = (string) preg_replace('/[*_#`~]+/', '', $cleaned);
+        $cleaned = (string) preg_replace('/^\s*[-•*]\s+/m', '', $cleaned);
+
+        // 5. Normalizar espacios en blanco
+        return trim((string) preg_replace('/\s+/', ' ', $cleaned));
     }
 
     /**

@@ -1,10 +1,10 @@
 # CONTEXTO DE PROYECTO: jg_dashboard
 
-**Versión del documento:** 3.40.0  
+**Versión del documento:** 3.41.0  
 **Fecha de consolidación:** 16 de noviembre de 2026  
 **Componente:** Control Plane (Plano de Control, Gestión, Gobernanza, Servidor MCP y HITL)  
 **Stack Tecnológico:** Laravel 11, Filament PHP v3, Livewire 3, Tailwind CSS, PostgreSQL, Pest PHP  
-**Estado:** Fases 01 a 09 completadas al 100%. Fase 3 MCP (Model Context Protocol) culminada con éxito:
+**Estado:** Fases 01 a 09 completadas al 100%. Fase 3 MCP (Model Context Protocol) culminada. Adaptación para Telefonía Asterisk PBX / TTS: Sanitización automática de textos para locución TTS (`sanitizeForVoiceTts`) en `MockConversationalPayloadFormatter` que purga URLs, fuentes y markdown de las propiedades `tts_text` y `response`. 351 tests pasando al 100% (1.617 assertions).
 - **Servidor MCP Nativo Streamable HTTP & Gobernanza de Sidecars (jg_dashboard#59, #60, #61):**
   * `app/Models/ApiToken.php` y migración `dashboard_api_tokens`: Tokens de API externos con hash criptográfico SHA-256 (`jgmcp_...`), scopes granulares (`mcp:read`, `mcp:tools`, `*`), expiración configurable y auditoría `last_used_at`.
   * `app/Http/Middleware/AuthenticateApiToken.php`: Autenticación Bearer token para endpoints de integración externa sin sesión web.
