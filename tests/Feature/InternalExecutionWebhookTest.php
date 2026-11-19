@@ -12,8 +12,11 @@
 use App\Models\Agent;
 use App\Models\AgentTask;
 use App\Models\ApprovalRequest;
+use Illuminate\Support\Facades\Http;
 
 beforeEach(function () {
+    Http::fake();
+
     $this->plainSecret = 'sec_' . bin2hex(random_bytes(24));
     $this->secretHash = hash('sha256', $this->plainSecret);
 

@@ -1,10 +1,18 @@
 # CONTEXTO DE PROYECTO: jg_dashboard
 
-**Versión del documento:** 3.44.0  
+**Versión del documento:** 3.44.1  
 **Fecha de consolidación:** 19 de noviembre de 2026  
 **Componente:** Control Plane (Plano de Control, Gestión, Gobernanza, Servidor MCP y HITL)  
 **Stack Tecnológico:** Laravel 11, Filament PHP v3, Livewire 3, Tailwind CSS, PostgreSQL, Pest PHP  
-**Estado:** Modularización JS de Consola y Segregación de Clases a <= 10 Métodos Públicos (ISSUE-34 / jg_dashboard#64) completado:
+**Estado:** Erradicación de Fugas de Peticiones HTTP en Tests Unitarios y de Feature:
+- **Mock de Transporte en `InternalExecutionWebhookTest` y `HitlApprovalServiceTest`:**
+  * Inyectado `Http::fake()` en el `beforeEach` de `InternalExecutionWebhookTest.php` y `HitlApprovalServiceTest.php`.
+  * Evitada la conexión real a `http://127.0.0.1:8000` durante la sincronización pasiva del plan (`RegisterHitlApprovalAction::hydratePlanFromAgent()`), previniendo bloqueos y cuelgues por sockets abiertos o timeouts en ejecuciones locales y de CI/CD.
+  * Suite Pest completa: 354 tests pasando al 100% (1.630 assertions) en 5.41s.
+
+## Resumen de Hitos Anteriores
+
+- **Modularización JS de Consola y Segregación de Clases a <= 10 Métodos Públicos (ISSUE-34 / jg_dashboard#64) completado:**
 - **Modularización de `public/js/console.js` (2,747 LOC):** Monolito frontend descompuesto al 100% en 17 submódulos ES6 en `public/js/modules/` (`api.js`, `state.js`, `telemetry.js`, `hitl.js`, `hitl_plan.js`, `timeline.js`, `steps_timeline.js`, `executions.js`, `events_core.js`, `events_executions.js`, `events.js`, `agents.js`, `modals.js`, `trace_modal.js`, `tabs.js`, `shortcuts.js`, `ui.js`) y orquestador central `console.js` (66 LOC), todos estrictamente $\le 297$ LOC.
 - **Segregación SRP en Controladores Web y API:**
   * `AgentController.php`: Reducido a 65 LOC (3 métodos públicos), delegando el listado en `ListAgentsApiAction` (82 LOC) y capacidades en `FetchAgentCapabilitiesAction` (72 LOC).
