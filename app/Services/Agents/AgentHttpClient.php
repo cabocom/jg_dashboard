@@ -12,11 +12,15 @@
 namespace App\Services\Agents;
 
 use App\Models\Agent;
+use App\Services\Agents\Concerns\HasAgentHttpClientConfiguration;
+use App\Services\Agents\Concerns\HasAgentInspection;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Str;
 
 class AgentHttpClient
 {
+    use HasAgentHttpClientConfiguration;
+    use HasAgentInspection;
     protected string $baseUrl;
 
     protected ?string $internalSecret = null;
@@ -87,68 +91,7 @@ class AgentHttpClient
         return $instance;
     }
 
-    public function withBaseUrl(string $baseUrl): self
-    {
-        $this->baseUrl = rtrim($baseUrl, '/');
 
-        return $this;
-    }
-
-    public function withSecret(string $secret): self
-    {
-        $this->internalSecret = $secret;
-
-        return $this;
-    }
-
-    public function withAgentId(string $agentId): self
-    {
-        $this->agentId = $agentId;
-
-        if ($agentId === 'a0000000-0000-0000-0000-000000000002') {
-            $this->internalSecret = Config::get('agent.devops_secret');
-        } elseif ($agentId === 'a0000000-0000-0000-0000-000000000001') {
-            $this->internalSecret = Config::get('agent.conversational_secret') ?: Config::get('agent.internal_secret');
-        } else {
-            $this->internalSecret = Config::get('agent.secrets.'.$agentId) ?: Config::get('agent.internal_secret');
-        }
-
-        return $this;
-    }
-
-    public function withCorrelationId(string $correlationId): self
-    {
-        $this->correlationId = $correlationId;
-
-        return $this;
-    }
-
-    public function getCorrelationId(): ?string
-    {
-        return $this->correlationId;
-    }
-
-    public function getBaseUrl(): string
-    {
-        return $this->baseUrl;
-    }
-
-    public function getAgentId(): ?string
-    {
-        return $this->agentId;
-    }
-
-    public function withTimeout(int $timeout): self
-    {
-        $this->timeout = $timeout;
-
-        return $this;
-    }
-
-    public function getTimeout(): int
-    {
-        return $this->timeout;
-    }
 
     /**
      * Generate security headers, HMAC signature and correlation tags.
@@ -206,20 +149,7 @@ class AgentHttpClient
         );
     }
 
-    public function checkHealth(?string $baseUrl = null): array
-    {
-        $result = $this->sendRequest('GET', '/health', [], [], $baseUrl);
-        if (! $result['success'] && $result['status_code'] === 404) {
-            $result = $this->sendRequest('GET', '/', [], [], $baseUrl);
-        }
 
-        return $result;
-    }
-
-    public function getCapabilities(?string $baseUrl = null): array
-    {
-        return $this->sendRequest('GET', '/capabilities', [], [], $baseUrl);
-    }
 
     public function triggerExecution(array $payload, ?string $baseUrl = null, array $headers = []): array
     {
@@ -255,8 +185,5 @@ class AgentHttpClient
         return $this->sendRequest('POST', "/executions/{$threadId}/reject", $payload, [], $baseUrl);
     }
 
-    public function getMetrics(?string $baseUrl = null): array
-    {
-        return $this->sendRequest('GET', '/metrics', [], [], $baseUrl);
-    }
+
 }

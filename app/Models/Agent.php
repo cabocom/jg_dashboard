@@ -11,7 +11,9 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasAgentScopes;
 use App\Models\Concerns\HasAgentSecrets;
+use App\Models\Concerns\HasAgentState;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -20,7 +22,9 @@ use Illuminate\Support\Str;
 
 class Agent extends Model
 {
+    use HasAgentScopes;
     use HasAgentSecrets;
+    use HasAgentState;
     use HasFactory;
 
     protected $table = 'dashboard_agents';
@@ -84,97 +88,7 @@ class Agent extends Model
         });
     }
 
-    /**
-     * Scope for active registered agents.
-     */
-    public function scopeActive(Builder $query): Builder
-    {
-        return $query->where('status', 'ACTIVE');
-    }
 
-    /**
-     * Scope for pending registration agents.
-     */
-    public function scopePending(Builder $query): Builder
-    {
-        return $query->where('status', 'PENDING');
-    }
-
-    /**
-     * Scope for offline agents.
-     */
-    public function scopeOffline(Builder $query): Builder
-    {
-        return $query->where('status', 'OFFLINE');
-    }
-
-    /**
-     * Scope for agents that have timed out without heartbeat in the last N seconds.
-     */
-    public function scopeTimedOut(Builder $query, int $timeoutSeconds = 90): Builder
-    {
-        $threshold = now()->subSeconds($timeoutSeconds);
-
-        return $query->where('status', 'ACTIVE')
-            ->where(function (Builder $subQuery) use ($threshold) {
-                $subQuery->whereNull('last_heartbeat_at')
-                    ->orWhere('last_heartbeat_at', '<', $threshold);
-            });
-    }
-
-    public function isActive(): bool
-    {
-        return $this->status === 'ACTIVE';
-    }
-
-    public function isPending(): bool
-    {
-        return $this->status === 'PENDING';
-    }
-
-    public function isOffline(): bool
-    {
-        return $this->status === 'OFFLINE';
-    }
-
-    /**
-     * Determines if the agent is considered healthy based on heartbeat recency.
-     */
-    public function isHealthy(int $timeoutSeconds = 90): bool
-    {
-        if (!$this->isActive() || !$this->last_heartbeat_at) {
-            return false;
-        }
-
-        return $this->last_heartbeat_at->diffInSeconds(now()) <= $timeoutSeconds;
-    }
-
-    /**
-     * Transition agent to OFFLINE.
-     */
-    public function markAsOffline(): void
-    {
-        $this->update([
-            'status' => 'OFFLINE',
-        ]);
-    }
-
-    /**
-     * Update agent heartbeat timestamp and latest metrics.
-     */
-    public function recordHeartbeat(?array $metrics = null): void
-    {
-        $payload = [
-            'last_heartbeat_at' => now(),
-            'status' => 'ACTIVE',
-        ];
-
-        if ($metrics !== null) {
-            $payload['metrics_json'] = $metrics;
-        }
-
-        $this->update($payload);
-    }
 
     /**
      * Bootstrap tokens generated for onboarding this agent.

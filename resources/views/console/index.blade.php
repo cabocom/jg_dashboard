@@ -52,6 +52,6 @@
   <div id="toast-container" class="toast-container"></div>
 
   <!-- Client JavaScript -->
-  <script src="/js/console.js?v={{ file_exists(public_path('js/console.js')) ? filemtime(public_path('js/console.js')) : time() }}"></script>
+  <script type="module" src="/js/console.js?v={{ file_exists(public_path('js/console.js')) ? filemtime(public_path('js/console.js')) : time() }}"></script>
 </body>
 </html>

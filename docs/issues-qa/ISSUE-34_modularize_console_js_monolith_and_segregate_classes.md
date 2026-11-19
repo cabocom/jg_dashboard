@@ -19,4 +19,4 @@
   1. Modularizar `public/js/console.js` en módulos ES6 separados por responsabilidad (`api.js`, `state.js`, `telemetry.js`, `hitl.js`, `tabs.js`), ninguno superior a 300 líneas.
   2. Extraer las operaciones de `AgentController::index` y `capabilities` a clases `Action` dedicadas y reducir los métodos públicos de las 7 clases señaladas a `<= 10`.
 - **Criterios de Aceptación (Checklist verificable):**
-  - [ ] Ningún archivo JS o clase PHP en `jg_dashboard` supera las 300 líneas ni los 10 métodos públicos.
+  - [x] Ningún archivo JS o clase PHP en `jg_dashboard` supera las 300 líneas ni los 10 métodos públicos.

@@ -28,8 +28,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/console/approvals/pending', [WebConsoleController::class, 'pendingApprovals'])->name('console.approvals.pending');
     Route::get('/console/executions', [WebConsoleController::class, 'listExecutions'])->name('console.executions.index');
     Route::get('/console/executions/{agent_id}/{thread_id}', [WebConsoleController::class, 'showExecution'])->name('console.executions.show');
-    Route::get('/console/profile', [WebConsoleController::class, 'getProfile'])->name('console.profile.get');
-    Route::match(['post', 'put'], '/console/profile', [WebConsoleController::class, 'updateProfile'])->name('console.profile.update');
+    Route::get('/console/profile', [\App\Http\Controllers\ConsoleProfileController::class, 'getProfile'])->name('console.profile.get');
+    Route::match(['post', 'put'], '/console/profile', [\App\Http\Controllers\ConsoleProfileController::class, 'updateProfile'])->name('console.profile.update');
 
     // Agent provisioning: admin only
     Route::middleware(['role:admin'])->group(function () {

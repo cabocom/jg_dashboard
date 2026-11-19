@@ -11,12 +11,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasTaskScopes;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AgentTask extends Model
 {
+    use HasTaskScopes;
     protected $table = 'agent_tasks';
     protected $primaryKey = 'task_id';
     public $incrementing = false;
@@ -53,37 +55,7 @@ class AgentTask extends Model
         ];
     }
 
-    /**
-     * Scope for tasks waiting for human approval or queued.
-     */
-    public function scopePending(Builder $query): Builder
-    {
-        return $query->whereIn('status', ['QUEUED', 'WAITING_APPROVAL', 'PAUSED']);
-    }
 
-    /**
-     * Scope for currently executing tasks.
-     */
-    public function scopeProcessing(Builder $query): Builder
-    {
-        return $query->where('status', 'PROCESSING');
-    }
-
-    /**
-     * Scope for failed tasks.
-     */
-    public function scopeFailed(Builder $query): Builder
-    {
-        return $query->where('status', 'FAILED');
-    }
-
-    /**
-     * Scope for successfully completed tasks.
-     */
-    public function scopeCompleted(Builder $query): Builder
-    {
-        return $query->where('status', 'COMPLETED');
-    }
 
     /**
      * Helper to retrieve formatted duration.

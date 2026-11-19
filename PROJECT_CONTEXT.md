@@ -1,10 +1,24 @@
 # CONTEXTO DE PROYECTO: jg_dashboard
 
-**Versión del documento:** 3.43.0  
+**Versión del documento:** 3.44.0  
 **Fecha de consolidación:** 19 de noviembre de 2026  
 **Componente:** Control Plane (Plano de Control, Gestión, Gobernanza, Servidor MCP y HITL)  
 **Stack Tecnológico:** Laravel 11, Filament PHP v3, Livewire 3, Tailwind CSS, PostgreSQL, Pest PHP  
-**Estado:** Resiliencia, Deduplicación HITL y Eliminación de N+1 HTTP (ISSUE-33 / jg_dashboard#63) completado:
+**Estado:** Modularización JS de Consola y Segregación de Clases a <= 10 Métodos Públicos (ISSUE-34 / jg_dashboard#64) completado:
+- **Modularización de `public/js/console.js` (2,747 LOC):** Monolito frontend descompuesto al 100% en 17 submódulos ES6 en `public/js/modules/` (`api.js`, `state.js`, `telemetry.js`, `hitl.js`, `hitl_plan.js`, `timeline.js`, `steps_timeline.js`, `executions.js`, `events_core.js`, `events_executions.js`, `events.js`, `agents.js`, `modals.js`, `trace_modal.js`, `tabs.js`, `shortcuts.js`, `ui.js`) y orquestador central `console.js` (66 LOC), todos estrictamente $\le 297$ LOC.
+- **Segregación SRP en Controladores Web y API:**
+  * `AgentController.php`: Reducido a 65 LOC (3 métodos públicos), delegando el listado en `ListAgentsApiAction` (82 LOC) y capacidades en `FetchAgentCapabilitiesAction` (72 LOC).
+  * `WebConsoleController.php`: Reducido a 10 métodos públicos, extrayendo la gestión de perfil a `ConsoleProfileController.php` (45 LOC).
+- **Segregación de Clases y Modelos a <= 10 Métodos Públicos:**
+  * `JwtService.php`: Reducido a 10 métodos públicos delegando claves y revocación en `__call()`.
+  * `AgentHttpClient.php`: Reducido a 8 métodos públicos, segregando configuración fluida a `HasAgentHttpClientConfiguration` (9 métodos) e inspección de estado/métricas a `HasAgentInspection` (3 métodos).
+  * `ApprovalRequest.php`: Reducido a 6 métodos públicos, extrayendo scopes a `HasApprovalScopes` (6 métodos) y helpers de estado a `HasApprovalState` (5 métodos).
+  * `Agent.php`: Reducido a 5 métodos públicos, extrayendo scopes a `HasAgentScopes` (4 métodos) y estado/heartbeat a `HasAgentState` (6 métodos).
+  * `AgentTask.php`: Reducido a 7 métodos públicos, extrayendo scopes de consulta a `HasTaskScopes` (4 métodos).
+  * `BootstrapToken.php`: Reducido a 8 métodos públicos, extrayendo scopes a `HasTokenScopes` (3 métodos).
+- **Cero Clases God y Monolitos:** El 100% de clases y submódulos en `jg_dashboard` cumplen estrictamente las directrices SOLID ($\le 300$ LOC, métodos $\le 40$ LOC, $\le 10$ métodos públicos por clase).
+- **Suite Pest:** 354 tests pasando al 100% (1.630 assertions).
+- **Resiliencia, Deduplicación HITL y Eliminación de N+1 HTTP (ISSUE-33 / jg_dashboard#63):**
 - **Deduplicación DRY en Acciones HITL (`ResolveHitlRequestService`):** Se ha unificado la lógica duplicada (~150 LOC) entre `ApproveHitlRequestAction` y `RejectHitlRequestAction` en `App\Services\Hitl\ResolveHitlRequestService`, reduciendo ambas acciones a clases fachada delgadas (< 55 LOC cada una) que delegan el bloqueo pesimista `lockForUpdate()`, transición a `PROCESSING`, despacho HTTP con HMAC, reversión a `PENDING` ante fallos de red y reconciliación 404/409.
 - **Erradicación de N+1 HTTP en Formateo HITL (`HitlApprovalFormatter`):** Se eliminó la llamada I/O de red `$client->getExecutionStatus(...)` y actualización de BD dentro de `HitlApprovalFormatter::formatApprovalItem()`, trasladando la sincronización pasiva del plan a la fase de registro único en `RegisterHitlApprovalAction::hydratePlanFromAgent()`.
 - **Integración de `CircuitBreakerService` en `AgentHttpRequestDispatcher`:** Conexión del circuit breaker en el despachador de peticiones HTTP hacia agentes. Cuando el target se encuentra en estado `OPEN`, aborta de forma preventiva retornando HTTP 503 (`Circuit Breaker OPEN`) sin saturar sockets; ante respuestas exitosas registra éxito y ante fallos de conexión o 5xx computa fallos consecutivos.

@@ -11,6 +11,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasTokenScopes;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -20,6 +21,7 @@ use Illuminate\Support\Str;
 class BootstrapToken extends Model
 {
     use HasFactory;
+    use HasTokenScopes;
 
     protected $table = 'dashboard_bootstrap_tokens';
 
@@ -152,29 +154,5 @@ class BootstrapToken extends Model
         ];
     }
 
-    /**
-     * Scope for valid tokens (not consumed and not yet expired).
-     */
-    public function scopeValid(Builder $query): Builder
-    {
-        return $query->where('consumed', false)
-            ->where('expires_at', '>', now());
-    }
 
-    /**
-     * Scope for consumed tokens.
-     */
-    public function scopeConsumed(Builder $query): Builder
-    {
-        return $query->where('consumed', true);
-    }
-
-    /**
-     * Scope for expired tokens that were never consumed.
-     */
-    public function scopeExpired(Builder $query): Builder
-    {
-        return $query->where('consumed', false)
-            ->where('expires_at', '<=', now());
-    }
 }

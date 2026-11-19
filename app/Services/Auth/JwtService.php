@@ -42,23 +42,24 @@ class JwtService
         $this->defaultTtlMinutes = $defaultTtlMinutes ?? (int) config('auth.jwt.ttl', 60);
     }
 
-    public function registerKey(string $keyId, string $secret): self
+    /**
+     * Proxy delegation to internal key manager and blacklist services.
+     *
+     * @param  array<int, mixed>  $arguments
+     */
+    public function __call(string $name, array $arguments): mixed
     {
-        $this->keyManager->registerKey($keyId, $secret);
+        if (method_exists($this->keyManager, $name)) {
+            $result = $this->keyManager->{$name}(...$arguments);
 
-        return $this;
-    }
+            return $result === $this->keyManager ? $this : $result;
+        }
 
-    public function setCurrentKeyId(string $keyId): self
-    {
-        $this->keyManager->setCurrentKeyId($keyId);
+        if (method_exists($this->blacklist, $name)) {
+            return $this->blacklist->{$name}(...$arguments);
+        }
 
-        return $this;
-    }
-
-    public function getCurrentKeyId(): string
-    {
-        return $this->keyManager->getCurrentKeyId();
+        throw new \BadMethodCallException("Method {$name} does not exist on JwtService.");
     }
 
     /**
@@ -238,14 +239,7 @@ class JwtService
         return $this->blacklist->revokeToken($token, $reason, fn (string $seg) => $this->base64UrlDecode($seg));
     }
 
-    public function revokeJti(
-        string $jti,
-        ?int $userId = null,
-        ?DateTimeInterface $expiresAt = null,
-        ?string $reason = null
-    ): bool {
-        return $this->blacklist->revokeJti($jti, $userId, $expiresAt, $reason);
-    }
+
 
     public function isRevoked(string $jti): bool
     {

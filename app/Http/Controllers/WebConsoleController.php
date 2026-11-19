@@ -252,38 +252,4 @@ class WebConsoleController extends Controller
     {
         return $action->execute($request);
     }
-
-    /**
-     * Get current authenticated user profile for the web console.
-     */
-    public function getProfile(Request $request): JsonResponse
-    {
-        $user = $request->user();
-        if (!$user) {
-            return response()->json(['error' => 'Unauthenticated', 'message' => 'No autenticado.'], 401);
-        }
-
-        return response()->json([
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'role' => $user->role,
-                'created_at' => $user->created_at?->toIso8601String(),
-            ],
-        ], 200);
-    }
-
-    /**
-     * Update current authenticated user profile and password.
-     */
-    public function updateProfile(Request $request, UpdateConsoleProfileAction $action): JsonResponse
-    {
-        $user = $request->user();
-        if (!$user) {
-            return response()->json(['error' => 'Unauthenticated', 'message' => 'No autenticado.'], 401);
-        }
-
-        return $action->execute($request, $user);
-    }
 }
