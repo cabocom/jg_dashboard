@@ -14,6 +14,11 @@ use App\Models\ApprovalRequest;
 use App\Models\AuditEvent;
 use App\Models\User;
 use App\Services\Hitl\HitlApprovalService;
+use Illuminate\Support\Facades\Http;
+
+beforeEach(function () {
+    Http::fake();
+});
 
 test('HitlApprovalService registers pending approval with plan, tools and risk level', function () {
     $service = new HitlApprovalService();
