@@ -116,6 +116,7 @@ abstract class TestCase extends BaseTestCase
                 $table->string('task_id', 64)->nullable()->index();
                 $table->string('status', 32)->default('PENDING')->index();
                 $table->string('risk_level', 32)->default('HIGH')->index();
+                $table->timestamp('processing_started_at')->nullable()->index();
                 $table->text('proposed_plan_json');
                 $table->text('compensation_commands_json')->nullable();
                 $table->unsignedBigInteger('user_id')->nullable();

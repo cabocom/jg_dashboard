@@ -26,6 +26,6 @@
   2. En `AgentTaskTable::makeApproveHitlAction` (`:143-177`) y `makeRejectHitlAction` (`:195-236`), delegar directamente en `app(ApproveHitlRequestAction::class)->execute(...)` y `app(RejectHitlRequestAction::class)->execute(...)` para garantizar que `ApprovalRequest`, `AgentTask` y `AuditEvent` se actualicen atómicamente con `lockForUpdate()`.
   3. Reemplazar todas las llamadas a `env()` dentro de `app/` y `database/seeders/` por lecturas `config('agent....')` / `config('services....')`.
 - **Criterios de Aceptación (Checklist verificable):**
-  - [ ] Test en `tests/Feature/JwtAndAuthServiceTest.php` verificando que ante caída de la tabla `jwt_revocations`, `isTokenRevoked` actúa en modo *Fail-Closed*.
-  - [ ] Aprobar una tarea desde `AgentTaskTable` deja el `ApprovalRequest` en estado `APPROVED` y registra el `AuditEvent`.
-  - [ ] `grep -rn "env(" app/` en `jg_dashboard` devuelve `0` resultados.
+  - [x] Test en `tests/Feature/JwtAndAuthServiceTest.php` verificando que ante caída de la tabla `jwt_revocations`, `isTokenRevoked` actúa en modo *Fail-Closed*.
+  - [x] Aprobar una tarea desde `AgentTaskTable` deja el `ApprovalRequest` en estado `APPROVED` y registra el `AuditEvent`.
+  - [x] `grep -rn "env(" app/` en `jg_dashboard` devuelve `0` resultados.

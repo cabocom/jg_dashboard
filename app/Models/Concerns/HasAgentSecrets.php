@@ -66,17 +66,15 @@ trait HasAgentSecrets
         }
 
         if ($this->agent_id === 'a0000000-0000-0000-0000-000000000002') {
-            return config('agent.devops_secret')
-                ?: env('JG_DEVOPS_SECRET', env('JG_DEVOPS_AGENT_SECRET', env('DEVOPS60K_SECRET', env('DEVOPS60K_API_KEY'))));
+            return config('agent.devops_secret');
         }
 
         if ($this->agent_id === 'a0000000-0000-0000-0000-000000000001') {
-            return config('agent.internal_secret')
-                ?: env('JG_CONVERSATIONAL_SECRET', env('JG_AGENTE_SECRET'));
+            return config('agent.conversational_secret') ?: config('agent.internal_secret');
         }
 
-        $envKey = 'AGENT_SECRET_' . strtoupper(str_replace(['-', ' '], '_', $this->agent_id));
-        return env($envKey) ?: config('agent.internal_secret');
+        $configKey = 'agent.secrets.' . $this->agent_id;
+        return config($configKey) ?: config('agent.internal_secret');
     }
 
     /**

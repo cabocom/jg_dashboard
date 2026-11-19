@@ -54,7 +54,7 @@ class AgentHttpClient
             $baseUrl ?? Config::get('agent.base_url', Config::get('devops60k.api_url', 'http://jg_agente:8000')),
             '/'
         );
-        $this->agentId = $agentId ?? Config::get('agent.default_agent_id', env('DEFAULT_AGENT_ID', env('AGENT_ID', 'a0000000-0000-0000-0000-000000000002')));
+        $this->agentId = $agentId ?? Config::get('agent.default_agent_id', 'a0000000-0000-0000-0000-000000000002');
 
         $this->internalSecret = $internalSecret ?? Config::get('agent.internal_secret') ?? Config::get('devops60k.api_key');
         if (empty($this->internalSecret) && $this->agentId === 'a0000000-0000-0000-0000-000000000002') {
@@ -106,14 +106,11 @@ class AgentHttpClient
         $this->agentId = $agentId;
 
         if ($agentId === 'a0000000-0000-0000-0000-000000000002') {
-            $this->internalSecret = Config::get('agent.devops_secret')
-                ?: env('JG_DEVOPS_SECRET', env('JG_DEVOPS_AGENT_SECRET', env('DEVOPS60K_SECRET', env('DEVOPS60K_API_KEY'))));
+            $this->internalSecret = Config::get('agent.devops_secret');
         } elseif ($agentId === 'a0000000-0000-0000-0000-000000000001') {
-            $this->internalSecret = Config::get('agent.internal_secret')
-                ?: env('JG_CONVERSATIONAL_SECRET', env('JG_AGENTE_SECRET'));
+            $this->internalSecret = Config::get('agent.conversational_secret') ?: Config::get('agent.internal_secret');
         } else {
-            $envKey = 'AGENT_SECRET_'.strtoupper(str_replace(['-', ' '], '_', $agentId));
-            $this->internalSecret = env($envKey) ?: Config::get('agent.internal_secret');
+            $this->internalSecret = Config::get('agent.secrets.'.$agentId) ?: Config::get('agent.internal_secret');
         }
 
         return $this;

@@ -13,17 +13,19 @@ use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 
 beforeEach(function () {
-    putenv('ADMIN_DEFAULT_PASSWORD');
-    putenv('ADMIN_EMAIL');
-    putenv('ADMIN_NAME');
-    unset($_ENV['ADMIN_DEFAULT_PASSWORD'], $_ENV['ADMIN_EMAIL'], $_ENV['ADMIN_NAME']);
+    config([
+        'agent.admin_default_password' => null,
+        'agent.admin_email' => 'admin@javiergalvez.test.local',
+        'agent.admin_name' => 'Administrador',
+    ]);
 });
 
 afterEach(function () {
-    putenv('ADMIN_DEFAULT_PASSWORD');
-    putenv('ADMIN_EMAIL');
-    putenv('ADMIN_NAME');
-    unset($_ENV['ADMIN_DEFAULT_PASSWORD'], $_ENV['ADMIN_EMAIL'], $_ENV['ADMIN_NAME']);
+    config([
+        'agent.admin_default_password' => null,
+        'agent.admin_email' => 'admin@javiergalvez.test.local',
+        'agent.admin_name' => 'Administrador',
+    ]);
 });
 
 test('dashboard:init-admin creates new admin user with cli options', function () {
@@ -95,9 +97,11 @@ test('dashboard:init-admin fails when password is not provided in cli or env', f
 });
 
 test('dashboard:init-admin uses environment variables when options are omitted', function () {
-    putenv('ADMIN_EMAIL=env_admin@example.com');
-    putenv('ADMIN_DEFAULT_PASSWORD=EnvPassword2026!');
-    putenv('ADMIN_NAME=Env Admin User');
+    config([
+        'agent.admin_email' => 'env_admin@example.com',
+        'agent.admin_default_password' => 'EnvPassword2026!',
+        'agent.admin_name' => 'Env Admin User',
+    ]);
 
     $this->artisan('dashboard:init-admin')
         ->assertExitCode(0)

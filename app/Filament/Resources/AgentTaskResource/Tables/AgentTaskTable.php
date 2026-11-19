@@ -11,10 +11,11 @@
 
 namespace App\Filament\Resources\AgentTaskResource\Tables;
 
+use App\Actions\Hitl\ApproveHitlRequestAction;
+use App\Actions\Hitl\RejectHitlRequestAction;
 use App\Models\Agent;
 use App\Models\AgentTask;
 use App\Models\ApprovalRequest;
-use App\Services\Agents\AgentHttpClient;
 use Filament\Forms;
 use Filament\Notifications\Notification;
 use Filament\Support\Enums\FontWeight;
@@ -124,6 +125,95 @@ class AgentTaskTable
         ];
     }
 
+    protected static function resolveOrCreateApprovalRequest(AgentTask $record, string $defaultType): ApprovalRequest
+    {
+        $approval = ApprovalRequest::where('thread_id', $record->thread_id)
+            ->orWhere('task_id', $record->task_id)
+            ->first();
+
+        if (! $approval) {
+            $targetAgent = Agent::where('agent_id', $record->payload_json['agent_id'] ?? null)->first()
+                ?? Agent::active()->first();
+
+            $approval = ApprovalRequest::create([
+                'thread_id' => $record->thread_id,
+                'task_id' => $record->task_id,
+                'agent_id' => $targetAgent?->agent_id ?? config('agent.default_agent_id'),
+                'status' => 'PENDING',
+                'risk_level' => 'HIGH',
+                'proposed_plan_json' => [
+                    'action' => $record->type ?? $defaultType,
+                    'payload' => $record->payload_json ?? [],
+                ],
+                'compensation_commands_json' => [],
+            ]);
+        }
+
+        return $approval;
+    }
+
+    protected static function handleApproveHitl(AgentTask $record, array $data): void
+    {
+        try {
+            $user = auth()->user();
+            if (! $user) {
+                throw new \Exception('Usuario no autenticado para autorizar HITL.');
+            }
+
+            $approval = static::resolveOrCreateApprovalRequest($record, 'manual_approval');
+            $res = app(ApproveHitlRequestAction::class)->execute($approval->id, $user, $data['notes']);
+
+            if (! ($res['success'] ?? false)) {
+                throw new \Exception($res['error'] ?? 'Fallo al aprobar ejecución');
+            }
+
+            $record->update(['status' => 'COMPLETED', 'completed_at' => now()]);
+            $record->refresh();
+            Notification::make()
+                ->title('Ejecución aprobada y reanudada')
+                ->body("Thread: {$record->thread_id}")
+                ->success()
+                ->send();
+        } catch (\Exception $e) {
+            Notification::make()
+                ->title('Error al aprobar ejecución')
+                ->body($e->getMessage())
+                ->danger()
+                ->send();
+        }
+    }
+
+    protected static function handleRejectHitl(AgentTask $record, array $data): void
+    {
+        try {
+            $user = auth()->user();
+            if (! $user) {
+                throw new \Exception('Usuario no autenticado para rechazar HITL.');
+            }
+
+            $approval = static::resolveOrCreateApprovalRequest($record, 'manual_rejection');
+            $res = app(RejectHitlRequestAction::class)->execute($approval->id, $user, $data['reason']);
+
+            if (! ($res['success'] ?? false)) {
+                throw new \Exception($res['error'] ?? 'Fallo al rechazar ejecución');
+            }
+
+            $record->update(['status' => 'CANCELLED', 'completed_at' => now()]);
+            $record->refresh();
+            Notification::make()
+                ->title('Ejecución rechazada y abortada')
+                ->body("Thread: {$record->thread_id}")
+                ->warning()
+                ->send();
+        } catch (\Exception $e) {
+            Notification::make()
+                ->title('Error al rechazar ejecución')
+                ->body($e->getMessage())
+                ->danger()
+                ->send();
+        }
+    }
+
     protected static function makeApproveHitlAction(): Tables\Actions\Action
     {
         return Tables\Actions\Action::make('approve_hitl')
@@ -140,41 +230,7 @@ class AgentTaskTable
                     ->required(),
             ])
             ->visible(fn (AgentTask $record): bool => in_array($record->status, ['WAITING_APPROVAL', 'PAUSED']) && in_array(auth()->user()?->role, ['admin', 'operator']))
-            ->action(function (AgentTask $record, array $data, AgentHttpClient $apiClient): void {
-                try {
-                    $user = auth()->user()?->name ?? 'operator';
-                    $targetAgent = ApprovalRequest::where('thread_id', $record->thread_id)->first()?->agent
-                        ?? Agent::where('agent_id', $record->payload_json['agent_id'] ?? null)->first()
-                        ?? Agent::active()->first();
-                    $client = $targetAgent ? AgentHttpClient::forAgent($targetAgent) : $apiClient;
-
-                    $res = $client->approveExecution($record->thread_id, [
-                        'justification' => $data['notes'],
-                        'approved' => true,
-                        'user' => [
-                            'name' => $user,
-                        ],
-                    ]);
-
-                    if (!$res['success']) {
-                        throw new \Exception($res['error'] ?? 'Fallo al aprobar ejecución');
-                    }
-
-                    $record->update(['status' => 'COMPLETED']);
-
-                    Notification::make()
-                        ->title('Ejecución aprobada y reanudada')
-                        ->body("Thread: {$record->thread_id}")
-                        ->success()
-                        ->send();
-                } catch (\Exception $e) {
-                    Notification::make()
-                        ->title('Error al aprobar ejecución')
-                        ->body($e->getMessage())
-                        ->danger()
-                        ->send();
-                }
-            });
+            ->action(fn (AgentTask $record, array $data) => static::handleApproveHitl($record, $data));
     }
 
     protected static function makeRejectHitlAction(): Tables\Actions\Action
@@ -192,47 +248,6 @@ class AgentTaskTable
                     ->required(),
             ])
             ->visible(fn (AgentTask $record): bool => in_array($record->status, ['WAITING_APPROVAL', 'PAUSED']) && in_array(auth()->user()?->role, ['admin', 'operator']))
-            ->action(function (AgentTask $record, array $data, AgentHttpClient $apiClient): void {
-                try {
-                    $user = auth()->user()?->name ?? 'operator';
-                    $targetAgent = ApprovalRequest::where('thread_id', $record->thread_id)->first()?->agent
-                        ?? Agent::where('agent_id', $record->payload_json['agent_id'] ?? null)->first()
-                        ?? Agent::active()->first();
-                    $client = $targetAgent ? AgentHttpClient::forAgent($targetAgent) : $apiClient;
-
-                    $res = $client->rejectExecution($record->thread_id, [
-                        'justification' => $data['reason'],
-                        'user' => [
-                            'name' => $user,
-                        ],
-                    ]);
-
-                    if (!$res['success']) {
-                        throw new \Exception($res['error'] ?? 'Fallo al rechazar ejecución');
-                    }
-
-                    $record->update([
-                        'status' => 'CANCELLED',
-                        'completed_at' => now(),
-                    ]);
-
-                    $pendingApproval = ApprovalRequest::where('thread_id', $record->thread_id)->pending()->first();
-                    if ($pendingApproval && auth()->user()) {
-                        $pendingApproval->reject(auth()->user(), $data['reason']);
-                    }
-
-                    Notification::make()
-                        ->title('Ejecución rechazada y abortada')
-                        ->body("Thread: {$record->thread_id}")
-                        ->warning()
-                        ->send();
-                } catch (\Exception $e) {
-                    Notification::make()
-                        ->title('Error al rechazar ejecución')
-                        ->body($e->getMessage())
-                        ->danger()
-                        ->send();
-                }
-            });
+            ->action(fn (AgentTask $record, array $data) => static::handleRejectHitl($record, $data));
     }
 }

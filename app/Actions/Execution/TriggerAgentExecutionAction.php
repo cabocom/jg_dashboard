@@ -81,7 +81,7 @@ class TriggerAgentExecutionAction
 
     protected function buildStatusCallbackUrl(string $executionId): string
     {
-        $internalBaseUrl = env('DASHBOARD_INTERNAL_URL', config('services.dashboard.internal_url', 'http://jg_dashboard:8080'));
+        $internalBaseUrl = config('agent.internal_dashboard_url', 'http://jg_dashboard:8080');
         return rtrim($internalBaseUrl, '/') . "/api/v1/internal/executions/{$executionId}/status-update";
     }
 

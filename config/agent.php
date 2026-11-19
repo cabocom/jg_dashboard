@@ -24,9 +24,21 @@ return [
 
     'internal_secret' => env('JG_AGENTE_SECRET', env('AGENT_SECRET', env('JG_CONVERSATIONAL_SECRET', null))),
 
+    'conversational_secret' => env('JG_CONVERSATIONAL_SECRET', env('JG_AGENTE_SECRET', null)),
+
     'devops_secret' => env('JG_DEVOPS_SECRET', env('JG_DEVOPS_AGENT_SECRET', env('DEVOPS60K_SECRET', env('DEVOPS60K_API_KEY', null)))),
 
     'default_agent_id' => env('DEFAULT_AGENT_ID', env('AGENT_ID', 'a0000000-0000-0000-0000-000000000001')),
+
+    'agent_name' => env('AGENT_NAME', env('CONVERSATIONAL_AGENT_NAME', 'Agente Conversacional')),
+
+    'admin_email' => env('ADMIN_EMAIL', 'admin@javiergalvez.test.local'),
+
+    'admin_name' => env('ADMIN_NAME', 'Administrador'),
+
+    'admin_default_password' => env('ADMIN_DEFAULT_PASSWORD', null),
+
+    'internal_dashboard_url' => env('DASHBOARD_INTERNAL_URL', 'http://jg_dashboard:8080'),
 
     'timeout' => (int) env('AGENT_HTTP_TIMEOUT', 120),
 

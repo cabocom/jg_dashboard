@@ -169,6 +169,15 @@ class AgentTaskResourceTest extends TestCase
 
         $task->refresh();
         $this->assertEquals('COMPLETED', $task->status);
+
+        $approval = \App\Models\ApprovalRequest::where('thread_id', 'th_hitl_action_test')->first();
+        $this->assertNotNull($approval);
+        $this->assertEquals('APPROVED', $approval->status);
+        $this->assertEquals($operator->id, $approval->user_id);
+
+        $audit = \App\Models\AuditEvent::where('event_type', 'hitl.approved')->first();
+        $this->assertNotNull($audit);
+        $this->assertEquals('agent-task-01', $audit->agent_id);
     }
 }
 

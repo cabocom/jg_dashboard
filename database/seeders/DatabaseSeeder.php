@@ -23,7 +23,7 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $adminPassword = env('ADMIN_DEFAULT_PASSWORD');
+        $adminPassword = config('agent.admin_default_password');
 
         if (empty($adminPassword)) {
             throw new RuntimeException(
@@ -32,8 +32,8 @@ class DatabaseSeeder extends Seeder
             );
         }
 
-        $adminEmail = env('ADMIN_EMAIL') ?: 'admin@javiergalvez.test.local';
-        $adminName = env('ADMIN_NAME') ?: 'Administrador';
+        $adminEmail = config('agent.admin_email', 'admin@javiergalvez.test.local');
+        $adminName = config('agent.admin_name', 'Administrador');
 
         User::updateOrCreate(
             ['email' => $adminEmail],
@@ -45,16 +45,15 @@ class DatabaseSeeder extends Seeder
         );
 
         // Seed del Agente principal (agnóstico de plugin)
-        $agentSecret = \Illuminate\Support\Facades\Config::get('agent.internal_secret')
-            ?: env('JG_AGENTE_SECRET', env('JG_CONVERSATIONAL_SECRET'));
+        $agentSecret = \Illuminate\Support\Facades\Config::get('agent.internal_secret');
 
         if (empty($agentSecret)) {
             $agentSecret = 'secret_dev_token_12345';
         }
 
-        $agentId = env('AGENT_ID', 'a0000000-0000-0000-0000-000000000001');
-        $agentName = env('AGENT_NAME', env('CONVERSATIONAL_AGENT_NAME', 'Agente Conversacional'));
-        $agentApiUrl = env('JG_AGENTE_API_URL', 'http://jg_agente:8000');
+        $agentId = config('agent.default_agent_id', 'a0000000-0000-0000-0000-000000000001');
+        $agentName = config('agent.agent_name', 'Agente Conversacional');
+        $agentApiUrl = config('agent.base_url', 'http://jg_agente:8000');
 
         \App\Models\Agent::updateOrCreate(
             ['agent_id' => $agentId],
@@ -76,8 +75,7 @@ class DatabaseSeeder extends Seeder
         );
 
         // Agente DevOps opcional solo si se solicita explícitamente en orquestaciones multi-agente
-        $devopsSecret = \Illuminate\Support\Facades\Config::get('agent.devops_secret')
-            ?: env('JG_DEVOPS_SECRET', env('JG_DEVOPS_AGENT_SECRET', env('DEVOPS60K_SECRET')));
+        $devopsSecret = \Illuminate\Support\Facades\Config::get('agent.devops_secret');
 
         if (!empty($devopsSecret)) {
             \App\Models\Agent::updateOrCreate(

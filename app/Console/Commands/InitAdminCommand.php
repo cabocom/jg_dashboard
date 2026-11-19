@@ -42,15 +42,13 @@ class InitAdminCommand extends Command
     public function handle(): int
     {
         $email = $this->option('email') 
-            ?? env('ADMIN_EMAIL') 
-            ?? 'admin@javiergalvez.test.local';
+            ?? config('agent.admin_email', 'admin@javiergalvez.test.local');
 
         $name = $this->option('name') 
-            ?? env('ADMIN_NAME') 
-            ?? 'Administrador';
+            ?? config('agent.admin_name', 'Administrador');
 
         $password = $this->option('password') 
-            ?? env('ADMIN_DEFAULT_PASSWORD');
+            ?? config('agent.admin_default_password');
 
         if (empty($password)) {
             $this->error('Error de seguridad (CWE-521): La contraseña del administrador no puede estar vacía.');

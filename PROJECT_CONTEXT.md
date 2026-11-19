@@ -1,10 +1,14 @@
 # CONTEXTO DE PROYECTO: jg_dashboard
 
-**Versión del documento:** 3.41.0  
-**Fecha de consolidación:** 16 de noviembre de 2026  
+**Versión del documento:** 3.42.0  
+**Fecha de consolidación:** 19 de noviembre de 2026  
 **Componente:** Control Plane (Plano de Control, Gestión, Gobernanza, Servidor MCP y HITL)  
 **Stack Tecnológico:** Laravel 11, Filament PHP v3, Livewire 3, Tailwind CSS, PostgreSQL, Pest PHP  
-**Estado:** Fases 01 a 09 completadas al 100%. Fase 3 MCP (Model Context Protocol) culminada. Soporte desacoplado para respuestas sintéticas cortas (`short_answer`) y formateo agnóstico (`sanitizeShortAnswer`) en `MockConversationalPayloadFormatter`. 351 tests pasando al 100% (1.617 assertions).
+**Estado:** Endurecimiento de Seguridad, Autorización y Fail-Closed (ISSUE-32 / jg_dashboard#62) completado:
+- **Fail-Closed en Revocación JWT (`JwtBlacklistService`):** Ante fallos o indisponibilidad en la base de datos de revocaciones (`dashboard_jwt_revocations`), el servicio deniega el token de forma preventiva retornando `true` (Fail-Closed, CWE-670) y emitiendo `Log::error(...)`.
+- **Gobernanza Atómica HITL en Tablas (`AgentTaskTable`):** Las acciones `approve_hitl` y `reject_hitl` delegan en `ApproveHitlRequestAction` y `RejectHitlRequestAction`, asegurando bloqueo pesimista `lockForUpdate()`, transición a `APPROVED`/`REJECTED`, sincronización de `AgentTask` y registro inmutable en `AuditEvent`.
+- **Eliminación Absoluta de `env()` en Runtime:** Erradicado el 100% de llamadas a `env()` en `app/` y `database/seeders/`, centralizando las opciones en `config/agent.php` (`grep -rn "env(" app/` devuelve 0 resultados).
+- **Suite Pest:** 352 tests pasando al 100% (1.623 assertions).
 - **Servidor MCP Nativo Streamable HTTP & Gobernanza de Sidecars (jg_dashboard#59, #60, #61):**
   * `app/Models/ApiToken.php` y migración `dashboard_api_tokens`: Tokens de API externos con hash criptográfico SHA-256 (`jgmcp_...`), scopes granulares (`mcp:read`, `mcp:tools`, `*`), expiración configurable y auditoría `last_used_at`.
   * `app/Http/Middleware/AuthenticateApiToken.php`: Autenticación Bearer token para endpoints de integración externa sin sesión web.

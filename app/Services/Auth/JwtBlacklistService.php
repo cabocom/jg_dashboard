@@ -15,6 +15,7 @@ use App\Models\JwtRevocation;
 use Carbon\Carbon;
 use DateTimeInterface;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class JwtBlacklistService
@@ -81,7 +82,12 @@ class JwtBlacklistService
             );
 
             return true;
-        } catch (Throwable) {
+        } catch (Throwable $e) {
+            Log::error('JWT Blacklist: fallo al registrar revocación en base de datos', [
+                'jti' => $jti,
+                'error' => $e->getMessage(),
+            ]);
+
             return false;
         }
     }
@@ -128,8 +134,15 @@ class JwtBlacklistService
             }
 
             return $revoked;
-        } catch (Throwable) {
-            return false;
+        } catch (Throwable $e) {
+            Log::error('JWT Blacklist: fallo al consultar BD de revocaciones, aplicando política Fail-Closed (denegar token)', [
+                'jti' => $jti,
+                'error' => $e->getMessage(),
+            ]);
+
+            // Fail-Closed (CWE-670): si no es posible verificar la lista de revocación por fallo de infraestructura,
+            // asumir que el token está revocado para denegar el acceso.
+            return true;
         }
     }
 }

@@ -24,17 +24,13 @@ class DatabaseSeederTest extends TestCase
 
     protected function tearDown(): void
     {
-        putenv('ADMIN_DEFAULT_PASSWORD');
-        unset($_ENV['ADMIN_DEFAULT_PASSWORD']);
-        unset($_SERVER['ADMIN_DEFAULT_PASSWORD']);
+        config(['agent.admin_default_password' => null]);
         parent::tearDown();
     }
 
     public function test_seeder_throws_exception_when_admin_password_is_not_set(): void
     {
-        putenv('ADMIN_DEFAULT_PASSWORD');
-        unset($_ENV['ADMIN_DEFAULT_PASSWORD']);
-        unset($_SERVER['ADMIN_DEFAULT_PASSWORD']);
+        config(['agent.admin_default_password' => null]);
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('ADMIN_DEFAULT_PASSWORD es obligatoria');
@@ -45,8 +41,7 @@ class DatabaseSeederTest extends TestCase
 
     public function test_seeder_creates_admin_user_with_explicit_password(): void
     {
-        putenv('ADMIN_DEFAULT_PASSWORD=MiContrasenaSegura2026!');
-        $_ENV['ADMIN_DEFAULT_PASSWORD'] = 'MiContrasenaSegura2026!';
+        config(['agent.admin_default_password' => 'MiContrasenaSegura2026!']);
 
         $seeder = new DatabaseSeeder();
         $seeder->run();
@@ -61,8 +56,7 @@ class DatabaseSeederTest extends TestCase
     public function test_seeder_updates_existing_admin_user_on_password_rotation(): void
     {
         // Primer seed
-        putenv('ADMIN_DEFAULT_PASSWORD=PrimeraPassword2026!');
-        $_ENV['ADMIN_DEFAULT_PASSWORD'] = 'PrimeraPassword2026!';
+        config(['agent.admin_default_password' => 'PrimeraPassword2026!']);
         $seeder = new DatabaseSeeder();
         $seeder->run();
 
@@ -70,8 +64,7 @@ class DatabaseSeederTest extends TestCase
         $this->assertTrue(Hash::check('PrimeraPassword2026!', $user1->password));
 
         // Rotación de contraseña
-        putenv('ADMIN_DEFAULT_PASSWORD=SegundaPasswordRotada2026#');
-        $_ENV['ADMIN_DEFAULT_PASSWORD'] = 'SegundaPasswordRotada2026#';
+        config(['agent.admin_default_password' => 'SegundaPasswordRotada2026#']);
         $seeder->run();
 
         $user2 = User::where('email', 'admin@javiergalvez.test.local')->first();

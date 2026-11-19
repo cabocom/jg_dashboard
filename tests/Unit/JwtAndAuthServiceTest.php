@@ -287,3 +287,27 @@ test('jwt service supports immediate token revocation via blacklist', function (
     expect($jwt->verifyToken($token))->toBeNull()
         ->and($jwt->getUserFromToken($token))->toBeNull();
 });
+
+test('jwt blacklist service acts in fail-closed mode when database query throws exception', function () {
+    $blacklist = new \App\Services\Auth\JwtBlacklistService();
+    $jti = 'test-jti-fail-closed-9999';
+
+    \Illuminate\Support\Facades\Cache::forget("jwt:revoked:{$jti}");
+
+    // Simular caída o indisponibilidad de la tabla dashboard_jwt_revocations
+    \Illuminate\Support\Facades\Schema::dropIfExists('dashboard_jwt_revocations');
+
+    // Con la tabla rota y sin caché, isRevoked debe actuar en modo Fail-Closed (denegar token retornando true)
+    expect($blacklist->isRevoked($jti))->toBeTrue();
+
+    // Restaurar la tabla para la ejecución posterior de la suite
+    \Illuminate\Support\Facades\Schema::create('dashboard_jwt_revocations', function (\Illuminate\Database\Schema\Blueprint $table) {
+        $table->id();
+        $table->string('jti', 64)->unique()->index();
+        $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
+        $table->timestamp('revoked_at')->useCurrent();
+        $table->timestamp('expires_at')->nullable()->index();
+        $table->string('reason', 128)->nullable();
+        $table->timestamps();
+    });
+});

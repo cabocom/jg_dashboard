@@ -89,10 +89,7 @@ class AgentHmacSigner
      */
     protected function resolveAgentId(?string $agentId): string
     {
-        return $agentId ?: Config::get(
-            'agent.default_agent_id',
-            env('DEFAULT_AGENT_ID', env('AGENT_ID', 'a0000000-0000-0000-0000-000000000002'))
-        );
+        return $agentId ?: Config::get('agent.default_agent_id', 'a0000000-0000-0000-0000-000000000002');
     }
 }
 
