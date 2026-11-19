@@ -12,8 +12,6 @@
 namespace App\Services\Hitl;
 
 use App\Models\ApprovalRequest;
-use App\Services\Agents\AgentHttpClient;
-use Illuminate\Support\Facades\Log;
 
 class HitlApprovalFormatter
 {
@@ -62,49 +60,6 @@ class HitlApprovalFormatter
         $plan = $approval->proposed_plan_json ?? [];
         $prompt = $plan['prompt'] ?? null;
         $cognitiveSteps = $plan['cognitive_steps'] ?? [];
-
-        // Si el plan carece de prompt o de pasos cognitivos, sincronizar en tiempo real con jg_agente
-        if ((empty($prompt) || empty($cognitiveSteps)) && $approval->agent && $approval->thread_id) {
-            try {
-                $client = AgentHttpClient::forAgent($approval->agent);
-                $statusRes = $client->getExecutionStatus($approval->thread_id);
-                if ($statusRes['success'] && ! empty($statusRes['data'])) {
-                    $agentData = $statusRes['data'];
-                    $fetchedPrompt = $agentData['prompt'] ?? ($agentData['goal'] ?? null);
-                    $fetchedSteps = $agentData['cognitive_steps'] ?? ($agentData['steps'] ?? []);
-                    $fetchedPlan = $agentData['plan'] ?? [];
-
-                    $dirty = false;
-                    if (empty($prompt) && ! empty($fetchedPrompt)) {
-                        $prompt = $fetchedPrompt;
-                        $plan['prompt'] = $fetchedPrompt;
-                        $dirty = true;
-                    }
-                    if (empty($cognitiveSteps) && ! empty($fetchedSteps)) {
-                        $cognitiveSteps = $fetchedSteps;
-                        $plan['cognitive_steps'] = $fetchedSteps;
-                        $dirty = true;
-                    }
-                    if (empty($plan['steps']) && ! empty($fetchedPlan['steps'])) {
-                        $plan['steps'] = $fetchedPlan['steps'];
-                        $dirty = true;
-                    }
-                    if (empty($plan['tools_involved']) && ! empty($fetchedPlan['steps'])) {
-                        $planTools = array_filter(array_map(fn ($s) => $s['tool_name'] ?? null, $fetchedPlan['steps']));
-                        if (! empty($planTools)) {
-                            $plan['tools_involved'] = array_values($planTools);
-                            $dirty = true;
-                        }
-                    }
-
-                    if ($dirty) {
-                        $approval->update(['proposed_plan_json' => $plan]);
-                    }
-                }
-            } catch (\Throwable $e) {
-                Log::warning("[HitlApprovalFormatter] Sincronización pasiva de plan omitida para thread '{$approval->thread_id}': ".$e->getMessage());
-            }
-        }
 
         $tools = $plan['tools_involved'] ?? ($plan['tools'] ?? []);
         $planSteps = is_array($plan['steps'] ?? null) ? $plan['steps'] : [];

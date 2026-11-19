@@ -66,14 +66,18 @@ class ListConsoleExecutionsAction
             try {
                 $normalizedFrom = preg_replace('/(\d{2}:\d{2}:\d{2})\s+(\d{2}:\d{2})$/', '$1+$2', trim($dateFrom));
                 $query->where('created_at', '>=', Carbon::parse($normalizedFrom));
-            } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {
+                Log::debug("[ListConsoleExecutionsAction] Error al parsear dateFrom '{$dateFrom}': ".$e->getMessage());
+            }
         }
 
         if ($dateTo) {
             try {
                 $normalizedTo = preg_replace('/(\d{2}:\d{2}:\d{2})\s+(\d{2}:\d{2})$/', '$1+$2', trim($dateTo));
                 $query->where('created_at', '<=', Carbon::parse($normalizedTo));
-            } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {
+                Log::debug("[ListConsoleExecutionsAction] Error al parsear dateTo '{$dateTo}': ".$e->getMessage());
+            }
         }
     }
 
@@ -167,7 +171,7 @@ class ListConsoleExecutionsAction
                 $this->registerApprovalForWaitingTask($pendingTask, $threadId, $remoteData);
             }
         } catch (\Throwable $e) {
-            // Silencioso para garantizar resiliencia en listados
+            Log::debug("[ListConsoleExecutionsAction] Sincronización pasiva de tarea fallida para thread '{$threadId}': ".$e->getMessage());
         }
     }
 

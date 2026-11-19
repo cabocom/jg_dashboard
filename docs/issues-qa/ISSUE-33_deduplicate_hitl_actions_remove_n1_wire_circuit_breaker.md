@@ -21,4 +21,4 @@
   2. Eliminar la llamada HTTP `$client->getExecutionStatus(...)` y el `$approval->update(...)` de `HitlApprovalFormatter::formatApprovalItem` (moviendo la hidratación del plan al momento de registrar la solicitud en `RegisterHitlApprovalAction`).
   3. Integrar `CircuitBreakerService` en `AgentHttpRequestDispatcher` y añadir logging a los bloques `catch` vacíos de `ListConsoleExecutionsAction` y `TopologyMap`.
 - **Criterios de Aceptación (Checklist verificable):**
-  - [ ] `php artisan test` en `jg_dashboard` (352 tests) pasa al 100%.
+  - [x] `php artisan test` en `jg_dashboard` (354 tests) pasa al 100%.

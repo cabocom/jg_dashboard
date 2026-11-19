@@ -16,6 +16,7 @@ use App\Models\InfraTopology;
 use App\Services\Agents\AgentHttpClient;
 use Filament\Pages\Page;
 use Illuminate\Contracts\Support\Htmlable;
+use Illuminate\Support\Facades\Log;
 
 class TopologyMap extends Page
 {
@@ -75,7 +76,7 @@ class TopologyMap extends Page
             $client = app(AgentHttpClient::class);
             $client->checkHealth();
         } catch (\Throwable $e) {
-            // ignore
+            Log::debug('[TopologyMap] Comprobación de salud omitida o fallida: '.$e->getMessage());
         }
     }
 

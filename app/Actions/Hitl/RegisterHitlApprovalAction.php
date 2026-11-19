@@ -11,9 +11,11 @@
 
 namespace App\Actions\Hitl;
 
+use App\Models\Agent;
 use App\Models\ApprovalRequest;
 use App\Models\AuditEvent;
 use App\Models\User;
+use App\Services\Agents\AgentHttpClient;
 use Illuminate\Support\Facades\Log;
 
 class RegisterHitlApprovalAction
@@ -62,6 +64,10 @@ class RegisterHitlApprovalAction
 
         if (! empty($data['cognitive_steps']) && ! isset($plan['cognitive_steps'])) {
             $plan['cognitive_steps'] = $data['cognitive_steps'];
+        }
+
+        if (empty($plan['prompt']) || empty($plan['cognitive_steps'])) {
+            $plan = $this->hydratePlanFromAgent($plan, $threadId, $agentId);
         }
 
         // Evitar duplicidades: si ya existe una solicitud para este hilo, reutilizarla o no recrear si ya está en proceso/resuelta
@@ -114,6 +120,41 @@ class RegisterHitlApprovalAction
         );
 
         return $approval;
+    }
+
+    /**
+     * Sincroniza pasivamente prompt y pasos del agente si no fueron provistos en el payload inicial.
+     */
+    protected function hydratePlanFromAgent(array $plan, string $threadId, ?string $agentId): array
+    {
+        try {
+            $agent = $agentId ? Agent::where('agent_id', $agentId)->first() : Agent::active()->first();
+            if (! $agent) {
+                return $plan;
+            }
+
+            $client = AgentHttpClient::forAgent($agent);
+            $statusRes = $client->getExecutionStatus($threadId);
+            if ($statusRes['success'] && ! empty($statusRes['data'])) {
+                $agentData = $statusRes['data'];
+                $plan['prompt'] = $plan['prompt'] ?? ($agentData['prompt'] ?? ($agentData['goal'] ?? null));
+                $plan['cognitive_steps'] = $plan['cognitive_steps'] ?? ($agentData['cognitive_steps'] ?? ($agentData['steps'] ?? []));
+                $fetchedPlan = $agentData['plan'] ?? [];
+                if (empty($plan['steps']) && ! empty($fetchedPlan['steps'])) {
+                    $plan['steps'] = $fetchedPlan['steps'];
+                }
+                if (empty($plan['tools_involved']) && ! empty($fetchedPlan['steps'])) {
+                    $planTools = array_filter(array_map(fn ($s) => $s['tool_name'] ?? null, $fetchedPlan['steps']));
+                    if (! empty($planTools)) {
+                        $plan['tools_involved'] = array_values($planTools);
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning("[RegisterHitlApprovalAction] Sincronización pasiva de plan omitida para thread '{$threadId}': ".$e->getMessage());
+        }
+
+        return $plan;
     }
 }
 

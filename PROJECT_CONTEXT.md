@@ -1,14 +1,19 @@
 # CONTEXTO DE PROYECTO: jg_dashboard
 
-**Versión del documento:** 3.42.0  
+**Versión del documento:** 3.43.0  
 **Fecha de consolidación:** 19 de noviembre de 2026  
 **Componente:** Control Plane (Plano de Control, Gestión, Gobernanza, Servidor MCP y HITL)  
 **Stack Tecnológico:** Laravel 11, Filament PHP v3, Livewire 3, Tailwind CSS, PostgreSQL, Pest PHP  
-**Estado:** Endurecimiento de Seguridad, Autorización y Fail-Closed (ISSUE-32 / jg_dashboard#62) completado:
-- **Fail-Closed en Revocación JWT (`JwtBlacklistService`):** Ante fallos o indisponibilidad en la base de datos de revocaciones (`dashboard_jwt_revocations`), el servicio deniega el token de forma preventiva retornando `true` (Fail-Closed, CWE-670) y emitiendo `Log::error(...)`.
-- **Gobernanza Atómica HITL en Tablas (`AgentTaskTable`):** Las acciones `approve_hitl` y `reject_hitl` delegan en `ApproveHitlRequestAction` y `RejectHitlRequestAction`, asegurando bloqueo pesimista `lockForUpdate()`, transición a `APPROVED`/`REJECTED`, sincronización de `AgentTask` y registro inmutable en `AuditEvent`.
-- **Eliminación Absoluta de `env()` en Runtime:** Erradicado el 100% de llamadas a `env()` en `app/` y `database/seeders/`, centralizando las opciones en `config/agent.php` (`grep -rn "env(" app/` devuelve 0 resultados).
-- **Suite Pest:** 352 tests pasando al 100% (1.623 assertions).
+**Estado:** Resiliencia, Deduplicación HITL y Eliminación de N+1 HTTP (ISSUE-33 / jg_dashboard#63) completado:
+- **Deduplicación DRY en Acciones HITL (`ResolveHitlRequestService`):** Se ha unificado la lógica duplicada (~150 LOC) entre `ApproveHitlRequestAction` y `RejectHitlRequestAction` en `App\Services\Hitl\ResolveHitlRequestService`, reduciendo ambas acciones a clases fachada delgadas (< 55 LOC cada una) que delegan el bloqueo pesimista `lockForUpdate()`, transición a `PROCESSING`, despacho HTTP con HMAC, reversión a `PENDING` ante fallos de red y reconciliación 404/409.
+- **Erradicación de N+1 HTTP en Formateo HITL (`HitlApprovalFormatter`):** Se eliminó la llamada I/O de red `$client->getExecutionStatus(...)` y actualización de BD dentro de `HitlApprovalFormatter::formatApprovalItem()`, trasladando la sincronización pasiva del plan a la fase de registro único en `RegisterHitlApprovalAction::hydratePlanFromAgent()`.
+- **Integración de `CircuitBreakerService` en `AgentHttpRequestDispatcher`:** Conexión del circuit breaker en el despachador de peticiones HTTP hacia agentes. Cuando el target se encuentra en estado `OPEN`, aborta de forma preventiva retornando HTTP 503 (`Circuit Breaker OPEN`) sin saturar sockets; ante respuestas exitosas registra éxito y ante fallos de conexión o 5xx computa fallos consecutivos.
+- **Defensa ante Bloques Catch Silenciosos:** Sustituidos bloques vacíos por registros de auditoría/diagnóstico con `Log::debug(...)` en `ListConsoleExecutionsAction` (parseo de fechas y sincronización de tareas) y `TopologyMap` (comprobación de salud).
+- **Suite Pest:** 354 tests pasando al 100% (1.630 assertions).
+- **Fail-Closed en Revocación JWT y Gobernanza HITL (ISSUE-32 / jg_dashboard#62):**
+  * `JwtBlacklistService`: Modo Fail-Closed preventivo ante caída de base de datos.
+  * `AgentTaskTable`: Delegación atómica en acciones de caso de uso.
+  * Erradicación total de `env()` fuera de `config/agent.php`.
 - **Servidor MCP Nativo Streamable HTTP & Gobernanza de Sidecars (jg_dashboard#59, #60, #61):**
   * `app/Models/ApiToken.php` y migración `dashboard_api_tokens`: Tokens de API externos con hash criptográfico SHA-256 (`jgmcp_...`), scopes granulares (`mcp:read`, `mcp:tools`, `*`), expiración configurable y auditoría `last_used_at`.
   * `app/Http/Middleware/AuthenticateApiToken.php`: Autenticación Bearer token para endpoints de integración externa sin sesión web.

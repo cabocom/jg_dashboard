@@ -52,24 +52,30 @@ class CircuitBreakerService
      */
     public function getState(string $target): string
     {
-        /** @var CircuitBreakerState|null $record */
-        $record = CircuitBreakerState::where('target', $target)->first();
+        try {
+            /** @var CircuitBreakerState|null $record */
+            $record = CircuitBreakerState::where('target', $target)->first();
 
-        if (! $record || ! $record->is_tripped) {
+            if (! $record || ! $record->is_tripped) {
+                return self::STATE_CLOSED;
+            }
+
+            $lastTrippedAt = $record->updated_at;
+            if (! $lastTrippedAt) {
+                return self::STATE_OPEN;
+            }
+
+            $now = now();
+            if ($now->greaterThanOrEqualTo($lastTrippedAt->copy()->addSeconds($this->cooldownSeconds))) {
+                return self::STATE_HALF_OPEN;
+            }
+
+            return self::STATE_OPEN;
+        } catch (\Throwable $e) {
+            Log::warning("[CircuitBreaker] Error al consultar estado de target '{$target}': ".$e->getMessage());
+
             return self::STATE_CLOSED;
         }
-
-        $lastTrippedAt = $record->updated_at;
-        if (! $lastTrippedAt) {
-            return self::STATE_OPEN;
-        }
-
-        $now = now();
-        if ($now->greaterThanOrEqualTo($lastTrippedAt->copy()->addSeconds($this->cooldownSeconds))) {
-            return self::STATE_HALF_OPEN;
-        }
-
-        return self::STATE_OPEN;
     }
 
     /**
@@ -89,38 +95,42 @@ class CircuitBreakerService
      */
     public function recordSuccess(string $target): void
     {
-        DB::transaction(function () use ($target) {
-            /** @var CircuitBreakerState|null $record */
-            $record = CircuitBreakerState::where('target', $target)->lockForUpdate()->first();
+        try {
+            DB::transaction(function () use ($target) {
+                /** @var CircuitBreakerState|null $record */
+                $record = CircuitBreakerState::where('target', $target)->lockForUpdate()->first();
 
-            if (! $record) {
-                return;
-            }
+                if (! $record) {
+                    return;
+                }
 
-            $currentState = $this->getState($target);
+                $currentState = $this->getState($target);
 
-            if ($currentState === self::STATE_HALF_OPEN || $record->is_tripped) {
-                Log::info("[CircuitBreaker] Sonda exitosa en target '{$target}'. Transicionando de {$currentState} a CLOSED.");
-                $record->update([
-                    'is_tripped' => false,
-                    'tripped_reason' => null,
-                    'failure_history_json' => [
-                        'consecutive_failures' => 0,
-                        'last_success_at' => now()->toIso8601String(),
-                        'recent_failures' => [],
-                    ],
-                    'updated_at' => now(),
-                ]);
-            } else {
-                $history = is_array($record->failure_history_json) ? $record->failure_history_json : [];
-                $history['consecutive_failures'] = 0;
-                $history['last_success_at'] = now()->toIso8601String();
+                if ($currentState === self::STATE_HALF_OPEN || $record->is_tripped) {
+                    Log::info("[CircuitBreaker] Sonda exitosa en target '{$target}'. Transicionando de {$currentState} a CLOSED.");
+                    $record->update([
+                        'is_tripped' => false,
+                        'tripped_reason' => null,
+                        'failure_history_json' => [
+                            'consecutive_failures' => 0,
+                            'last_success_at' => now()->toIso8601String(),
+                            'recent_failures' => [],
+                        ],
+                        'updated_at' => now(),
+                    ]);
+                } else {
+                    $history = is_array($record->failure_history_json) ? $record->failure_history_json : [];
+                    $history['consecutive_failures'] = 0;
+                    $history['last_success_at'] = now()->toIso8601String();
 
-                $record->update([
-                    'failure_history_json' => $history,
-                ]);
-            }
-        });
+                    $record->update([
+                        'failure_history_json' => $history,
+                    ]);
+                }
+            });
+        } catch (\Throwable $e) {
+            Log::warning("[CircuitBreaker] Error al registrar éxito en target '{$target}': ".$e->getMessage());
+        }
     }
 
     /**
@@ -130,59 +140,63 @@ class CircuitBreakerService
      */
     public function recordFailure(string $target, string $reason = ''): void
     {
-        DB::transaction(function () use ($target, $reason) {
-            /** @var CircuitBreakerState $record */
-            $record = CircuitBreakerState::where('target', $target)->lockForUpdate()->first();
+        try {
+            DB::transaction(function () use ($target, $reason) {
+                /** @var CircuitBreakerState $record */
+                $record = CircuitBreakerState::where('target', $target)->lockForUpdate()->first();
 
-            if (! $record) {
-                $record = new CircuitBreakerState;
-                $record->target = $target;
-                $record->is_tripped = false;
-                $record->failure_history_json = ['consecutive_failures' => 0, 'recent_failures' => []];
-            }
+                if (! $record) {
+                    $record = new CircuitBreakerState;
+                    $record->target = $target;
+                    $record->is_tripped = false;
+                    $record->failure_history_json = ['consecutive_failures' => 0, 'recent_failures' => []];
+                }
 
-            $currentState = $this->getState($target);
-            $history = is_array($record->failure_history_json) ? $record->failure_history_json : [];
-            $consecutive = (int) ($history['consecutive_failures'] ?? 0) + 1;
-            $history['consecutive_failures'] = $consecutive;
+                $currentState = $this->getState($target);
+                $history = is_array($record->failure_history_json) ? $record->failure_history_json : [];
+                $consecutive = (int) ($history['consecutive_failures'] ?? 0) + 1;
+                $history['consecutive_failures'] = $consecutive;
 
-            $recent = is_array($history['recent_failures'] ?? null) ? $history['recent_failures'] : [];
-            $recent[] = [
-                'timestamp' => now()->toIso8601String(),
-                'reason' => $reason,
-                'state_when_failed' => $currentState,
-            ];
-            // Mantener solo los últimos 10 fallos
-            if (count($recent) > 10) {
-                $recent = array_slice($recent, -10);
-            }
-            $history['recent_failures'] = $recent;
+                $recent = is_array($history['recent_failures'] ?? null) ? $history['recent_failures'] : [];
+                $recent[] = [
+                    'timestamp' => now()->toIso8601String(),
+                    'reason' => $reason,
+                    'state_when_failed' => $currentState,
+                ];
+                // Mantener solo los últimos 10 fallos
+                if (count($recent) > 10) {
+                    $recent = array_slice($recent, -10);
+                }
+                $history['recent_failures'] = $recent;
 
-            if ($currentState === self::STATE_HALF_OPEN) {
-                // Sonda en HALF_OPEN fallida: vuelta a OPEN de inmediato con nuevo timestamp de enfriamiento
-                Log::warning("[CircuitBreaker] Sonda fallida en HALF_OPEN para target '{$target}'. Circuito vuelve a OPEN.");
-                $record->is_tripped = true;
-                $record->tripped_reason = 'Sonda fallida en estado HALF_OPEN: '.($reason ?: 'Error de conexión');
-                $record->failure_history_json = $history;
-                $record->updated_at = now();
-                $record->save();
+                if ($currentState === self::STATE_HALF_OPEN) {
+                    // Sonda en HALF_OPEN fallida: vuelta a OPEN de inmediato con nuevo timestamp de enfriamiento
+                    Log::warning("[CircuitBreaker] Sonda fallida en HALF_OPEN para target '{$target}'. Circuito vuelve a OPEN.");
+                    $record->is_tripped = true;
+                    $record->tripped_reason = 'Sonda fallida en estado HALF_OPEN: '.($reason ?: 'Error de conexión');
+                    $record->failure_history_json = $history;
+                    $record->updated_at = now();
+                    $record->save();
 
-                return;
-            }
+                    return;
+                }
 
-            if ($consecutive >= $this->failureThreshold) {
-                Log::error("[CircuitBreaker] Target '{$target}' alcanzó {$consecutive} fallos consecutivos (umbral {$this->failureThreshold}). Circuito DISPARADO (OPEN).");
-                $record->is_tripped = true;
-                $record->tripped_reason = $reason ?: "Superado umbral de fallos consecutivos ({$this->failureThreshold})";
-                $record->failure_history_json = $history;
-                $record->updated_at = now();
-                $record->save();
-            } else {
-                $record->failure_history_json = $history;
-                $record->updated_at = now();
-                $record->save();
-            }
-        });
+                if ($consecutive >= $this->failureThreshold) {
+                    Log::error("[CircuitBreaker] Target '{$target}' alcanzó {$consecutive} fallos consecutivos (umbral {$this->failureThreshold}). Circuito DISPARADO (OPEN).");
+                    $record->is_tripped = true;
+                    $record->tripped_reason = $reason ?: "Superado umbral de fallos consecutivos ({$this->failureThreshold})";
+                    $record->failure_history_json = $history;
+                    $record->updated_at = now();
+                    $record->save();
+                } else {
+                    $record->failure_history_json = $history;
+                    $record->updated_at = now();
+                    $record->save();
+                }
+            });
+        } catch (\Throwable $e) {
+            Log::warning("[CircuitBreaker] Error al registrar fallo en target '{$target}': ".$e->getMessage());
+        }
     }
 
     /**
